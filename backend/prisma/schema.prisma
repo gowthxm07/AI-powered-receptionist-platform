@@ -14,6 +14,11 @@ datasource db {
 // ENUMS
 // --------------------------------------------------
 
+enum UserRole {
+  ADMIN
+  BUSINESS_OWNER
+}
+
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
@@ -39,10 +44,29 @@ enum MessageRole {
 }
 
 // --------------------------------------------------
+// 0. USER ENTITY (Authentication & Role Authorization)
+// --------------------------------------------------
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(BUSINESS_OWNER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  businesses   Business[]
+
+  @@map("users")
+}
+
+// --------------------------------------------------
 // 1. BUSINESS ENTITY
 // --------------------------------------------------
 model Business {
   id          String   @id @default(uuid())
+  ownerId     String?
   name        String
   phone       String
   email       String
@@ -53,11 +77,13 @@ model Business {
   updatedAt   DateTime @updatedAt
 
   // Relations
+  owner         User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   staff         Staff[]
   services      Service[]
   appointments  Appointment[]
   conversations Conversation[]
 
+  @@index([ownerId])
   @@map("businesses")
 }
 
