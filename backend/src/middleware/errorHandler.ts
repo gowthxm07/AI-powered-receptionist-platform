@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 
 // 404 Handler for undefined routes
 export const notFoundHandler = (req: Request, res: Response, next: NextFunction): void => {
@@ -15,8 +16,50 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.error('[Unhandled Error]:', err.stack || err.message);
+  console.error('[Application Error]:', err);
 
+  // Prisma Known Request Errors
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    // Unique constraint violation (e.g. unique phone)
+    if (err.code === 'P2002') {
+      const target = Array.isArray(err.meta?.target) ? err.meta?.target.join(', ') : 'field';
+      res.status(409).json({
+        success: false,
+        message: `A record with this ${target} already exists`,
+        errors: [{ field: String(target), message: `Duplicate value violates unique constraint` }],
+      });
+      return;
+    }
+
+    // Record not found for update or delete
+    if (err.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        message: 'The requested record does not exist or was already removed',
+      });
+      return;
+    }
+
+    // Foreign key constraint failed
+    if (err.code === 'P2003') {
+      res.status(400).json({
+        success: false,
+        message: 'Foreign key constraint failed. Related record does not exist.',
+      });
+      return;
+    }
+  }
+
+  // Prisma Validation Error
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid data format provided to database',
+    });
+    return;
+  }
+
+  // Generic fallback error
   res.status(500).json({
     success: false,
     message: 'Internal Server Error',
