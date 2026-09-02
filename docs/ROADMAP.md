@@ -68,6 +68,16 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
+### Phase 3.2.1: API Authorization & Business Data Isolation (COMPLETED ✅)
+- [x] Route-level protection with `authenticate` across all domain APIs (`/api/businesses`, `/api/customers`, `/api/staff`, `/api/services`)
+- [x] Reusable server-side ownership engine (`OwnershipService`)
+- [x] Server-derived user identity from verified JWT signatures (never trusting client-provided user IDs)
+- [x] Strict tenant ownership verification on all resource creation, update, and deletion actions
+- [x] Automated multi-tenant cross-business security test suite (31 tests) proving zero data leakage between User A and User B
+- [x] 82 total master tests verified with 100% pass rate
+
+---
+
 ### Phase 4: Local AI Integration & Conversational Receptionist (Upcoming ⏳)
 - [ ] Ollama integration (Local LLM inference via REST/TypeScript client)
 - [ ] Prompt engineering for receptionist persona, greetings, and inquiry classification

@@ -1,12 +1,13 @@
-# Authentication & Authorization Architecture
+# Authentication, Authorization & Business Data Isolation Architecture
 
-This document describes the complete architecture, implementation, security properties, and endpoints of the **Authentication and Authorization System** (Backend Foundation Phase 3.1 & Frontend Integration Phase 3.2) for the **AI-Powered Smart Receptionist Platform**.
+This document describes the complete architecture, implementation, security properties, and endpoints of the **Authentication, Authorization & Multi-Tenant Business Data Isolation System** for the **AI-Powered Smart Receptionist Platform**.
 
 ---
 
 ## 1. Overview & Technology Stack
 
 - **Authentication Strategy:** Decoupled JWT (JSON Web Tokens) with HTTP-Only Cookie Storage and Bearer Token header fallback.
+- **Authorization & Data Isolation:** Server-enforced tenancy rules via `OwnershipService` mapping verified `req.user.userId` to owned `Business` models and child resources.
 - **Frontend State:** React Context (`AuthContext` + `AuthProvider`) with automatic `/api/auth/me` session validation on initialization.
 - **Frontend API Client:** Centralized `fetcher` abstraction using `credentials: "include"` for secure, client-side token-free cookie transmission.
 - **Password Hashing:** `bcryptjs` with 10 salt rounds.
@@ -17,7 +18,7 @@ This document describes the complete architecture, implementation, security prop
 
 ---
 
-## 2. User Model & Role Design
+## 2. Multi-Tenant Relational Domain Model
 
 Defined in [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma):
 
@@ -41,196 +42,127 @@ model User {
 
   @@map("users")
 }
-```
 
-### Business Ownership Relationship
-A `User` (specifically with role `BUSINESS_OWNER` or `ADMIN`) can own or manage multiple `Business` records via the optional `ownerId` foreign key on the `Business` model:
+model Business {
+  id          String   @id @default(uuid())
+  ownerId     String?
+  name        String
+  phone       String
+  email       String
+  address     String?
+  description String?
+  timezone    String   @default("UTC")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-```text
-User (id, email, role)
-  │
-  └── 1:N ──> Business (id, ownerId, name)
-                ├── Staff
-                ├── Services
-                ├── Appointments
-                └── Conversations
-```
+  // Relations
+  owner         User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  customers     Customer[]
+  staff         Staff[]
+  services      Service[]
+  appointments  Appointment[]
+  conversations Conversation[]
 
----
+  @@index([ownerId])
+  @@map("businesses")
+}
 
-## 3. Password Security Workflow
+model Customer {
+  id         String   @id @default(uuid())
+  businessId String?
+  name       String
+  phone      String   @unique
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-Passwords are encrypted using `bcryptjs` before storage:
+  // Relations
+  business      Business?      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointments  Appointment[]
+  conversations Conversation[]
 
-```text
-Plaintext Password  ──>  bcrypt.hash(password, 10)  ──>  passwordHash ($2a$10$...)  ──>  PostgreSQL (users.passwordHash)
-```
-
-### Security Invariants
-- Plaintext passwords are **never** persisted.
-- `passwordHash` is **never** returned in any API response envelope.
-- Bcrypt verification (`bcrypt.compare`) prevents timing attack vulnerabilities.
-
----
-
-## 4. JWT & Cookie Architecture
-
-### Token Payload
-The JWT payload contains only minimal non-sensitive identity metadata:
-```json
-{
-  "userId": "123e4567-e89b-12d3-a456-426614174000",
-  "email": "owner@clinic.com",
-  "role": "BUSINESS_OWNER",
-  "iat": 1788370000,
-  "exp": 1788974800
+  @@index([businessId])
+  @@map("customers")
 }
 ```
 
-### HTTP-Only Cookie Configuration
-The token is set in the `auth_token` cookie with the following security attributes:
+---
 
-| Option | Value | Purpose |
+## 3. Business Data Isolation & Access Control Rules
+
+```text
+USER (Authenticated via verified JWT cookie)
+ │
+ ▼
+REQUEST.USER (req.user.userId, req.user.role)
+ │
+ ├──> OWNED BUSINESSES (businesses WHERE ownerId = req.user.userId)
+ │      │
+ │      ├──> CUSTOMERS (customers WHERE businessId IN ownedBusinesses)
+ │      ├──> STAFF     (staff WHERE businessId IN ownedBusinesses)
+ │      └──> SERVICES  (services WHERE businessId IN ownedBusinesses)
+```
+
+### Security Enforcement Principles
+1. **Server-Derived Identity:** The authenticated user identity is derived strictly from `req.user.userId` via verified JWT signature. Client-supplied user IDs in request bodies or query params are **never** trusted.
+2. **Mandatory Authentication:** All domain routes (`/api/businesses`, `/api/customers`, `/api/staff`, `/api/services`) are protected by `authenticate` middleware.
+3. **Cross-Tenant Access Rejection:** If User A attempts to view, modify, or delete a resource (business, staff, service, or customer) belonging to Business B (owned by User B), the backend immediately rejects the request with **HTTP 403 Forbidden**.
+4. **Creation Tenancy Guard:** When creating child resources (customers, staff, services), the provided `businessId` is verified against `req.user.userId`. If the user does not own `businessId`, creation is rejected with **HTTP 403 Forbidden**.
+5. **Scoped List Queries:** `GET` collection endpoints automatically filter resources to only those belonging to businesses owned by the caller.
+
+---
+
+## 4. Reusable Ownership Verification Engine
+
+Located at [`backend/src/services/ownership.service.ts`](../backend/src/services/ownership.service.ts):
+
+- `verifyBusinessOwnership(businessId, userId, role)`: Ensures `business.ownerId === userId` (or bypasses for `ADMIN`). Throws `NotFoundError` (404) or `ForbiddenError` (403).
+- `getOwnedBusinessIds(userId, role)`: Returns array of business IDs owned by the user for scoping relational queries.
+- `verifyStaffOwnership(staffId, userId, role)`: Verifies that the staff member belongs to an owned business.
+- `verifyServiceOwnership(serviceId, userId, role)`: Verifies that the service belongs to an owned business.
+- `verifyCustomerOwnership(customerId, userId, role)`: Verifies that the customer is directly or relationally linked to an owned business.
+
+---
+
+## 5. HTTP Status Code Strategy
+
+| Code | Status | Trigger Condition |
 |---|---|---|
-| `httpOnly` | `true` | Prevents client-side JavaScript access (mitigates XSS token theft) |
-| `secure` | `production` only | Enforces HTTPS in production while permitting local HTTP development |
-| `sameSite` | `'lax'` | Protects against Cross-Site Request Forgery (CSRF) |
-| `maxAge` | `7 days` | 7-day session persistence |
-| `path` | `'/'` | Available across all application routes |
+| `200` | OK | Successful retrieval, update, or deletion of owned resources |
+| `201` | Created | Successful insertion of user, business, customer, staff, or service |
+| `400` | Bad Request | Zod schema validation errors (e.g. empty name, invalid UUID format) |
+| `401` | Unauthorized | Missing, invalid, or expired JWT authentication cookie |
+| `403` | Forbidden | Authenticated user attempting to access/modify another user's business data |
+| `404` | Not Found | Target record does not exist in the database |
+| `409` | Conflict | Unique constraint violation (duplicate email or customer phone) |
 
 ---
 
-## 5. Frontend Authentication Architecture
+## 6. Authentication & Domain API Reference
 
-### 5.1 API Client (`frontend/src/lib/api.ts`)
-The frontend communicates with the Express backend using a typed API client:
-- Configured with `NEXT_PUBLIC_API_URL` (default: `http://localhost:5000`).
-- Every request includes `credentials: "include"` so the browser automatically handles sending and receiving the `auth_token` cookie.
-- No tokens are stored in `localStorage`, `sessionStorage`, or JavaScript memory variables.
-
-### 5.2 Context State (`frontend/src/context/AuthContext.tsx`)
-Provides global authentication state:
-- `user`: Authenticated user profile or `null`.
-- `loading`: Initialization and verification flag.
-- `isAuthenticated`: Boolean status (`!!user`).
-- `register(input)`: Executes registration and updates user state.
-- `login(input)`: Executes login, receives cookie, and updates user state.
-- `logout()`: Invalids cookie via backend and resets state to `null`.
-- `refreshUser()`: Re-fetches `/api/auth/me` on startup or route transitions.
-
-### 5.3 Protected Route Wrapper (`frontend/src/components/ProtectedRoute.tsx`)
-Guards private pages (e.g. `/dashboard`):
-- Displays a spinner while `loading` is `true`.
-- Redirects unauthenticated guests immediately to `/login`.
-- Prevents protected content flashes before authentication check completes.
-
-### 5.4 Authenticated Redirection
-- When an already authenticated user navigates to `/login` or `/register`, they are automatically redirected to `/dashboard`.
-
----
-
-## 6. Authentication API Endpoints
-
-### 6.1 Register (`POST /api/auth/register`)
-- **Request Body:**
-  ```json
-  {
-    "name": "Dr. Jane Owner",
-    "email": "jane@wellness.com",
-    "password": "SecurePassword123!",
-    "role": "BUSINESS_OWNER"
-  }
-  ```
-- **Response (`HTTP 201 Created`):**
-  - Sets `Set-Cookie: auth_token=...; HttpOnly; SameSite=Lax; Path=/`
-  ```json
-  {
-    "success": true,
-    "message": "User registered successfully",
-    "data": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Dr. Jane Owner",
-      "email": "jane@wellness.com",
-      "role": "BUSINESS_OWNER",
-      "createdAt": "2026-09-02T17:00:00.000Z",
-      "updatedAt": "2026-09-02T17:00:00.000Z"
-    }
-  }
-  ```
-
-### 6.2 Login (`POST /api/auth/login`)
-- **Request Body:**
-  ```json
-  {
-    "email": "jane@wellness.com",
-    "password": "SecurePassword123!"
-  }
-  ```
-- **Response (`HTTP 200 OK`):**
-  - Sets `Set-Cookie: auth_token=...; HttpOnly; SameSite=Lax; Path=/`
-  ```json
-  {
-    "success": true,
-    "message": "Login successful",
-    "data": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Dr. Jane Owner",
-      "email": "jane@wellness.com",
-      "role": "BUSINESS_OWNER",
-      "createdAt": "2026-09-02T17:00:00.000Z",
-      "updatedAt": "2026-09-02T17:00:00.000Z"
-    }
-  }
-  ```
-- **Error Response (`HTTP 401 Unauthorized`):**
-  Returns generic error message to prevent account enumeration:
-  ```json
-  {
-    "success": false,
-    "message": "Invalid email or password"
-  }
-  ```
-
-### 6.3 Get Current User Profile (`GET /api/auth/me`)
-- **Headers / Cookie:** Requires `auth_token` cookie or `Authorization: Bearer <token>`
-- **Response (`HTTP 200 OK`):**
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Dr. Jane Owner",
-      "email": "jane@wellness.com",
-      "role": "BUSINESS_OWNER",
-      "createdAt": "2026-09-02T17:00:00.000Z",
-      "updatedAt": "2026-09-02T17:00:00.000Z"
-    }
-  }
-  ```
-
-### 6.4 Logout (`POST /api/auth/logout`)
-- **Response (`HTTP 200 OK`):**
-  - Clears `auth_token` cookie: `Set-Cookie: auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
-  ```json
-  {
-    "success": true,
-    "message": "Logged out successfully"
-  }
-  ```
-
----
-
-## 7. Environment Variables
-
-### Backend (`backend/.env` & `backend/.env.example`)
-```env
-# Authentication Configuration
-JWT_SECRET=replace_with_secure_random_secret
-JWT_EXPIRES_IN=7d
-CORS_ORIGIN=http://localhost:3000
-```
-
-### Frontend (`frontend/.env.local` & `frontend/.env.example`)
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
+| Method | Endpoint | Auth Required | Multi-Tenant Authorization Rule |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | No | Public registration; creates user record |
+| `POST` | `/api/auth/login` | No | Public login; sets HTTP-only `auth_token` cookie |
+| `GET` | `/api/auth/me` | **Yes** | Returns authenticated profile for `req.user.userId` |
+| `POST` | `/api/auth/logout` | No | Clears `auth_token` cookie |
+| `POST` | `/api/businesses` | **Yes** | Sets `ownerId: req.user.userId` |
+| `GET` | `/api/businesses` | **Yes** | Returns only businesses owned by caller (`ownerId = req.user.userId`) |
+| `GET` | `/api/businesses/:id` | **Yes** | Verifies `business.ownerId === req.user.userId` |
+| `PUT` | `/api/businesses/:id` | **Yes** | Verifies ownership before update |
+| `DELETE` | `/api/businesses/:id` | **Yes** | Verifies ownership before deletion |
+| `POST` | `/api/customers` | **Yes** | Verifies caller owns `businessId` before insertion |
+| `GET` | `/api/customers` | **Yes** | Returns only customers belonging to owned businesses |
+| `GET` | `/api/customers/:id` | **Yes** | Verifies customer belongs to owned business |
+| `PUT` | `/api/customers/:id` | **Yes** | Verifies ownership before update |
+| `DELETE` | `/api/customers/:id` | **Yes** | Verifies ownership before deletion |
+| `POST` | `/api/staff` | **Yes** | Verifies caller owns `businessId` before insertion |
+| `GET` | `/api/staff` | **Yes** | Returns only staff belonging to owned businesses |
+| `GET` | `/api/staff/:id` | **Yes** | Verifies staff belongs to owned business |
+| `PUT` | `/api/staff/:id` | **Yes** | Verifies ownership before update |
+| `DELETE` | `/api/staff/:id` | **Yes** | Verifies ownership before deletion |
+| `POST` | `/api/services` | **Yes** | Verifies caller owns `businessId` before insertion |
+| `GET` | `/api/services` | **Yes** | Returns only services belonging to owned businesses |
+| `GET` | `/api/services/:id` | **Yes** | Verifies service belongs to owned business |
+| `PUT` | `/api/services/:id` | **Yes** | Verifies ownership before update |
+| `DELETE` | `/api/services/:id` | **Yes** | Verifies ownership before deletion |

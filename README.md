@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 3.2 — Authentication Frontend
+Current Milestone: PHASE 3.2.1 — API Authorization & Business Data Isolation Verification
 Status: Completed
 ```
 
@@ -17,6 +17,7 @@ Status: Completed
 - **Phase 2 (Database & Data Modeling):** PostgreSQL local containerization via Docker Compose, Prisma ORM schema & client generation, Zod request validation, and core REST APIs for Businesses, Customers, Staff, and Services.
 - **Phase 3.1 (Authentication Backend):** Secure JWT authentication with HTTP-only cookies, Bcrypt password hashing, User registration & login, `/api/auth/me`, and role-based authorization middleware.
 - **Phase 3.2 (Authentication Frontend):** React `AuthContext` state management, typed API client with `credentials: "include"`, `/login` and `/register` responsive forms with validation and password toggles, protected `/dashboard` shell, and automatic redirection flows.
+- **Phase 3.2.1 (Authorization & Data Isolation):** Complete multi-tenant business data isolation, route protection across all domain APIs, server-enforced `OwnershipService` rules preventing cross-business data leakage, and rigorous security integration test suites.
 
 ---
 
@@ -37,7 +38,7 @@ Status: Completed
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
 - **Database Engine:** [PostgreSQL](https://www.postgresql.org/) (Local / Docker Compose)
 - **ORM:** [Prisma ORM](https://www.prisma.io/)
-- **Authentication:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies)
+- **Authentication & Security:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies), `OwnershipService`
 - **Validation:** [Zod](https://zod.dev/)
 - **Utilities:** `cors`, `dotenv`
 - **Execution & Transpilation:** `tsx`, `tsc`
@@ -69,130 +70,22 @@ Status: Completed
 │             (Node.js + TypeScript + Middleware)             │
 │                 http://localhost:5000                       │
 │                                                             │
-│  ├── /api/health      -> System & Uptime Diagnostic         │
+│  ├── /api/health      -> System & Uptime Diagnostic (Public)│
 │  ├── /api/auth        -> Register, Login, Me, Logout        │
-│  ├── /api/businesses  -> Business Entity CRUD               │
-│  ├── /api/customers   -> Customer Directory CRUD            │
-│  ├── /api/staff       -> Staff Roster CRUD                  │
-│  └── /api/services    -> Bookable Services Catalog CRUD     │
+│  ├── /api/businesses  -> Owned Business CRUD (Protected)    │
+│  ├── /api/customers   -> Owned Customer CRUD (Protected)    │
+│  ├── /api/staff       -> Owned Staff Roster CRUD (Protected)│
+│  └── /api/services    -> Owned Services Catalog (Protected) │
 └──────────────┬──────────────────────────────┬───────────────┘
                │                              │
                ▼ (Prisma ORM)                 ▼ (Future Phase)
 ┌──────────────────────────────┐ ┌────────────────────────────┐
 │      PostgreSQL Database     │ │       Local AI Engine      │
 │   • Users & Roles (Auth)     │ │   • Ollama (Local LLM)     │
-│   • Businesses & Staff       │ │   • Whisper (STT)          │
-│   • Customers & Services     │ │   • Piper (TTS)            │
-│   • Appointments & Convos    │ │                            │
+│   • Multi-Tenant Businesses  │ │   • Whisper (STT)          │
+│   • Isolated Staff & Catalog │ │   • Piper (TTS)            │
+│   • Scoped Customer Records  │ │                            │
 └──────────────────────────────┘ └────────────────────────────┘
-```
-
----
-
-## 📂 Project Structure
-
-```text
-Receptionist/
-├── .gitignore                     # Git ignore rules for node_modules, envs, builds
-├── .env.example                   # Root environment template (Docker & DB)
-├── docker-compose.yml             # Local PostgreSQL Docker Compose configuration
-├── README.md                      # Primary project documentation
-├── package.json                   # Root workspace scripts
-├── docs/
-│   ├── ARCHITECTURE.md            # In-depth architectural specification
-│   ├── AUTHENTICATION.md          # Complete Auth architecture & endpoint spec
-│   ├── DATABASE.md                # Database schema, ERD, and migration guide
-│   └── ROADMAP.md                 # Multi-phase capstone project roadmap
-├── backend/
-│   ├── .env.example               # Backend environment variable template
-│   ├── package.json               # Backend dependencies and scripts
-│   ├── tsconfig.json              # Backend TypeScript configuration
-│   ├── prisma/
-│   │   ├── schema.prisma          # PostgreSQL relational schema definition
-│   │   └── migrations/            # Version-controlled Prisma SQL migrations
-│   └── src/
-│       ├── config/
-│       │   └── environment.ts     # Type-safe configuration loader
-│       ├── controllers/
-│       │   ├── auth.controller.ts     # Auth handlers (Register, Login, Me, Logout)
-│       │   ├── business.controller.ts # Business CRUD handlers
-│       │   ├── customer.controller.ts # Customer CRUD handlers
-│       │   ├── health.controller.ts   # Health check controller
-│       │   ├── service.controller.ts  # Service catalog handlers
-│       │   └── staff.controller.ts    # Staff management handlers
-│       ├── lib/
-│       │   ├── jwt.ts             # JWT token & cookie utilities
-│       │   ├── password.ts        # Bcrypt password hashing
-│       │   └── prisma.ts          # Reusable Prisma client singleton
-│       ├── middleware/
-│       │   ├── auth.ts            # authenticate & authorize middlewares
-│       │   ├── errorHandler.ts    # Prisma, validation, & 404 error handlers
-│       │   └── validate.ts        # Generic Zod request validator
-│       ├── routes/
-│       │   ├── auth.routes.ts     # /api/auth route table
-│       │   ├── business.routes.ts # /api/businesses route table
-│       │   ├── customer.routes.ts # /api/customers route table
-│       │   ├── health.routes.ts   # /api/health route table
-│       │   ├── service.routes.ts  # /api/services route table
-│       │   ├── staff.routes.ts    # /api/staff route table
-│       │   └── index.ts           # Central router aggregator
-│       ├── services/
-│       │   ├── auth.service.ts
-│       │   ├── business.service.ts
-│       │   ├── customer.service.ts
-│       │   ├── health.service.ts
-│       │   ├── service.service.ts
-│       │   └── staff.service.ts
-│       ├── test/
-│       │   ├── auth-integration.test.ts # Auth & JWT integration tests
-│       │   ├── authorization.test.ts    # Role middleware tests
-│       │   ├── db-integration.test.ts   # PostgreSQL CRUD tests
-│       │   ├── validation.test.ts       # Zod schema validation tests
-│       │   └── index.ts                 # Master test suite runner
-│       ├── types/
-│       │   ├── auth.types.ts
-│       │   └── express.d.ts
-│       ├── validation/
-│       │   ├── auth.validation.ts
-│       │   ├── business.validation.ts
-│       │   ├── customer.validation.ts
-│       │   ├── service.validation.ts
-│       │   └── staff.validation.ts
-│       ├── app.ts                 # Express application setup
-│       └── server.ts              # HTTP server entry point
-└── frontend/
-    ├── .env.example               # Frontend environment variable template
-    ├── package.json               # Frontend dependencies and scripts
-    ├── tsconfig.json              # Frontend TypeScript configuration
-    ├── tailwind.config.ts         # Tailwind CSS configuration
-    ├── postcss.config.mjs         # PostCSS configuration
-    ├── next.config.mjs            # Next.js configuration
-    └── src/
-        ├── app/
-        │   ├── dashboard/
-        │   │   └── page.tsx       # Protected dashboard shell
-        │   ├── login/
-        │   │   └── page.tsx       # Sign in page
-        │   ├── register/
-        │   │   └── page.tsx       # Sign up page
-        │   ├── globals.css        # Global Tailwind styles
-        │   ├── layout.tsx         # Root HTML layout shell with Providers
-        │   ├── page.tsx           # Landing page with system status dashboard
-        │   └── providers.tsx      # Client-side AuthProvider wrapper
-        ├── components/
-        │   ├── ArchitecturePreview.tsx
-        │   ├── FeatureGrid.tsx
-        │   ├── Footer.tsx
-        │   ├── Header.tsx         # Auth-aware navbar
-        │   ├── Hero.tsx
-        │   ├── ProtectedRoute.tsx # Route protection guard
-        │   └── SystemStatus.tsx
-        ├── context/
-        │   └── AuthContext.tsx    # Global authentication context & state
-        ├── lib/
-        │   └── api.ts             # Central typed API client
-        └── types/
-            └── auth.ts            # Client-side authentication types
 ```
 
 ---
@@ -274,33 +167,33 @@ npm --prefix frontend run dev
 
 ## 🌐 API Route Reference
 
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/health` | Service liveness & uptime status | No |
-| `POST` | `/api/auth/register` | Register user & issue HTTP-only JWT cookie | No |
-| `POST` | `/api/auth/login` | Authenticate user & issue JWT cookie | No |
-| `GET` | `/api/auth/me` | Retrieve authenticated user profile | **Yes** |
-| `POST` | `/api/auth/logout` | Clear authentication cookie | No |
-| `POST` | `/api/businesses` | Create business profile | No |
-| `GET` | `/api/businesses` | List all businesses with counts | No |
-| `GET` | `/api/businesses/:id` | Get business details & staff/services | No |
-| `PUT` | `/api/businesses/:id` | Update business profile | No |
-| `DELETE` | `/api/businesses/:id` | Remove business | No |
-| `POST` | `/api/customers` | Create customer (unique phone) | No |
-| `GET` | `/api/customers` | List all customers | No |
-| `GET` | `/api/customers/:id` | Get customer profile & history | No |
-| `PUT` | `/api/customers/:id` | Update customer details | No |
-| `DELETE` | `/api/customers/:id` | Remove customer | No |
-| `POST` | `/api/staff` | Create staff member | No |
-| `GET` | `/api/staff` | List staff (query: `?businessId=...`) | No |
-| `GET` | `/api/staff/:id` | Get staff details & schedule | No |
-| `PUT` | `/api/staff/:id` | Update staff profile | No |
-| `DELETE` | `/api/staff/:id` | Remove staff member | No |
-| `POST` | `/api/services` | Create service offering | No |
-| `GET` | `/api/services` | List services (query: `?businessId=...`) | No |
-| `GET` | `/api/services/:id` | Get service details | No |
-| `PUT` | `/api/services/:id` | Update service offering | No |
-| `DELETE` | `/api/services/:id` | Remove service offering | No |
+| Method | Endpoint | Description | Auth Required | Multi-Tenant Authorization Rule |
+|---|---|---|---|---|
+| `GET` | `/api/health` | Service liveness & uptime status | No | Public diagnostic |
+| `POST` | `/api/auth/register` | Register user & issue HTTP-only JWT cookie | No | Public registration |
+| `POST` | `/api/auth/login` | Authenticate user & issue JWT cookie | No | Public login |
+| `GET` | `/api/auth/me` | Retrieve authenticated user profile | **Yes** | Scoped to caller identity |
+| `POST` | `/api/auth/logout` | Clear authentication cookie | No | Session cleanup |
+| `POST` | `/api/businesses` | Create business profile | **Yes** | Sets `ownerId: req.user.userId` |
+| `GET` | `/api/businesses` | List owned businesses | **Yes** | Scoped to caller's businesses |
+| `GET` | `/api/businesses/:id` | Get business details & staff/services | **Yes** | Requires verified ownership |
+| `PUT` | `/api/businesses/:id` | Update business profile | **Yes** | Requires verified ownership |
+| `DELETE` | `/api/businesses/:id` | Remove business | **Yes** | Requires verified ownership |
+| `POST` | `/api/customers` | Create customer | **Yes** | Caller must own `businessId` |
+| `GET` | `/api/customers` | List owned customers | **Yes** | Scoped to caller's businesses |
+| `GET` | `/api/customers/:id` | Get customer profile & history | **Yes** | Requires verified ownership |
+| `PUT` | `/api/customers/:id` | Update customer details | **Yes** | Requires verified ownership |
+| `DELETE` | `/api/customers/:id` | Remove customer | **Yes** | Requires verified ownership |
+| `POST` | `/api/staff` | Create staff member | **Yes** | Caller must own `businessId` |
+| `GET` | `/api/staff` | List staff (query: `?businessId=...`) | **Yes** | Scoped to caller's businesses |
+| `GET` | `/api/staff/:id` | Get staff details & schedule | **Yes** | Requires verified ownership |
+| `PUT` | `/api/staff/:id` | Update staff profile | **Yes** | Requires verified ownership |
+| `DELETE` | `/api/staff/:id` | Remove staff member | **Yes** | Requires verified ownership |
+| `POST` | `/api/services` | Create service offering | **Yes** | Caller must own `businessId` |
+| `GET` | `/api/services` | List services (query: `?businessId=...`) | **Yes** | Scoped to caller's businesses |
+| `GET` | `/api/services/:id` | Get service details | **Yes** | Requires verified ownership |
+| `PUT` | `/api/services/:id` | Update service offering | **Yes** | Requires verified ownership |
+| `DELETE` | `/api/services/:id` | Remove service offering | **Yes** | Requires verified ownership |
 
 ---
 
@@ -312,6 +205,7 @@ npm --prefix frontend run dev
 | **Phase 2** | **Database Foundation & Core Data Modeling** | PostgreSQL, Prisma Schema, Zod Validation, Core CRUD APIs | **Completed** ✅ |
 | **Phase 3.1** | **Authentication Backend Foundation** | JWT, Bcrypt, HTTP-only Cookies, Register/Login/Me, Roles | **Completed** ✅ |
 | **Phase 3.2** | **Authentication Frontend & Protected Shell** | Login/Register UI, Auth Context, Protected Route Guard | **Completed** ✅ |
+| **Phase 3.2.1**| **Authorization & Business Data Isolation** | Multi-tenant scoping, route protection, cross-tenant isolation | **Completed** ✅ |
 | **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
 | **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 6** | **Admin Dashboard & Unified Experience** | Full management UI, call analytics, live simulator | *Upcoming* ⏳ |
