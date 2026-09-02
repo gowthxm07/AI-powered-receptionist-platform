@@ -1,6 +1,6 @@
 # Database & Data Modeling Specification
 
-This document details the database architecture, schema design, Prisma ORM configuration, entity relationships, and operational instructions for the **AI-Powered Smart Receptionist Platform**.
+This document details the database architecture, schema design, Prisma ORM configuration, entity relationships, migration workflows, and operational instructions for the **AI-Powered Smart Receptionist Platform**.
 
 ---
 
@@ -140,39 +140,59 @@ docker compose down
 
 ---
 
-## 6. Prisma Commands & Migration Workflow
+## 6. Prisma Migration & CLI Workflow
 
-All Prisma commands are run inside the `backend/` directory (or via root workspace scripts):
+The project uses **Prisma Migrations** for version-controlled, production-safe database schema evolution.
 
-### Validate Schema
+### 6.1 Prisma Migrate vs Prisma DB Push
+
+| Tool | Purpose | Recommended Usage |
+|---|---|---|
+| `prisma migrate dev` | Generates SQL migration files in `prisma/migrations/` and applies them | **Primary Development Workflow** |
+| `prisma migrate deploy` | Applies pending migration files to staging/production without prompting | **CI/CD & Production Deployment** |
+| `prisma migrate status` | Checks sync state between migration history and database | **Diagnostic Verification** |
+| `prisma db push` | Directly synchronizes schema to DB without creating migration history | *Rapid prototyping only* |
+
+### 6.2 Essential Prisma Commands
+
+All commands can be run via root workspace scripts or directly in `backend/`:
+
+#### Validate Schema
 ```bash
 npm --prefix backend run db:validate
 # or
 cd backend && npx prisma validate
 ```
 
-### Generate Prisma Client
+#### Generate Prisma Client
 ```bash
 npm --prefix backend run db:generate
 # or
 cd backend && npx prisma generate
 ```
 
-### Apply Migrations (Development)
+#### Create & Apply a New Migration (Development)
 ```bash
 npm --prefix backend run db:migrate
 # or
-cd backend && npx prisma migrate dev --name init_database_foundation
+cd backend && npx prisma migrate dev --name <migration_name>
 ```
 
-### Push Schema Directly to Database
+#### Apply Migrations to Target Database (Production / CI)
 ```bash
-npm --prefix backend run db:push
+npm --prefix backend run db:deploy
 # or
-cd backend && npx prisma db push
+cd backend && npx prisma migrate deploy
 ```
 
-### Launch Prisma Studio (GUI Database Viewer)
+#### Check Migration Status
+```bash
+npm --prefix backend run db:status
+# or
+cd backend && npx prisma migrate status
+```
+
+#### Launch Prisma Studio (GUI Database Viewer)
 ```bash
 npm --prefix backend run db:studio
 # Opens interactive browser UI at http://localhost:5555
