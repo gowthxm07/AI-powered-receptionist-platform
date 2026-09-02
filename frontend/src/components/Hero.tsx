@@ -1,17 +1,18 @@
 import React from 'react';
-import { Sparkles, ArrowRight, Server, ShieldCheck, Cpu } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, ArrowRight, Server, ShieldCheck, Cpu, UserPlus } from 'lucide-react';
 
 export const Hero: React.FC = () => {
   return (
     <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
       {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
         {/* Badge */}
-        <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-blue-950/60 border border-blue-800/60 text-blue-300 text-xs font-medium mb-6 shadow-inner">
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-          <span>Full Stack Development Capstone Project</span>
+        <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-indigo-950/60 border border-indigo-800/60 text-indigo-300 text-xs font-medium mb-6 shadow-inner">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span>Full Stack Development Capstone Project • Phase 3</span>
         </div>
 
         {/* Main Heading */}
@@ -36,19 +37,20 @@ export const Hero: React.FC = () => {
 
         {/* Call to actions */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+          <Link
+            href="/register"
+            className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Create Free Account</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
           <a
             href="#system-status"
-            className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-800 hover:border-slate-700 transition-all"
           >
             <Server className="w-4 h-4" />
             <span>Check System Status</span>
-            <ArrowRight className="w-4 h-4" />
-          </a>
-          <a
-            href="#features"
-            className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-800 hover:border-slate-700 transition-all"
-          >
-            <span>Explore Planned Features</span>
           </a>
         </div>
 
