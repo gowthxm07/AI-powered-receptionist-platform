@@ -2,22 +2,23 @@
 
 > **"Intelligent conversations. Smarter appointments."**
 
-An autonomous, full-stack AI-integrated receptionist platform designed to streamline front-desk operations, automate appointment bookings, resolve caller inquiries, and manage customer records using 100% free and open-source local AI technologies.
+An autonomous, full-stack AI-integrated receptionist platform designed to streamline front-desk operations, automate appointment bookings, resolve caller inquiries, and manage customer records using 100% free and open-source local AI and database technologies.
 
 ---
 
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 1 — Project Foundation & Full-Stack Setup
+Current Milestone: PHASE 2 — Database Foundation & Core Data Modeling
 Status: Completed
 ```
 
-This repository is currently at **Phase 1** of a multi-phase capstone development lifecycle. It establishes a scalable, type-safe full-stack architectural foundation without external paid dependencies or proprietary APIs.
+- **Phase 1 (Foundation):** Next.js UI shell, Express API, TypeScript setup, Health check API, progressive Git history.
+- **Phase 2 (Database & Data Modeling):** PostgreSQL local containerization via Docker Compose, Prisma ORM schema & client generation, Zod request validation, and core REST APIs for Businesses, Customers, Staff, and Services.
 
 ---
 
-## 🛠 Current Tech Stack (Phase 1)
+## 🛠 Current Tech Stack (Phases 1 & 2)
 
 ### Frontend
 - **Framework:** [Next.js](https://nextjs.org/) (React 18, App Router)
@@ -30,34 +31,16 @@ This repository is currently at **Phase 1** of a multi-phase capstone developmen
 - **Runtime:** [Node.js](https://nodejs.org/)
 - **Framework:** [Express](https://expressjs.com/)
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Database Engine:** [PostgreSQL](https://www.postgresql.org/) (Local / Docker Compose)
+- **ORM:** [Prisma ORM](https://www.prisma.io/)
+- **Validation:** [Zod](https://zod.dev/)
 - **Utilities:** `cors`, `dotenv`
 - **Execution & Transpilation:** `tsx`, `tsc`
 
-### Version Control & Quality
+### DevOps & Tools
+- **Containerization:** Docker & Docker Compose (`docker-compose.yml`)
 - **VCS:** Git & GitHub
 - **Package Manager:** npm
-
----
-
-## 🚀 Planned Future Features
-
-1. **AI Receptionist Engine**
-   - Autonomous speech-to-text with local **Whisper**
-   - Local LLM inference & conversational reasoning with **Ollama**
-   - Natural text-to-speech output using open-source **Piper**
-2. **Smart Appointment Scheduling**
-   - Automated slot checking, conflict detection, and calendar booking
-   - Real-time rescheduling and cancellations
-3. **Customer & Caller Management**
-   - Comprehensive caller profiles, interaction timelines, and preference logs
-4. **Knowledge Assistant (RAG)**
-   - Context-aware retrieval augmented generation using **ChromaDB** or **Qdrant**
-   - Business FAQ and document semantic search
-5. **Conversation History & Analytics**
-   - Searchable call logs and audio transcript records
-   - AI-generated conversation summaries and sentiment extraction
-6. **Admin Dashboard**
-   - Central management portal for appointments, caller records, analytics, and AI model parameters
 
 ---
 
@@ -76,16 +59,19 @@ This repository is currently at **Phase 1** of a multi-phase capstone developmen
 │             (Node.js + TypeScript + Middleware)             │
 │                 http://localhost:5000                       │
 │                                                             │
-│  ├── /api/health   -> System & Uptime Health Verification   │
-│  └── /api/*        -> Future Modules (Appointments, Logs)   │
+│  ├── /api/health      -> System & Uptime Diagnostic         │
+│  ├── /api/businesses  -> Business Entity CRUD               │
+│  ├── /api/customers   -> Customer Directory CRUD            │
+│  ├── /api/staff       -> Staff Roster CRUD                  │
+│  └── /api/services    -> Bookable Services Catalog CRUD     │
 └──────────────┬──────────────────────────────┬───────────────┘
                │                              │
-               ▼ (Future Phase)               ▼ (Future Phase)
+               ▼ (Prisma ORM)                 ▼ (Future Phase)
 ┌──────────────────────────────┐ ┌────────────────────────────┐
-│       Local AI Engine        │ │      Persistence Layer     │
-│   • Ollama (Local LLM)       │ │   • Relational Database    │
-│   • Whisper (STT)            │ │   • ChromaDB / Qdrant      │
-│   • Piper (TTS)              │ │     (Vector Embeddings)    │
+│      PostgreSQL Database     │ │       Local AI Engine      │
+│   • Businesses & Staff       │ │   • Ollama (Local LLM)     │
+│   • Customers & Services     │ │   • Whisper (STT)          │
+│   • Appointments & Convos    │ │   • Piper (TTS)            │
 └──────────────────────────────┘ └────────────────────────────┘
 ```
 
@@ -96,27 +82,54 @@ This repository is currently at **Phase 1** of a multi-phase capstone developmen
 ```text
 Receptionist/
 ├── .gitignore                     # Git ignore rules for node_modules, envs, builds
-├── README.md                      # Project documentation and guide
+├── .env.example                   # Root environment template (Docker & DB)
+├── docker-compose.yml             # Local PostgreSQL Docker Compose configuration
+├── README.md                      # Primary project documentation
 ├── package.json                   # Root workspace scripts
 ├── docs/
 │   ├── ARCHITECTURE.md            # In-depth architectural specification
+│   ├── DATABASE.md                # Database schema, ERD, and migration guide
 │   └── ROADMAP.md                 # Multi-phase capstone project roadmap
 ├── backend/
 │   ├── .env.example               # Backend environment variable template
 │   ├── package.json               # Backend dependencies and scripts
 │   ├── tsconfig.json              # Backend TypeScript configuration
+│   ├── prisma/
+│   │   └── schema.prisma          # PostgreSQL relational schema definition
 │   └── src/
 │       ├── config/
 │       │   └── environment.ts     # Type-safe configuration loader
 │       ├── controllers/
-│       │   └── health.controller.ts # Health check controller
+│       │   ├── business.controller.ts # Business CRUD handlers
+│       │   ├── customer.controller.ts # Customer CRUD handlers
+│       │   ├── health.controller.ts   # Health check controller
+│       │   ├── service.controller.ts  # Service catalog handlers
+│       │   └── staff.controller.ts    # Staff management handlers
+│       ├── lib/
+│       │   └── prisma.ts          # Reusable Prisma client singleton
 │       ├── middleware/
-│       │   └── errorHandler.ts    # 404 and global error handlers
+│       │   ├── errorHandler.ts    # Prisma, validation, & 404 error handlers
+│       │   └── validate.ts        # Generic Zod request validator
 │       ├── routes/
-│       │   ├── health.routes.ts   # /api/health route definitions
-│       │   └── index.ts           # Central API router aggregator
+│       │   ├── business.routes.ts # /api/businesses route table
+│       │   ├── customer.routes.ts # /api/customers route table
+│       │   ├── health.routes.ts   # /api/health route table
+│       │   ├── service.routes.ts  # /api/services route table
+│       │   ├── staff.routes.ts    # /api/staff route table
+│       │   └── index.ts           # Central router aggregator
 │       ├── services/
-│       │   └── health.service.ts  # System status calculation service
+│       │   ├── business.service.ts
+│       │   ├── customer.service.ts
+│       │   ├── health.service.ts
+│       │   ├── service.service.ts
+│       │   └── staff.service.ts
+│       ├── test/
+│       │   └── validation.test.ts # Zod schema unit test suite
+│       ├── validation/
+│       │   ├── business.validation.ts
+│       │   ├── customer.validation.ts
+│       │   ├── service.validation.ts
+│       │   └── staff.validation.ts
 │       ├── app.ts                 # Express application setup
 │       └── server.ts              # HTTP server entry point
 └── frontend/
@@ -142,12 +155,12 @@ Receptionist/
 
 ---
 
-## ⚡ Installation & Setup Instructions
+## ⚡ Installation & Quickstart Guide
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or later (`node -v`)
 - **npm**: v9.0.0 or later (`npm -v`)
-- **Git**
+- **Docker & Docker Compose** *(Optional for containerized PostgreSQL)* or a local PostgreSQL instance.
 
 ---
 
@@ -162,33 +175,33 @@ cd AI-powered-receptionist-platform
 
 ### Step 2: Configure Environment Variables
 
-#### Backend:
 ```bash
-# Copy template in backend directory
+# Backend Environment
 cp backend/.env.example backend/.env
-```
-Default backend `.env`:
-```env
-PORT=5000
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
-```
 
-#### Frontend:
-```bash
-# Copy template in frontend directory
+# Frontend Environment
 cp frontend/.env.example frontend/.env.local
-```
-Default frontend `.env.local`:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 ---
 
-### Step 3: Install Dependencies
+### Step 3: Start Local Database
 
-From the root project directory:
+**Using Docker Compose (Recommended):**
+```bash
+docker compose up -d
+```
+
+**Generate Prisma Client & Push Schema:**
+```bash
+npm --prefix backend run db:generate
+npm --prefix backend run db:push
+```
+
+---
+
+### Step 4: Install Dependencies
+
 ```bash
 # Install backend dependencies
 npm --prefix backend install
@@ -197,72 +210,56 @@ npm --prefix backend install
 npm --prefix frontend install
 ```
 
-Or install inside each folder:
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
-
 ---
 
-### Step 4: Run the Applications
+### Step 5: Run the Applications
 
-#### Option A: Run Backend & Frontend in Separate Terminals
+#### Option A: Development Mode
 
 **Terminal 1 (Backend):**
 ```bash
 npm --prefix backend run dev
 ```
-*Backend runs on:* `http://localhost:5000`
+*Backend runs on:* [http://localhost:5000](http://localhost:5000)
 
 **Terminal 2 (Frontend):**
 ```bash
 npm --prefix frontend run dev
 ```
-*Frontend runs on:* `http://localhost:3000`
+*Frontend runs on:* [http://localhost:3000](http://localhost:3000)
 
-#### Option B: Build for Production
-
-**Backend Build & Run:**
+#### Option B: Run Validation Tests
 ```bash
-npm --prefix backend run build
-npm --prefix backend run start
-```
-
-**Frontend Build & Run:**
-```bash
-npm --prefix frontend run build
-npm --prefix frontend run start
+npm --prefix backend run test
 ```
 
 ---
 
-## 🩺 System Health Verification API
+## 🌐 API Route Reference
 
-Verify that the backend is running correctly:
-
-### Endpoint
-`GET /api/health`
-
-### Example Request
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Example Response
-```json
-{
-  "success": true,
-  "message": "AI-Powered Receptionist API is running",
-  "data": {
-    "status": "healthy",
-    "uptimeSeconds": 42,
-    "timestamp": "2026-09-02T14:11:27.865Z",
-    "environment": "development",
-    "version": "1.0.0"
-  }
-}
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Service liveness & uptime status |
+| `POST` | `/api/businesses` | Create business profile |
+| `GET` | `/api/businesses` | List all businesses with counts |
+| `GET` | `/api/businesses/:id` | Get business details & staff/services |
+| `PUT` | `/api/businesses/:id` | Update business profile |
+| `DELETE` | `/api/businesses/:id` | Remove business |
+| `POST` | `/api/customers` | Create customer (unique phone) |
+| `GET` | `/api/customers` | List all customers |
+| `GET` | `/api/customers/:id` | Get customer profile & history |
+| `PUT` | `/api/customers/:id` | Update customer details |
+| `DELETE` | `/api/customers/:id` | Remove customer |
+| `POST` | `/api/staff` | Create staff member |
+| `GET` | `/api/staff` | List staff (query: `?businessId=...`) |
+| `GET` | `/api/staff/:id` | Get staff details & schedule |
+| `PUT` | `/api/staff/:id` | Update staff profile |
+| `DELETE` | `/api/staff/:id` | Remove staff member |
+| `POST` | `/api/services` | Create service offering |
+| `GET` | `/api/services` | List services (query: `?businessId=...`) |
+| `GET` | `/api/services/:id` | Get service details |
+| `PUT` | `/api/services/:id` | Update service offering |
+| `DELETE` | `/api/services/:id` | Remove service offering |
 
 ---
 
@@ -271,7 +268,7 @@ curl http://localhost:5000/api/health
 | Phase | Milestone Name | Focus Area | Status |
 |---|---|---|---|
 | **Phase 1** | **Project Foundation & Full-Stack Setup** | Next.js, Express, TypeScript, Tailwind, Health API, Git | **Completed** ✅ |
-| **Phase 2** | **Data Modeling & Core Management** | Database integration, Appointments CRUD, Customer Records | *Upcoming* ⏳ |
+| **Phase 2** | **Database Foundation & Core Data Modeling** | PostgreSQL, Prisma Schema, Zod Validation, Core CRUD APIs | **Completed** ✅ |
 | **Phase 3** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
 | **Phase 4** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 5** | **Admin Dashboard & Conversation Summaries** | Analytics, appointment management UI, AI summary cards | *Upcoming* ⏳ |
@@ -282,6 +279,6 @@ curl http://localhost:5000/api/health
 ## 🛡 License & Tech Constraints
 
 This project is built strictly following open-source, free principles:
-- **No paid API keys required**
-- **No proprietary cloud lock-in** (No OpenAI, Anthropic, Twilio, or ElevenLabs)
+- **No paid API keys or subscriptions required**
+- **No proprietary cloud database lock-in** (PostgreSQL runs locally)
 - **Local AI & Privacy First**
