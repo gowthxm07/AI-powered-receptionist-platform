@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { config } from './config/environment';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -13,13 +14,15 @@ export const createApp = (): Express => {
       origin: config.corsOrigin,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+      exposedHeaders: ['Set-Cookie'],
     })
   );
 
-  // Body Parsing Middleware
+  // Body and Cookie Parsing Middleware
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
 
   // Root welcome endpoint
   app.get('/', (req, res) => {
@@ -29,6 +32,7 @@ export const createApp = (): Express => {
       version: '1.0.0',
       endpoints: {
         health: '/api/health',
+        auth: '/api/auth',
       },
     });
   });
