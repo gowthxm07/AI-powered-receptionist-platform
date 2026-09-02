@@ -55,11 +55,16 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 3.2: Frontend Auth & Protected Dashboard Shell (Upcoming ⏳)
-- [ ] Next.js login & registration pages
-- [ ] Auth context & state management
-- [ ] Protected route wrapper and redirection logic
-- [ ] Business owner onboarding shell
+### Phase 3.2: Authentication Frontend & Protected Shell (COMPLETED ✅)
+- [x] Centralized typed API client (`frontend/src/lib/api.ts`) with `credentials: "include"`
+- [x] Global React authentication context (`AuthContext` + `AuthProvider`)
+- [x] Next.js `/register` page with reactive validation, password visibility toggle, and error handling
+- [x] Next.js `/login` page with reactive validation, password toggle, and error handling
+- [x] Next.js `/dashboard` protected placeholder shell displaying verified user profile and session security details
+- [x] `ProtectedRoute` guard preventing unauthorized access and content flashing
+- [x] Authenticated user redirection logic from auth pages to `/dashboard`
+- [x] Working `logout` flow with cookie clearance and state synchronization
+- [x] Auth-aware navigation header with dynamic buttons
 
 ---
 
@@ -85,11 +90,11 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 - [ ] Analytics dashboard for receptionist calls, booking rates, and conversation sentiment
 - [ ] Real-time call monitor and interactive chat simulator for testing
 - [ ] Admin controls to update business knowledge docs and AI persona guidelines
-- [ ] UI polish and responsive mobile layout optimization
+- [ ] Complete CRUD UI for Business, Customer, Staff, and Service management
+- [ ] Responsive mobile layout optimization
 
 ---
 
 ### Phase 7: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
-- [ ] Unit and integration tests for API endpoints and business logic
 - [ ] End-to-end voice and text conversational test suite
 - [ ] Final security review, performance optimizations, and demonstration walkthrough

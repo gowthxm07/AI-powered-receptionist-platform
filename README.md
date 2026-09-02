@@ -9,13 +9,14 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 3.1 — Authentication Backend Foundation
+Current Milestone: PHASE 3.2 — Authentication Frontend
 Status: Completed
 ```
 
 - **Phase 1 (Foundation):** Next.js UI shell, Express API, TypeScript setup, Health check API, progressive Git history.
 - **Phase 2 (Database & Data Modeling):** PostgreSQL local containerization via Docker Compose, Prisma ORM schema & client generation, Zod request validation, and core REST APIs for Businesses, Customers, Staff, and Services.
 - **Phase 3.1 (Authentication Backend):** Secure JWT authentication with HTTP-only cookies, Bcrypt password hashing, User registration & login, `/api/auth/me`, and role-based authorization middleware.
+- **Phase 3.2 (Authentication Frontend):** React `AuthContext` state management, typed API client with `credentials: "include"`, `/login` and `/register` responsive forms with validation and password toggles, protected `/dashboard` shell, and automatic redirection flows.
 
 ---
 
@@ -26,6 +27,8 @@ Status: Completed
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 - **Icons:** [Lucide React](https://lucide.dev/)
+- **State & Context:** React Context API (`AuthContext`)
+- **API Client:** Native `fetch` wrapper with HTTP-only cookie support
 - **Linting:** ESLint
 
 ### Backend
@@ -53,6 +56,11 @@ Status: Completed
 │                    Next.js Client UI                        │
 │             (React + TypeScript + Tailwind CSS)             │
 │                 http://localhost:3000                       │
+│                                                             │
+│  ├── /                -> Public Landing & System Status     │
+│  ├── /login           -> Authenticated Sign In Form         │
+│  ├── /register        -> New Account Creation Form          │
+│  └── /dashboard       -> Protected Business Dashboard Shell │
 └──────────────────────────────┬──────────────────────────────┘
                                │ REST / JSON (CORS + Cookies)
                                ▼
@@ -92,7 +100,7 @@ Receptionist/
 ├── package.json                   # Root workspace scripts
 ├── docs/
 │   ├── ARCHITECTURE.md            # In-depth architectural specification
-│   ├── AUTHENTICATION.md          # Authentication and authorization architecture
+│   ├── AUTHENTICATION.md          # Complete Auth architecture & endpoint spec
 │   ├── DATABASE.md                # Database schema, ERD, and migration guide
 │   └── ROADMAP.md                 # Multi-phase capstone project roadmap
 ├── backend/
@@ -161,16 +169,30 @@ Receptionist/
     ├── next.config.mjs            # Next.js configuration
     └── src/
         ├── app/
+        │   ├── dashboard/
+        │   │   └── page.tsx       # Protected dashboard shell
+        │   ├── login/
+        │   │   └── page.tsx       # Sign in page
+        │   ├── register/
+        │   │   └── page.tsx       # Sign up page
         │   ├── globals.css        # Global Tailwind styles
-        │   ├── layout.tsx         # Root HTML layout shell
-        │   └── page.tsx           # Landing page with system status dashboard
-        └── components/
-            ├── ArchitecturePreview.tsx
-            ├── FeatureGrid.tsx
-            ├── Footer.tsx
-            ├── Header.tsx
-            ├── Hero.tsx
-            └── SystemStatus.tsx
+        │   ├── layout.tsx         # Root HTML layout shell with Providers
+        │   ├── page.tsx           # Landing page with system status dashboard
+        │   └── providers.tsx      # Client-side AuthProvider wrapper
+        ├── components/
+        │   ├── ArchitecturePreview.tsx
+        │   ├── FeatureGrid.tsx
+        │   ├── Footer.tsx
+        │   ├── Header.tsx         # Auth-aware navbar
+        │   ├── Hero.tsx
+        │   ├── ProtectedRoute.tsx # Route protection guard
+        │   └── SystemStatus.tsx
+        ├── context/
+        │   └── AuthContext.tsx    # Global authentication context & state
+        ├── lib/
+        │   └── api.ts             # Central typed API client
+        └── types/
+            └── auth.ts            # Client-side authentication types
 ```
 
 ---
@@ -289,10 +311,11 @@ npm --prefix frontend run dev
 | **Phase 1** | **Project Foundation & Full-Stack Setup** | Next.js, Express, TypeScript, Tailwind, Health API, Git | **Completed** ✅ |
 | **Phase 2** | **Database Foundation & Core Data Modeling** | PostgreSQL, Prisma Schema, Zod Validation, Core CRUD APIs | **Completed** ✅ |
 | **Phase 3.1** | **Authentication Backend Foundation** | JWT, Bcrypt, HTTP-only Cookies, Register/Login/Me, Roles | **Completed** ✅ |
-| **Phase 3.2** | **Frontend Auth & Protected Dashboard Shell** | Login/Register UI, Auth Context, Protected Routes | *Upcoming* ⏳ |
+| **Phase 3.2** | **Authentication Frontend & Protected Shell** | Login/Register UI, Auth Context, Protected Route Guard | **Completed** ✅ |
 | **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
 | **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
-| **Phase 6** | **Testing, Hardening & Final Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
+| **Phase 6** | **Admin Dashboard & Unified Experience** | Full management UI, call analytics, live simulator | *Upcoming* ⏳ |
+| **Phase 7** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
 
 ---
 

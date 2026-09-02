@@ -1,16 +1,18 @@
 # Authentication & Authorization Architecture
 
-This document describes the design, implementation, security properties, and endpoints of the **Authentication Backend Foundation** for the **AI-Powered Smart Receptionist Platform**.
+This document describes the complete architecture, implementation, security properties, and endpoints of the **Authentication and Authorization System** (Backend Foundation Phase 3.1 & Frontend Integration Phase 3.2) for the **AI-Powered Smart Receptionist Platform**.
 
 ---
 
 ## 1. Overview & Technology Stack
 
-- **Authentication Strategy:** JWT (JSON Web Tokens) with HTTP-Only Cookie Storage and Bearer Token header fallback.
+- **Authentication Strategy:** Decoupled JWT (JSON Web Tokens) with HTTP-Only Cookie Storage and Bearer Token header fallback.
+- **Frontend State:** React Context (`AuthContext` + `AuthProvider`) with automatic `/api/auth/me` session validation on initialization.
+- **Frontend API Client:** Centralized `fetcher` abstraction using `credentials: "include"` for secure, client-side token-free cookie transmission.
 - **Password Hashing:** `bcryptjs` with 10 salt rounds.
 - **Token Management:** `jsonwebtoken` signed with symmetric `JWT_SECRET`.
 - **Cookie Parser:** `cookie-parser` Express middleware.
-- **Validation Engine:** `zod` for strict request payload validation.
+- **Validation Engine:** `zod` for backend payload validation, coupled with client-side reactive form validation.
 - **Cost & Dependencies:** 100% Free, Local, and Open-Source. Zero third-party cloud authentication dependencies (no Clerk, Auth0, Firebase, or Supabase).
 
 ---
@@ -98,19 +100,32 @@ The token is set in the `auth_token` cookie with the following security attribut
 
 ---
 
-## 5. Authentication & Authorization Middleware
+## 5. Frontend Authentication Architecture
 
-### 5.1 `authenticate` Middleware
-Located at [`backend/src/middleware/auth.ts`](../backend/src/middleware/auth.ts):
-1. Extracts JWT from `req.cookies['auth_token']` or `Authorization: Bearer <token>` header.
-2. Validates token signature and expiration via `JwtUtil.verifyToken()`.
-3. Attaches typed payload to `req.user`.
-4. Returns `HTTP 401 Unauthorized` if token is missing, invalid, or expired.
+### 5.1 API Client (`frontend/src/lib/api.ts`)
+The frontend communicates with the Express backend using a typed API client:
+- Configured with `NEXT_PUBLIC_API_URL` (default: `http://localhost:5000`).
+- Every request includes `credentials: "include"` so the browser automatically handles sending and receiving the `auth_token` cookie.
+- No tokens are stored in `localStorage`, `sessionStorage`, or JavaScript memory variables.
 
-### 5.2 `authorize(...roles: UserRole[])` Middleware
-1. Verifies that `req.user` is authenticated.
-2. Checks whether `req.user.role` matches one of the allowed roles.
-3. Returns `HTTP 403 Forbidden` if user lacks required permissions.
+### 5.2 Context State (`frontend/src/context/AuthContext.tsx`)
+Provides global authentication state:
+- `user`: Authenticated user profile or `null`.
+- `loading`: Initialization and verification flag.
+- `isAuthenticated`: Boolean status (`!!user`).
+- `register(input)`: Executes registration and updates user state.
+- `login(input)`: Executes login, receives cookie, and updates user state.
+- `logout()`: Invalids cookie via backend and resets state to `null`.
+- `refreshUser()`: Re-fetches `/api/auth/me` on startup or route transitions.
+
+### 5.3 Protected Route Wrapper (`frontend/src/components/ProtectedRoute.tsx`)
+Guards private pages (e.g. `/dashboard`):
+- Displays a spinner while `loading` is `true`.
+- Redirects unauthenticated guests immediately to `/login`.
+- Prevents protected content flashes before authentication check completes.
+
+### 5.4 Authenticated Redirection
+- When an already authenticated user navigates to `/login` or `/register`, they are automatically redirected to `/dashboard`.
 
 ---
 
@@ -207,10 +222,15 @@ Located at [`backend/src/middleware/auth.ts`](../backend/src/middleware/auth.ts)
 
 ## 7. Environment Variables
 
-Configure in `backend/.env` (and documented in `backend/.env.example`):
-
+### Backend (`backend/.env` & `backend/.env.example`)
 ```env
 # Authentication Configuration
 JWT_SECRET=replace_with_secure_random_secret
 JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:3000
+```
+
+### Frontend (`frontend/.env.local` & `frontend/.env.example`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
