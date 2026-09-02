@@ -1,5 +1,8 @@
 import { createApp } from '../app';
 import { prisma } from '../lib/prisma';
+import { JwtUtil, AUTH_COOKIE_NAME } from '../lib/jwt';
+import { PasswordUtil } from '../lib/password';
+import { UserRole } from '@prisma/client';
 import http from 'http';
 
 interface TestResponse {
@@ -11,7 +14,8 @@ function makeRequest(
   server: http.Server,
   method: string,
   path: string,
-  body?: any
+  body?: any,
+  token?: string
 ): Promise<TestResponse> {
   return new Promise((resolve, reject) => {
     const address = server.address() as any;
@@ -26,6 +30,7 @@ function makeRequest(
       headers: {
         'Content-Type': 'application/json',
         ...(payload && { 'Content-Length': Buffer.byteLength(payload) }),
+        ...(token && { Cookie: `${AUTH_COOKIE_NAME}=${token}` }),
       },
     };
 
@@ -72,12 +77,33 @@ export async function runDatabaseIntegrationTests() {
     }
   };
 
+  let testUserId: string | null = null;
+  let testUserToken: string = '';
   let createdBusinessId: string | null = null;
   let createdCustomerId: string | null = null;
   let createdStaffId: string | null = null;
   let createdServiceId: string | null = null;
 
   try {
+    // --------------------------------------------------
+    // 0. AUTHENTICATED USER SETUP
+    // --------------------------------------------------
+    const pwdHash = await PasswordUtil.hash('DbTestPassword123!');
+    const testUser = await prisma.user.create({
+      data: {
+        name: 'Database Integration Test Owner',
+        email: 'db.test.owner@horizon.local',
+        passwordHash: pwdHash,
+        role: UserRole.BUSINESS_OWNER,
+      },
+    });
+    testUserId = testUser.id;
+    testUserToken = JwtUtil.generateToken({
+      userId: testUser.id,
+      role: testUser.role,
+      email: testUser.email,
+    });
+
     // --------------------------------------------------
     // 1. BUSINESS CRUD
     // --------------------------------------------------
@@ -91,7 +117,13 @@ export async function runDatabaseIntegrationTests() {
       timezone: 'America/New_York',
     };
 
-    const createBizRes = await makeRequest(server, 'POST', '/api/businesses', businessPayload);
+    const createBizRes = await makeRequest(
+      server,
+      'POST',
+      '/api/businesses',
+      businessPayload,
+      testUserToken
+    );
     assert(
       createBizRes.status === 201 && createBizRes.data.success === true && createBizRes.data.data?.id,
       'POST /api/businesses inserts new Business record into PostgreSQL',
@@ -103,12 +135,12 @@ export async function runDatabaseIntegrationTests() {
     if (createdBusinessId) {
       const bizInDb = await prisma.business.findUnique({ where: { id: createdBusinessId } });
       assert(
-        bizInDb !== null && bizInDb.name === businessPayload.name,
-        'Prisma directly verifies Business persistence in PostgreSQL'
+        bizInDb !== null && bizInDb.name === businessPayload.name && bizInDb.ownerId === testUserId,
+        'Prisma directly verifies Business persistence with ownerId in PostgreSQL'
       );
     }
 
-    const listBizRes = await makeRequest(server, 'GET', '/api/businesses');
+    const listBizRes = await makeRequest(server, 'GET', '/api/businesses', undefined, testUserToken);
     assert(
       listBizRes.status === 200 &&
         Array.isArray(listBizRes.data.data) &&
@@ -121,12 +153,19 @@ export async function runDatabaseIntegrationTests() {
     // --------------------------------------------------
     console.log('\n2. Testing Customer CRUD against PostgreSQL:');
     const customerPayload = {
+      businessId: createdBusinessId!,
       name: 'Test Customer Alice',
       phone: '+1-555-TEST-CUST1',
       email: 'alice.test@example.com',
     };
 
-    const createCustRes = await makeRequest(server, 'POST', '/api/customers', customerPayload);
+    const createCustRes = await makeRequest(
+      server,
+      'POST',
+      '/api/customers',
+      customerPayload,
+      testUserToken
+    );
     assert(
       createCustRes.status === 201 && createCustRes.data.success === true && createCustRes.data.data?.id,
       'POST /api/customers inserts new Customer record into PostgreSQL',
@@ -143,7 +182,7 @@ export async function runDatabaseIntegrationTests() {
       );
     }
 
-    const listCustRes = await makeRequest(server, 'GET', '/api/customers');
+    const listCustRes = await makeRequest(server, 'GET', '/api/customers', undefined, testUserToken);
     assert(
       listCustRes.status === 200 &&
         Array.isArray(listCustRes.data.data) &&
@@ -152,9 +191,13 @@ export async function runDatabaseIntegrationTests() {
     );
 
     // Update Customer
-    const updateCustRes = await makeRequest(server, 'PUT', `/api/customers/${createdCustomerId}`, {
-      name: 'Test Customer Alice Updated',
-    });
+    const updateCustRes = await makeRequest(
+      server,
+      'PUT',
+      `/api/customers/${createdCustomerId}`,
+      { name: 'Test Customer Alice Updated' },
+      testUserToken
+    );
     assert(
       updateCustRes.status === 200 && updateCustRes.data.data?.name === 'Test Customer Alice Updated',
       'PUT /api/customers/:id updates Customer record in PostgreSQL'
@@ -173,7 +216,13 @@ export async function runDatabaseIntegrationTests() {
       isActive: true,
     };
 
-    const createStaffRes = await makeRequest(server, 'POST', '/api/staff', staffPayload);
+    const createStaffRes = await makeRequest(
+      server,
+      'POST',
+      '/api/staff',
+      staffPayload,
+      testUserToken
+    );
     assert(
       createStaffRes.status === 201 &&
         createStaffRes.data.success === true &&
@@ -194,7 +243,13 @@ export async function runDatabaseIntegrationTests() {
       isActive: true,
     };
 
-    const createServRes = await makeRequest(server, 'POST', '/api/services', servicePayload);
+    const createServRes = await makeRequest(
+      server,
+      'POST',
+      '/api/services',
+      servicePayload,
+      testUserToken
+    );
     assert(
       createServRes.status === 201 &&
         createServRes.data.success === true &&
@@ -208,11 +263,18 @@ export async function runDatabaseIntegrationTests() {
     // --------------------------------------------------
     console.log('\n5. Testing Database Unique Constraint Enforcement:');
     // Attempt duplicate phone creation
-    const duplicateCustRes = await makeRequest(server, 'POST', '/api/customers', {
-      name: 'Duplicate Caller',
-      phone: customerPayload.phone, // Duplicate phone
-      email: 'duplicate@example.com',
-    });
+    const duplicateCustRes = await makeRequest(
+      server,
+      'POST',
+      '/api/customers',
+      {
+        businessId: createdBusinessId!,
+        name: 'Duplicate Caller',
+        phone: customerPayload.phone, // Duplicate phone
+        email: 'duplicate@example.com',
+      },
+      testUserToken
+    );
     assert(
       duplicateCustRes.status === 409 && duplicateCustRes.data.success === false,
       'POST /api/customers with duplicate phone returns HTTP 409 Conflict',
@@ -227,13 +289,25 @@ export async function runDatabaseIntegrationTests() {
     // 6. CUSTOMER DELETION
     // --------------------------------------------------
     console.log('\n6. Testing Customer Deletion:');
-    const deleteCustRes = await makeRequest(server, 'DELETE', `/api/customers/${createdCustomerId}`);
+    const deleteCustRes = await makeRequest(
+      server,
+      'DELETE',
+      `/api/customers/${createdCustomerId}`,
+      undefined,
+      testUserToken
+    );
     assert(
       deleteCustRes.status === 200 && deleteCustRes.data.success === true,
       'DELETE /api/customers/:id deletes Customer record from PostgreSQL'
     );
 
-    const verifyDeletedRes = await makeRequest(server, 'GET', `/api/customers/${createdCustomerId}`);
+    const verifyDeletedRes = await makeRequest(
+      server,
+      'GET',
+      `/api/customers/${createdCustomerId}`,
+      undefined,
+      testUserToken
+    );
     assert(
       verifyDeletedRes.status === 404,
       'GET /api/customers/:id after deletion returns HTTP 404'
@@ -251,8 +325,14 @@ export async function runDatabaseIntegrationTests() {
       if (createdServiceId) {
         await prisma.service.delete({ where: { id: createdServiceId } }).catch(() => {});
       }
+      if (createdCustomerId) {
+        await prisma.customer.delete({ where: { id: createdCustomerId } }).catch(() => {});
+      }
       if (createdBusinessId) {
         await prisma.business.delete({ where: { id: createdBusinessId } }).catch(() => {});
+      }
+      if (testUserId) {
+        await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
       }
       console.log('  ✓ Test records safely cleaned up from PostgreSQL.');
     } catch (cleanupErr) {

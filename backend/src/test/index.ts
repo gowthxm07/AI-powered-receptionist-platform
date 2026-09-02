@@ -1,7 +1,8 @@
 import './validation.test';
-import './api.test';
+import { runApiTestSuite } from './api.test';
 import { runAuthorizationMiddlewareTests } from './authorization.test';
 import { runAuthIntegrationTests } from './auth-integration.test';
+import { runCrossBusinessIsolationTests } from './cross-business-isolation.test';
 import { runDatabaseIntegrationTests } from './db-integration.test';
 
 async function runAllTestSuites() {
@@ -9,12 +10,14 @@ async function runAllTestSuites() {
   console.log('--- STARTING ALL RECEPTIONIST PLATFORM TEST SUITES ---');
   console.log('==========================================================');
 
+  await runApiTestSuite();
   await runAuthorizationMiddlewareTests();
   await runAuthIntegrationTests();
+  await runCrossBusinessIsolationTests();
   await runDatabaseIntegrationTests();
 
   console.log('\n==========================================================');
-  console.log('🎉 ALL TEST SUITES COMPLETED SUCCESSFULLY! 🎉');
+  console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
   console.log('==========================================================\n');
 }
 
