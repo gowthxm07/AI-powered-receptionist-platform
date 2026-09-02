@@ -4,7 +4,9 @@ import { CustomerService } from '../services/customer.service';
 export class CustomerController {
   public static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const customer = await CustomerService.createCustomer(req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const customer = await CustomerService.createCustomer(req.body, userId, role);
       res.status(201).json({
         success: true,
         message: 'Customer created successfully',
@@ -17,7 +19,11 @@ export class CustomerController {
 
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const customers = await CustomerService.getAllCustomers();
+      const businessId = typeof req.query.businessId === 'string' ? req.query.businessId : undefined;
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const customers = await CustomerService.getAllCustomers(businessId, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Customers retrieved successfully',
@@ -31,15 +37,9 @@ export class CustomerController {
   public static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const customer = await CustomerService.getCustomerById(id);
-
-      if (!customer) {
-        res.status(404).json({
-          success: false,
-          message: `Customer with ID '${id}' not found`,
-        });
-        return;
-      }
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const customer = await CustomerService.getCustomerById(id, userId, role);
 
       res.status(200).json({
         success: true,
@@ -54,14 +54,16 @@ export class CustomerController {
   public static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const customer = await CustomerService.updateCustomer(id, req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const customer = await CustomerService.updateCustomer(id, req.body, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Customer updated successfully',
         data: customer,
       });
-    } catch (error)
-    {
+    } catch (error) {
       next(error);
     }
   }
@@ -69,7 +71,10 @@ export class CustomerController {
   public static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await CustomerService.deleteCustomer(id);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      await CustomerService.deleteCustomer(id, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Customer deleted successfully',

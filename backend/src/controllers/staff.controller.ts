@@ -4,7 +4,9 @@ import { StaffService } from '../services/staff.service';
 export class StaffController {
   public static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const staff = await StaffService.createStaff(req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const staff = await StaffService.createStaff(req.body, userId, role);
       res.status(201).json({
         success: true,
         message: 'Staff member created successfully',
@@ -17,12 +19,15 @@ export class StaffController {
 
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = req.query.businessId as string | undefined;
-      const staffList = await StaffService.getAllStaff(businessId);
+      const businessId = typeof req.query.businessId === 'string' ? req.query.businessId : undefined;
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const staff = await StaffService.getAllStaff(businessId, userId, role);
+
       res.status(200).json({
         success: true,
-        message: 'Staff list retrieved successfully',
-        data: staffList,
+        message: 'Staff retrieved successfully',
+        data: staff,
       });
     } catch (error) {
       next(error);
@@ -32,19 +37,13 @@ export class StaffController {
   public static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const staff = await StaffService.getStaffById(id);
-
-      if (!staff) {
-        res.status(404).json({
-          success: false,
-          message: `Staff member with ID '${id}' not found`,
-        });
-        return;
-      }
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const staff = await StaffService.getStaffById(id, userId, role);
 
       res.status(200).json({
         success: true,
-        message: 'Staff member retrieved successfully',
+        message: 'Staff retrieved successfully',
         data: staff,
       });
     } catch (error) {
@@ -55,7 +54,10 @@ export class StaffController {
   public static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const staff = await StaffService.updateStaff(id, req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const staff = await StaffService.updateStaff(id, req.body, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Staff member updated successfully',
@@ -69,7 +71,10 @@ export class StaffController {
   public static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await StaffService.deleteStaff(id);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      await StaffService.deleteStaff(id, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Staff member deleted successfully',

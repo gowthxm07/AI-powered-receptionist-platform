@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 export const createCustomerSchema = z.object({
+  businessId: z
+    .string()
+    .uuid('Invalid business ID format')
+    .optional(),
   name: z
     .string({ required_error: 'Customer name is required' })
     .min(1, 'Customer name cannot be empty')

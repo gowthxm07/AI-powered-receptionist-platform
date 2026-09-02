@@ -4,7 +4,9 @@ import { ServiceService } from '../services/service.service';
 export class ServiceController {
   public static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const service = await ServiceService.createService(req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const service = await ServiceService.createService(req.body, userId, role);
       res.status(201).json({
         success: true,
         message: 'Service created successfully',
@@ -17,8 +19,11 @@ export class ServiceController {
 
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businessId = req.query.businessId as string | undefined;
-      const services = await ServiceService.getAllServices(businessId);
+      const businessId = typeof req.query.businessId === 'string' ? req.query.businessId : undefined;
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const services = await ServiceService.getAllServices(businessId, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Services retrieved successfully',
@@ -32,15 +37,9 @@ export class ServiceController {
   public static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const service = await ServiceService.getServiceById(id);
-
-      if (!service) {
-        res.status(404).json({
-          success: false,
-          message: `Service with ID '${id}' not found`,
-        });
-        return;
-      }
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const service = await ServiceService.getServiceById(id, userId, role);
 
       res.status(200).json({
         success: true,
@@ -55,7 +54,10 @@ export class ServiceController {
   public static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const service = await ServiceService.updateService(id, req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const service = await ServiceService.updateService(id, req.body, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Service updated successfully',
@@ -69,7 +71,10 @@ export class ServiceController {
   public static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await ServiceService.deleteService(id);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      await ServiceService.deleteService(id, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Service deleted successfully',
