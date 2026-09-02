@@ -34,10 +34,36 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 - [x] CRUD REST APIs for Business, Customer, Staff, and Service entities
 - [x] Database error handling middleware (Prisma P2002, P2025, P2003, Zod validation errors)
 - [x] Comprehensive database & API documentation (`docs/DATABASE.md`)
+- [x] Full PostgreSQL runtime verification with version-controlled migrations
 
 ---
 
-### Phase 3: Local AI Integration & Conversational Receptionist (Upcoming ⏳)
+### Phase 3.1: Authentication Backend Foundation (COMPLETED ✅)
+- [x] `User` relational model and `UserRole` enum (`ADMIN`, `BUSINESS_OWNER`) in Prisma schema
+- [x] `Business.ownerId` relationship linking business owners to business tenants
+- [x] Version-controlled Prisma migration (`20260902170000_add_user_authentication`)
+- [x] Password security using `bcryptjs` with salt hashing
+- [x] JWT token generation, verification, and HTTP-only cookie management (`jsonwebtoken`, `cookie-parser`)
+- [x] Authentication REST APIs:
+  - `POST /api/auth/register` (Zod validated, unique email, safe response)
+  - `POST /api/auth/login` (generic 401 on failure to prevent user enumeration)
+  - `GET /api/auth/me` (protected profile inspection)
+  - `POST /api/auth/logout` (cookie invalidation)
+- [x] Authentication & Authorization middlewares (`authenticate`, `authorize(...roles)`)
+- [x] Complete automated test suite covering registration, hashing, login, tokens, roles, and constraints
+- [x] Documentation specification in `docs/AUTHENTICATION.md`
+
+---
+
+### Phase 3.2: Frontend Auth & Protected Dashboard Shell (Upcoming ⏳)
+- [ ] Next.js login & registration pages
+- [ ] Auth context & state management
+- [ ] Protected route wrapper and redirection logic
+- [ ] Business owner onboarding shell
+
+---
+
+### Phase 4: Local AI Integration & Conversational Receptionist (Upcoming ⏳)
 - [ ] Ollama integration (Local LLM inference via REST/TypeScript client)
 - [ ] Prompt engineering for receptionist persona, greetings, and inquiry classification
 - [ ] Function/Tool calling for appointments (e.g., `checkAvailability`, `bookAppointment`)
@@ -46,7 +72,7 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 4: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
+### Phase 5: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
 - [ ] Local Speech-to-Text (STT) using Whisper
 - [ ] Local Text-to-Speech (TTS) using Piper
 - [ ] Vector Database setup (ChromaDB / Qdrant)
@@ -55,7 +81,7 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 5: Admin Dashboard & Unified Experience (Upcoming ⏳)
+### Phase 6: Admin Dashboard & Unified Experience (Upcoming ⏳)
 - [ ] Analytics dashboard for receptionist calls, booking rates, and conversation sentiment
 - [ ] Real-time call monitor and interactive chat simulator for testing
 - [ ] Admin controls to update business knowledge docs and AI persona guidelines
@@ -63,7 +89,7 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 6: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
+### Phase 7: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
 - [ ] Unit and integration tests for API endpoints and business logic
 - [ ] End-to-end voice and text conversational test suite
 - [ ] Final security review, performance optimizations, and demonstration walkthrough

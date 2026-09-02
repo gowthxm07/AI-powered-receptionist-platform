@@ -2,23 +2,24 @@
 
 > **"Intelligent conversations. Smarter appointments."**
 
-An autonomous, full-stack AI-integrated receptionist platform designed to streamline front-desk operations, automate appointment bookings, resolve caller inquiries, and manage customer records using 100% free and open-source local AI and database technologies.
+An autonomous, full-stack AI-integrated receptionist platform designed to streamline front-desk operations, automate appointment bookings, resolve caller inquiries, and manage customer records using 100% free and open-source local AI, database, and authentication technologies.
 
 ---
 
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 2 — Database Foundation & Core Data Modeling
+Current Milestone: PHASE 3.1 — Authentication Backend Foundation
 Status: Completed
 ```
 
 - **Phase 1 (Foundation):** Next.js UI shell, Express API, TypeScript setup, Health check API, progressive Git history.
 - **Phase 2 (Database & Data Modeling):** PostgreSQL local containerization via Docker Compose, Prisma ORM schema & client generation, Zod request validation, and core REST APIs for Businesses, Customers, Staff, and Services.
+- **Phase 3.1 (Authentication Backend):** Secure JWT authentication with HTTP-only cookies, Bcrypt password hashing, User registration & login, `/api/auth/me`, and role-based authorization middleware.
 
 ---
 
-## 🛠 Current Tech Stack (Phases 1 & 2)
+## 🛠 Current Tech Stack
 
 ### Frontend
 - **Framework:** [Next.js](https://nextjs.org/) (React 18, App Router)
@@ -33,6 +34,7 @@ Status: Completed
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
 - **Database Engine:** [PostgreSQL](https://www.postgresql.org/) (Local / Docker Compose)
 - **ORM:** [Prisma ORM](https://www.prisma.io/)
+- **Authentication:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies)
 - **Validation:** [Zod](https://zod.dev/)
 - **Utilities:** `cors`, `dotenv`
 - **Execution & Transpilation:** `tsx`, `tsc`
@@ -52,7 +54,7 @@ Status: Completed
 │             (React + TypeScript + Tailwind CSS)             │
 │                 http://localhost:3000                       │
 └──────────────────────────────┬──────────────────────────────┘
-                               │ REST / JSON (CORS Enabled)
+                               │ REST / JSON (CORS + Cookies)
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     Express API Server                      │
@@ -60,6 +62,7 @@ Status: Completed
 │                 http://localhost:5000                       │
 │                                                             │
 │  ├── /api/health      -> System & Uptime Diagnostic         │
+│  ├── /api/auth        -> Register, Login, Me, Logout        │
 │  ├── /api/businesses  -> Business Entity CRUD               │
 │  ├── /api/customers   -> Customer Directory CRUD            │
 │  ├── /api/staff       -> Staff Roster CRUD                  │
@@ -69,9 +72,10 @@ Status: Completed
                ▼ (Prisma ORM)                 ▼ (Future Phase)
 ┌──────────────────────────────┐ ┌────────────────────────────┐
 │      PostgreSQL Database     │ │       Local AI Engine      │
-│   • Businesses & Staff       │ │   • Ollama (Local LLM)     │
-│   • Customers & Services     │ │   • Whisper (STT)          │
-│   • Appointments & Convos    │ │   • Piper (TTS)            │
+│   • Users & Roles (Auth)     │ │   • Ollama (Local LLM)     │
+│   • Businesses & Staff       │ │   • Whisper (STT)          │
+│   • Customers & Services     │ │   • Piper (TTS)            │
+│   • Appointments & Convos    │ │                            │
 └──────────────────────────────┘ └────────────────────────────┘
 ```
 
@@ -88,6 +92,7 @@ Receptionist/
 ├── package.json                   # Root workspace scripts
 ├── docs/
 │   ├── ARCHITECTURE.md            # In-depth architectural specification
+│   ├── AUTHENTICATION.md          # Authentication and authorization architecture
 │   ├── DATABASE.md                # Database schema, ERD, and migration guide
 │   └── ROADMAP.md                 # Multi-phase capstone project roadmap
 ├── backend/
@@ -95,22 +100,28 @@ Receptionist/
 │   ├── package.json               # Backend dependencies and scripts
 │   ├── tsconfig.json              # Backend TypeScript configuration
 │   ├── prisma/
-│   │   └── schema.prisma          # PostgreSQL relational schema definition
+│   │   ├── schema.prisma          # PostgreSQL relational schema definition
+│   │   └── migrations/            # Version-controlled Prisma SQL migrations
 │   └── src/
 │       ├── config/
 │       │   └── environment.ts     # Type-safe configuration loader
 │       ├── controllers/
+│       │   ├── auth.controller.ts     # Auth handlers (Register, Login, Me, Logout)
 │       │   ├── business.controller.ts # Business CRUD handlers
 │       │   ├── customer.controller.ts # Customer CRUD handlers
 │       │   ├── health.controller.ts   # Health check controller
 │       │   ├── service.controller.ts  # Service catalog handlers
 │       │   └── staff.controller.ts    # Staff management handlers
 │       ├── lib/
+│       │   ├── jwt.ts             # JWT token & cookie utilities
+│       │   ├── password.ts        # Bcrypt password hashing
 │       │   └── prisma.ts          # Reusable Prisma client singleton
 │       ├── middleware/
+│       │   ├── auth.ts            # authenticate & authorize middlewares
 │       │   ├── errorHandler.ts    # Prisma, validation, & 404 error handlers
 │       │   └── validate.ts        # Generic Zod request validator
 │       ├── routes/
+│       │   ├── auth.routes.ts     # /api/auth route table
 │       │   ├── business.routes.ts # /api/businesses route table
 │       │   ├── customer.routes.ts # /api/customers route table
 │       │   ├── health.routes.ts   # /api/health route table
@@ -118,14 +129,23 @@ Receptionist/
 │       │   ├── staff.routes.ts    # /api/staff route table
 │       │   └── index.ts           # Central router aggregator
 │       ├── services/
+│       │   ├── auth.service.ts
 │       │   ├── business.service.ts
 │       │   ├── customer.service.ts
 │       │   ├── health.service.ts
 │       │   ├── service.service.ts
 │       │   └── staff.service.ts
 │       ├── test/
-│       │   └── validation.test.ts # Zod schema unit test suite
+│       │   ├── auth-integration.test.ts # Auth & JWT integration tests
+│       │   ├── authorization.test.ts    # Role middleware tests
+│       │   ├── db-integration.test.ts   # PostgreSQL CRUD tests
+│       │   ├── validation.test.ts       # Zod schema validation tests
+│       │   └── index.ts                 # Master test suite runner
+│       ├── types/
+│       │   ├── auth.types.ts
+│       │   └── express.d.ts
 │       ├── validation/
+│       │   ├── auth.validation.ts
 │       │   ├── business.validation.ts
 │       │   ├── customer.validation.ts
 │       │   ├── service.validation.ts
@@ -145,12 +165,12 @@ Receptionist/
         │   ├── layout.tsx         # Root HTML layout shell
         │   └── page.tsx           # Landing page with system status dashboard
         └── components/
-            ├── Header.tsx         # Sticky navigation header
-            ├── Hero.tsx           # Hero section with project tagline
-            ├── SystemStatus.tsx   # Live API connectivity verification tool
-            ├── FeatureGrid.tsx    # Visual preview cards for planned features
-            ├── ArchitecturePreview.tsx # Architecture overview component
-            └── Footer.tsx         # Footer with capstone metadata
+            ├── ArchitecturePreview.tsx
+            ├── FeatureGrid.tsx
+            ├── Footer.tsx
+            ├── Header.tsx
+            ├── Hero.tsx
+            └── SystemStatus.tsx
 ```
 
 ---
@@ -160,7 +180,7 @@ Receptionist/
 ### Prerequisites
 - **Node.js**: v18.0.0 or later (`node -v`)
 - **npm**: v9.0.0 or later (`npm -v`)
-- **Docker & Docker Compose** *(Optional for containerized PostgreSQL)* or a local PostgreSQL instance.
+- **Docker & Docker Compose** (for PostgreSQL)
 
 ---
 
@@ -185,17 +205,14 @@ cp frontend/.env.example frontend/.env.local
 
 ---
 
-### Step 3: Start Local Database
+### Step 3: Start Local Database & Apply Migrations
 
-**Using Docker Compose (Recommended):**
 ```bash
+# Start PostgreSQL Container
 docker compose up -d
-```
 
-**Generate Prisma Client & Push Schema:**
-```bash
-npm --prefix backend run db:generate
-npm --prefix backend run db:push
+# Apply Version-Controlled Migrations
+npm --prefix backend run db:deploy
 ```
 
 ---
@@ -203,63 +220,65 @@ npm --prefix backend run db:push
 ### Step 4: Install Dependencies
 
 ```bash
-# Install backend dependencies
+# Backend
 npm --prefix backend install
 
-# Install frontend dependencies
+# Frontend
 npm --prefix frontend install
 ```
 
 ---
 
-### Step 5: Run the Applications
+### Step 5: Run the Applications & Test Suite
 
-#### Option A: Development Mode
+#### Run All Automated Tests
+```bash
+npm --prefix backend run test
+```
 
-**Terminal 1 (Backend):**
+#### Run Backend API Server
 ```bash
 npm --prefix backend run dev
 ```
 *Backend runs on:* [http://localhost:5000](http://localhost:5000)
 
-**Terminal 2 (Frontend):**
+#### Run Frontend Web Client
 ```bash
 npm --prefix frontend run dev
 ```
 *Frontend runs on:* [http://localhost:3000](http://localhost:3000)
 
-#### Option B: Run Validation Tests
-```bash
-npm --prefix backend run test
-```
-
 ---
 
 ## 🌐 API Route Reference
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Service liveness & uptime status |
-| `POST` | `/api/businesses` | Create business profile |
-| `GET` | `/api/businesses` | List all businesses with counts |
-| `GET` | `/api/businesses/:id` | Get business details & staff/services |
-| `PUT` | `/api/businesses/:id` | Update business profile |
-| `DELETE` | `/api/businesses/:id` | Remove business |
-| `POST` | `/api/customers` | Create customer (unique phone) |
-| `GET` | `/api/customers` | List all customers |
-| `GET` | `/api/customers/:id` | Get customer profile & history |
-| `PUT` | `/api/customers/:id` | Update customer details |
-| `DELETE` | `/api/customers/:id` | Remove customer |
-| `POST` | `/api/staff` | Create staff member |
-| `GET` | `/api/staff` | List staff (query: `?businessId=...`) |
-| `GET` | `/api/staff/:id` | Get staff details & schedule |
-| `PUT` | `/api/staff/:id` | Update staff profile |
-| `DELETE` | `/api/staff/:id` | Remove staff member |
-| `POST` | `/api/services` | Create service offering |
-| `GET` | `/api/services` | List services (query: `?businessId=...`) |
-| `GET` | `/api/services/:id` | Get service details |
-| `PUT` | `/api/services/:id` | Update service offering |
-| `DELETE` | `/api/services/:id` | Remove service offering |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/health` | Service liveness & uptime status | No |
+| `POST` | `/api/auth/register` | Register user & issue HTTP-only JWT cookie | No |
+| `POST` | `/api/auth/login` | Authenticate user & issue JWT cookie | No |
+| `GET` | `/api/auth/me` | Retrieve authenticated user profile | **Yes** |
+| `POST` | `/api/auth/logout` | Clear authentication cookie | No |
+| `POST` | `/api/businesses` | Create business profile | No |
+| `GET` | `/api/businesses` | List all businesses with counts | No |
+| `GET` | `/api/businesses/:id` | Get business details & staff/services | No |
+| `PUT` | `/api/businesses/:id` | Update business profile | No |
+| `DELETE` | `/api/businesses/:id` | Remove business | No |
+| `POST` | `/api/customers` | Create customer (unique phone) | No |
+| `GET` | `/api/customers` | List all customers | No |
+| `GET` | `/api/customers/:id` | Get customer profile & history | No |
+| `PUT` | `/api/customers/:id` | Update customer details | No |
+| `DELETE` | `/api/customers/:id` | Remove customer | No |
+| `POST` | `/api/staff` | Create staff member | No |
+| `GET` | `/api/staff` | List staff (query: `?businessId=...`) | No |
+| `GET` | `/api/staff/:id` | Get staff details & schedule | No |
+| `PUT` | `/api/staff/:id` | Update staff profile | No |
+| `DELETE` | `/api/staff/:id` | Remove staff member | No |
+| `POST` | `/api/services` | Create service offering | No |
+| `GET` | `/api/services` | List services (query: `?businessId=...`) | No |
+| `GET` | `/api/services/:id` | Get service details | No |
+| `PUT` | `/api/services/:id` | Update service offering | No |
+| `DELETE` | `/api/services/:id` | Remove service offering | No |
 
 ---
 
@@ -269,9 +288,10 @@ npm --prefix backend run test
 |---|---|---|---|
 | **Phase 1** | **Project Foundation & Full-Stack Setup** | Next.js, Express, TypeScript, Tailwind, Health API, Git | **Completed** ✅ |
 | **Phase 2** | **Database Foundation & Core Data Modeling** | PostgreSQL, Prisma Schema, Zod Validation, Core CRUD APIs | **Completed** ✅ |
-| **Phase 3** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
-| **Phase 4** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
-| **Phase 5** | **Admin Dashboard & Conversation Summaries** | Analytics, appointment management UI, AI summary cards | *Upcoming* ⏳ |
+| **Phase 3.1** | **Authentication Backend Foundation** | JWT, Bcrypt, HTTP-only Cookies, Register/Login/Me, Roles | **Completed** ✅ |
+| **Phase 3.2** | **Frontend Auth & Protected Dashboard Shell** | Login/Register UI, Auth Context, Protected Routes | *Upcoming* ⏳ |
+| **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
+| **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 6** | **Testing, Hardening & Final Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
 
 ---
@@ -280,5 +300,5 @@ npm --prefix backend run test
 
 This project is built strictly following open-source, free principles:
 - **No paid API keys or subscriptions required**
-- **No proprietary cloud database lock-in** (PostgreSQL runs locally)
+- **No proprietary cloud auth or DB lock-in** (JWT + PostgreSQL run locally)
 - **Local AI & Privacy First**
