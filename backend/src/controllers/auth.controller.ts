@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService, DuplicateEmailError, AuthenticationError, UserNotFoundError } from '../services/auth.service';
 import { JwtUtil, AUTH_COOKIE_NAME } from '../lib/jwt';
+import { config } from '../config/environment';
 
 export class AuthController {
   public static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -79,7 +80,12 @@ export class AuthController {
 
   public static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      res.clearCookie(AUTH_COOKIE_NAME, JwtUtil.getCookieOptions());
+      res.clearCookie(AUTH_COOKIE_NAME, {
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
 
       res.status(200).json({
         success: true,
