@@ -1,8 +1,21 @@
+import { Header } from '@/components/Header';
+import { Hero } from '@/components/Hero';
+import { SystemStatus } from '@/components/SystemStatus';
+import { FeatureGrid } from '@/components/FeatureGrid';
+import { ArchitecturePreview } from '@/components/ArchitecturePreview';
+import { Footer } from '@/components/Footer';
+
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold">AI-Powered Smart Receptionist Platform</h1>
-      <p className="text-slate-400 mt-2">Phase 1: Project Foundation</p>
-    </main>
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-blue-500 selection:text-white">
+      <Header />
+      <main className="flex-1">
+        <Hero />
+        <SystemStatus />
+        <FeatureGrid />
+        <ArchitecturePreview />
+      </main>
+      <Footer />
+    </div>
   );
 }
