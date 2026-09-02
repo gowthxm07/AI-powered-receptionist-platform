@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { BusinessController } from '../controllers/business.controller';
 import { validateRequest } from '../middleware/validate';
+import { authenticate } from '../middleware/auth';
 import { createBusinessSchema, updateBusinessSchema } from '../validation/business.validation';
 
 const router = Router();
+
+// All business routes require valid user authentication
+router.use(authenticate);
 
 router.post('/', validateRequest(createBusinessSchema), BusinessController.create);
 router.get('/', BusinessController.getAll);

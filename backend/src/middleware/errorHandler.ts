@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
+import { ForbiddenError, NotFoundError } from '../services/ownership.service';
 
 // 404 Handler for undefined routes
 export const notFoundHandler = (req: Request, res: Response, next: NextFunction): void => {
@@ -17,6 +18,23 @@ export const errorHandler = (
   next: NextFunction
 ): void => {
   console.error('[Application Error]:', err);
+
+  // Custom Ownership & Access Errors
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({
+      success: false,
+      message: err.message,
+    });
+    return;
+  }
+
+  if (err instanceof NotFoundError) {
+    res.status(404).json({
+      success: false,
+      message: err.message,
+    });
+    return;
+  }
 
   // Prisma Known Request Errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {

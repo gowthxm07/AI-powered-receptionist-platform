@@ -4,7 +4,8 @@ import { BusinessService } from '../services/business.service';
 export class BusinessController {
   public static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const business = await BusinessService.createBusiness(req.body);
+      const userId = req.user!.userId;
+      const business = await BusinessService.createBusiness(req.body, userId);
       res.status(201).json({
         success: true,
         message: 'Business created successfully',
@@ -17,7 +18,9 @@ export class BusinessController {
 
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const businesses = await BusinessService.getAllBusinesses();
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const businesses = await BusinessService.getAllBusinesses(userId, role);
       res.status(200).json({
         success: true,
         message: 'Businesses retrieved successfully',
@@ -31,15 +34,9 @@ export class BusinessController {
   public static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const business = await BusinessService.getBusinessById(id);
-
-      if (!business) {
-        res.status(404).json({
-          success: false,
-          message: `Business with ID '${id}' not found`,
-        });
-        return;
-      }
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const business = await BusinessService.getBusinessById(id, userId, role);
 
       res.status(200).json({
         success: true,
@@ -54,7 +51,10 @@ export class BusinessController {
   public static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const business = await BusinessService.updateBusiness(id, req.body);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const business = await BusinessService.updateBusiness(id, req.body, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Business updated successfully',
@@ -68,7 +68,10 @@ export class BusinessController {
   public static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await BusinessService.deleteBusiness(id);
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      await BusinessService.deleteBusiness(id, userId, role);
+
       res.status(200).json({
         success: true,
         message: 'Business deleted successfully',
