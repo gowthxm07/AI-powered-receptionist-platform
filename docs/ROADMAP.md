@@ -145,11 +145,35 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 5.2: Local AI Integration & Conversational Engine (Upcoming ⏳)
-- [ ] Ollama integration (Local LLM inference via REST/TypeScript client)
-- [ ] Prompt engineering for receptionist persona, greetings, and inquiry classification
-- [ ] Function/Tool calling for appointments (`checkAvailability`, `bookAppointment`, `cancelAppointment`)
-- [ ] Call and conversation transcript logging into database
+### Phase 5.2.1: Ollama Runtime & Performance Benchmark (COMPLETED ✅)
+- [x] Ollama v0.33.2 runtime integration and probe utility (`OllamaRuntimeService`)
+- [x] `llama3.2:3b` model download and local verification
+- [x] Typed environment configuration (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT_MS`)
+- [x] High-precision benchmark suite (`npm run benchmark:ollama`)
+- [x] Real measured CPU inference performance benchmarks (3.25s avg latency, 12.5 tokens/sec)
+- [x] Complete performance report in `docs/OLLAMA_BENCHMARK.md`
+
+---
+
+### Phase 5.2.2: Ollama Model Adapter & Local Generation (COMPLETED ✅)
+- [x] Core AI Model interface abstraction (`AIModel`, `AIModelRequest`, `AIModelResponse`, `AIModelStreamChunk`)
+- [x] `OllamaModelAdapter` implementation using native `fetch` over `/api/chat`
+- [x] Non-streaming generation (`generate()`) with latency and token throughput calculation
+- [x] Progressive streaming generation (`generateStream()`) via `AsyncIterable`
+- [x] Request timeout and cancellation support via `AbortController` and `AbortSignal`
+- [x] Defensive context sanitization and bounding (`ModelValidator`)
+- [x] Memory keep-alive configuration (`OLLAMA_KEEP_ALIVE=5m`)
+- [x] Explicit model pre-warm utility (`npm run ai:warmup`)
+- [x] Comprehensive unit and mocked error tests (100% offline runnable)
+- [x] Complete adapter specification in `docs/OLLAMA_ADAPTER.md`
+
+---
+
+### Phase 5.2.3: Tool Calling & Receptionist Dialogue Orchestration (Upcoming ⏳)
+- [ ] LLM tool calling integration connecting `OllamaModelAdapter` to `AIToolRouter`
+- [ ] Structured prompt assembly with tool definitions and runtime context
+- [ ] Tool execution loop (LLM -> Tool Call -> Router -> DB Service -> LLM Synthesis)
+- [ ] Call and conversation transcript logging into PostgreSQL
 - [ ] Automated conversation summarization generator
 
 ---

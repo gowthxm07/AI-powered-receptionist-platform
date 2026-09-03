@@ -1,6 +1,6 @@
 # AI Receptionist Architecture & Tool Foundation
 
-This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, and local Ollama runtime layer.
+This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, and model generation adapter.
 
 ---
 
@@ -89,6 +89,12 @@ backend/src/modules/ai/
 │   └── index.ts
 ├── context/
 │   ├── context-builder.ts        -> Lightweight AIContextBuilder
+│   └── index.ts
+├── model/
+│   ├── model.types.ts            -> AIModel, AIModelRequest, AIModelResponse, AIModelStreamChunk
+│   ├── model-validator.ts        -> Request bounding and defensive sanitization
+│   ├── ollama-errors.ts          -> Typed Ollama error taxonomy
+│   ├── ollama-model-adapter.ts   -> Native fetch model adapter (streaming + non-streaming)
 │   └── index.ts
 ├── runtime/
 │   ├── ollama-runtime.service.ts -> Probing local Ollama service & model availability
@@ -209,4 +215,17 @@ llama3.2:3b (CPU-First Inference)
 - **Average Warm Latency:** **3.25 seconds** (1.04s min, 4.72s max)
 - **CPU Throughput:** **12.49 tokens/second** on Intel Core i5 CPU
 - **Memory Footprint:** ~2.0 GB RAM
-- Complete benchmark details: [`docs/OLLAMA_BENCHMARK.md`](file:///d:/Receptionist/docs/OLLAMA_BENCHMARK.md).
+- Complete benchmark details: [`docs/OLLAMA_BENCHMARK.md`](docs/OLLAMA_BENCHMARK.md).
+
+---
+
+## 10. AI Model Generation Adapter Layer
+
+Implemented in [`backend/src/modules/ai/model/`](backend/src/modules/ai/model/):
+
+- **Model Abstraction (`AIModel`):** Generic TypeScript interface allowing non-streaming (`generate`) and progressive chunk streaming (`generateStream`).
+- **Ollama Adapter (`OllamaModelAdapter`):** Communicates with Ollama `/api/chat` using native Node.js `fetch`.
+- **Cancellation & Timeout:** Controlled via `AbortController` linked with caller `AbortSignal`.
+- **Keep-Alive Management:** Default `5m` keep-alive retains model weights in RAM during active calls while freeing memory after idle periods.
+- **Warm-Up Capability:** Explicit `npm run ai:warmup` script pre-loads weights into memory for zero cold-start delay during demos.
+- Full details: [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md).
