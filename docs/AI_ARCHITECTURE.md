@@ -252,4 +252,16 @@ Phases 6.2.1, 6.2.2, and 6.3 integrated speech-to-text (STT) and text-to-speech 
 - Complete speech pipeline integration details: [`docs/LOCAL_SPEECH_PIPELINE.md`](docs/LOCAL_SPEECH_PIPELINE.md).
 - Complete voice latency benchmark & analysis: [`docs/VOICE_LATENCY_ANALYSIS.md`](docs/VOICE_LATENCY_ANALYSIS.md).
 
+---
+
+## 11. Real-Time Voice Transport & Session Management
+
+Phase 7.1 established a modular, transport-independent layer decoupling client communication protocols from the core AI engine:
+
+- **Transport Session Management:** `VoiceTransportSessionManager` binds transport sessions (`vtr_*`) to AI conversation sessions (`sess_*`), managing client connection state (`READY`, `PROCESSING_TURN`, `TERMINATED`) and 15-minute sliding TTL.
+- **Audio Turn Transport:** `VoiceTurnTransportService` accepts multipart audio, Buffers, or Base64 payloads with strict MIME validation and path-traversal safety.
+- **Ultra-Low Transport Overhead:** High-resolution instrumentation demonstrates only **4.5 ms – 6.0 ms** of transport layer overhead ($< 0.4\%$ of total latency).
+- **Multi-Tenant Session Defense:** Strict rejection of cross-business session reuse (`403 SESSION_BUSINESS_MISMATCH`).
+- Complete voice transport architecture details: [`docs/VOICE_TRANSPORT_ARCHITECTURE.md`](docs/VOICE_TRANSPORT_ARCHITECTURE.md).
+
 
