@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 7.2.1 — Mobile Voice Client Interface Foundation
+Current Milestone: PHASE 7.2.2 — Live End-to-End Mobile Voice Integration & Latency Verification
 Status: Completed
 ```
 
@@ -34,6 +34,7 @@ Status: Completed
 - **Phase 6.3 (Interactive Real-Time Voice Conversation & Latency Optimization):** Unified `VoiceConversationOrchestrator`, stage-by-stage latency instrumentation (`audioInputProcessingMs`, `sttLatencyMs`, `conversationLatencyMs`, `ttsLatencyMs`, `totalPipelineLatencyMs`), multi-turn session continuity, booking state preservation during mid-flow inquiries, real 4-scenario benchmark suite (`npm run benchmark:voice`), and interactive voice demo (`npm run demo:voice-conversation`).
 - **Phase 7.1 (Real-Time Voice Transport & Streaming Foundation):** Modular transport abstraction (`IVoiceTransportSession`, `VoiceTurnTransportResult`), dedicated `VoiceTransportSessionManager` mapping transport sessions to AI conversation sessions, turn-based audio transport service (`VoiceTurnTransportService`), ultra-low measured transport overhead (**4.5 ms – 6.0 ms**), `POST /api/ai/voice/transport/*` API endpoints, live demo (`npm run demo:voice-transport`), and transport benchmark (`npm run benchmark:voice-transport`).
 - **Phase 7.2.1 (Mobile Voice Client Interface Foundation):** Dedicated mobile-responsive voice receptionist route (`/voice`), modular component architecture (`VoiceReceptionist`, `VoiceStatus`, `VoiceActivityIndicator`, `VoiceControlButton`, `RecordingTimer`, `VoiceSessionInfo`), `useVoiceSession` & `useMediaRecorder` hooks, push-to-talk audio turn capture, dynamic MIME negotiation, and real-time latency telemetry.
+- **Phase 7.2.2 (Live End-to-End Mobile Voice Integration & Latency Verification):** Local network discovery tool (`npm run network:info`), dynamic development CORS origin strategy supporting all private LAN subnets and host IP addresses, live mobile verification suite (`npm run verify:mobile-voice`) testing greetings, queries, known/unknown multi-turn bookings, and Ollama fallback, speech transcript normalization, and comprehensive testing documentation.
 
 ---
 
@@ -45,19 +46,19 @@ The platform runs local AI inference and speech processing on standard CPU hardw
 |---|---|
 | **Model** | `llama3.2:3b` (2.0 GB disk / RAM footprint) |
 | **Inference Engine** | Ollama v0.33.2 (Local loopback `http://127.0.0.1:11434`) |
-| **Speech-to-Text (STT)** | **`whisper.cpp (tiny.en)`** — **~940 ms live latency** (RTF: **0.466x**, ~77 MB RAM) |
-| **Text-to-Speech (TTS)** | **`Piper TTS (lessac-medium)`** — **~600 ms live latency** (RTF: **0.212x**, ~60 MB RAM) |
-| **Voice Transport Overhead** | **4.5 ms – 6.0 ms** (Target $< 50$ ms, $\sim 0.3\%$ of total latency) |
+| **Speech-to-Text (STT)** | **`whisper.cpp (tiny.en)`** — **~901 – 950 ms live latency** (RTF: **0.466x**, ~77 MB RAM) |
+| **Text-to-Speech (TTS)** | **`Piper TTS (lessac-medium)`** — **~600 – 885 ms live latency** (RTF: **0.212x**, ~60 MB RAM) |
+| **Voice Transport Overhead** | **4.1 ms – 5.1 ms** (Target $< 50$ ms, $\sim 0.3\%$ of total latency) |
 | **Transport Session Setup** | **~3.88 ms** |
-| **Deterministic Voice Turn Roundtrip** | **~1.54 – 1.69 seconds total** (STT ~940ms + Fast Router ~1.5ms + Piper TTS ~600ms) |
-| **Database Tool Voice Roundtrip** | **~2.84 seconds total** (STT ~990ms + DB Query ~8.9ms + Piper TTS ~1836ms) |
-| **LLM Fallback Voice Roundtrip** | **~12.36 seconds total** (STT ~1165ms + Ollama CPU ~8415ms + Piper TTS ~2777ms) |
+| **Deterministic Voice Turn Roundtrip** | **~1.79 seconds total** (STT ~901ms + Fast Router ~1.0ms + Piper TTS ~885ms) |
+| **Database Tool Voice Roundtrip** | **~3.06 seconds total** (STT ~915ms + DB Query ~6.6ms + Piper TTS ~2140ms) |
+| **Multi-Turn Booking Confirmation** | **~3.00 seconds total** (STT ~1073ms + DB Execution ~70.4ms + Piper TTS ~1858ms) |
+| **LLM Fallback Voice Roundtrip** | **~14.09 seconds total** (STT ~1112ms + Ollama CPU ~10,521ms + Piper TTS ~2455ms) |
 | **Mobile Voice Client Route** | **`/voice` (Touch-Friendly Responsive Interface)** |
-| **Voice Transport REST API** | **`POST /api/ai/voice/transport/session` & `POST /api/ai/voice/transport/turn`** |
-| **Deterministic Fast Path API** | **$< 4.5 ms total API latency** (Greetings, Goodbyes, Booking Prompts) |
-| **Multi-Turn Booking API** | **$< 21.0 ms total API latency per turn** (100% zero-LLM deterministic execution) |
+| **Local Network Discovery** | **`npm run network:info`** (Auto-detects host IPv4 & formats URLs) |
+| **End-to-End Verification Suite** | **`npm run verify:mobile-voice`** (Live 5-scenario pipeline verification) |
 | **Combined 8GB RAM Coexistence** | **~5.59 GB Total Load** (~70% of 8 GB RAM, 2.6 GB headroom) |
-| **Full Architecture & Latency Analysis** | [`docs/MOBILE_VOICE_CLIENT.md`](docs/MOBILE_VOICE_CLIENT.md) & [`docs/VOICE_TRANSPORT_ARCHITECTURE.md`](docs/VOICE_TRANSPORT_ARCHITECTURE.md) |
+| **Full Architecture & Latency Analysis** | [`docs/MOBILE_VOICE_TESTING.md`](docs/MOBILE_VOICE_TESTING.md) & [`docs/MOBILE_VOICE_CLIENT.md`](docs/MOBILE_VOICE_CLIENT.md) |
 
 ---
 

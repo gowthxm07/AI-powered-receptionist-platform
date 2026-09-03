@@ -276,4 +276,21 @@ Phase 7.2.1 established the dedicated frontend mobile voice receptionist client 
 - **Push-to-Talk Interaction:** Touch-friendly tap-to-speak and tap-to-stop buttons with live recording timers and real-time latency telemetry.
 - Complete mobile voice client architecture details: [`docs/MOBILE_VOICE_CLIENT.md`](docs/MOBILE_VOICE_CLIENT.md).
 
+---
+
+## 13. Live Mobile Voice Integration & Real Measured Latency Benchmark
+
+Phase 7.2.2 verified the complete live end-to-end mobile voice integration across the local Wi-Fi network:
+
+- **Local Network Discovery (`npm run network:info`):** Automated discovery tool determining laptop IPv4 LAN addresses and formatting accessible URLs for mobile devices (`http://<LAN_IP>:3000/voice`).
+- **Dynamic CORS Policy:** Environment-driven and regex-assisted CORS authorization enabling mobile clients across any private RFC-1918 IPv4 subnet to communicate with the laptop backend engine.
+- **Phonetic & Speech Transcript Normalization:** `TimeParser` and `FastIntentRouter` enhanced to handle speech-to-text nuances (e.g. `a.m.` / `p.m.` spacing, word-numbers `ten in the morning`, and STT transcription corrections).
+- **Stage-by-Stage Latency Benchmark (Intel Core i5-1235U, 8 GB RAM, CPU Inference):**
+  - **Deterministic Fast Path:** **~1.79 s** total roundtrip (STT: 901.8ms, Conv: 1.0ms, TTS: 884.7ms, Overhead: 5.1ms)
+  - **Database Information Query:** **~3.06 s** total roundtrip (STT: 914.8ms, DB: 6.6ms, TTS: 2140.2ms, Overhead: 4.5ms)
+  - **Multi-Turn Booking Confirmation:** **~3.00 s** total roundtrip (STT: 1073.0ms, DB: 70.4ms, TTS: 1858.2ms, Overhead: 4.1ms)
+  - **Ollama LLM Fallback (`llama3.2:3b`):** **~14.09 s** total roundtrip (STT: 1112.6ms, LLM CPU: 10,521.4ms, TTS: 2455.0ms, Overhead: 3.6ms)
+- Complete testing guide and firewall documentation: [`docs/MOBILE_VOICE_TESTING.md`](docs/MOBILE_VOICE_TESTING.md).
+
+
 
