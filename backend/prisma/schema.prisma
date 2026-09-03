@@ -24,6 +24,7 @@ enum AppointmentStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+  NO_SHOW
 }
 
 enum ConversationChannel {
@@ -175,8 +176,10 @@ model Appointment {
   service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
+  @@index([businessId, startTime])
   @@index([customerId])
   @@index([staffId])
+  @@index([staffId, startTime])
   @@index([serviceId])
   @@index([startTime])
   @@map("appointments")
