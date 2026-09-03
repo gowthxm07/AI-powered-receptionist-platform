@@ -32,6 +32,20 @@ export interface Customer {
   } | null;
 }
 
+export interface CreateCustomerInput {
+  businessId?: string;
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+export interface UpdateCustomerInput {
+  businessId?: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface Staff {
   id: string;
   businessId: string;
@@ -48,6 +62,24 @@ export interface Staff {
   } | null;
 }
 
+export interface CreateStaffInput {
+  businessId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  isActive?: boolean;
+}
+
+export interface UpdateStaffInput {
+  businessId?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  isActive?: boolean;
+}
+
 export interface Service {
   id: string;
   businessId: string;
@@ -61,6 +93,22 @@ export interface Service {
     id: string;
     name: string;
   } | null;
+}
+
+export interface CreateServiceInput {
+  businessId: string;
+  name: string;
+  description?: string;
+  durationMinutes: number;
+  isActive?: boolean;
+}
+
+export interface UpdateServiceInput {
+  businessId?: string;
+  name?: string;
+  description?: string;
+  durationMinutes?: number;
+  isActive?: boolean;
 }
 
 export interface DashboardStats {

@@ -1,5 +1,16 @@
 import { ApiResponse, LoginInput, RegisterInput, User } from '../types/auth';
-import { Business, Customer, Staff, Service } from '../types/dashboard';
+import {
+  Business,
+  Customer,
+  CreateCustomerInput,
+  UpdateCustomerInput,
+  Staff,
+  CreateStaffInput,
+  UpdateStaffInput,
+  Service,
+  CreateServiceInput,
+  UpdateServiceInput,
+} from '../types/dashboard';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -74,6 +85,21 @@ export const api = {
         businessId ? `/api/customers?businessId=${encodeURIComponent(businessId)}` : '/api/customers',
         { method: 'GET' }
       ),
+    getById: (id: string) => fetcher<Customer>(`/api/customers/${id}`, { method: 'GET' }),
+    create: (input: CreateCustomerInput) =>
+      fetcher<Customer>('/api/customers', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (id: string, input: UpdateCustomerInput) =>
+      fetcher<Customer>(`/api/customers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    delete: (id: string) =>
+      fetcher<void>(`/api/customers/${id}`, {
+        method: 'DELETE',
+      }),
   },
   staff: {
     getAll: (businessId?: string) =>
@@ -81,6 +107,21 @@ export const api = {
         businessId ? `/api/staff?businessId=${encodeURIComponent(businessId)}` : '/api/staff',
         { method: 'GET' }
       ),
+    getById: (id: string) => fetcher<Staff>(`/api/staff/${id}`, { method: 'GET' }),
+    create: (input: CreateStaffInput) =>
+      fetcher<Staff>('/api/staff', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (id: string, input: UpdateStaffInput) =>
+      fetcher<Staff>(`/api/staff/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    delete: (id: string) =>
+      fetcher<void>(`/api/staff/${id}`, {
+        method: 'DELETE',
+      }),
   },
   services: {
     getAll: (businessId?: string) =>
@@ -88,6 +129,21 @@ export const api = {
         businessId ? `/api/services?businessId=${encodeURIComponent(businessId)}` : '/api/services',
         { method: 'GET' }
       ),
+    getById: (id: string) => fetcher<Service>(`/api/services/${id}`, { method: 'GET' }),
+    create: (input: CreateServiceInput) =>
+      fetcher<Service>('/api/services', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (id: string, input: UpdateServiceInput) =>
+      fetcher<Service>(`/api/services/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    delete: (id: string) =>
+      fetcher<void>(`/api/services/${id}`, {
+        method: 'DELETE',
+      }),
   },
   health: {
     check: () => fetcher<{ status: string; uptimeSeconds: number }>('/api/health', { method: 'GET' }),
