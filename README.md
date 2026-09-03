@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 5.2.2 — Ollama Model Adapter & Local AI Generation Layer
+Current Milestone: PHASE 5.3 — AI Receptionist Orchestration & Fast Tool Routing
 Status: Completed
 ```
 
@@ -25,6 +25,7 @@ Status: Completed
 - **Phase 5.1 (AI Receptionist Architecture & Tool Foundation):** Model-agnostic AI subsystem (`modules/ai`), centralized `AIToolRegistry`, secure `AIToolRouter` with Zod validation, lightweight `AIContextBuilder`, and 11 controlled business tools across Customers, Services, Staff, Appointments, and Business Info with strict multi-tenant isolation and conflict protection.
 - **Phase 5.2.1 (Ollama Local Runtime & Performance Benchmark):** Ollama v0.33.2 runtime integration, `llama3.2:3b` model verification, typed configuration, automated `benchmark:ollama` performance suite, and real measured CPU inference benchmarks (3.25s avg latency, 12.5 tokens/sec).
 - **Phase 5.2.2 (Ollama Model Adapter & Local Generation Layer):** `AIModel` abstraction, `OllamaModelAdapter` with native fetch, progressive text chunk streaming (`AsyncIterable`), timeout and `AbortController` cancellation, defensive context limits (`ModelValidator`), keep-alive RAM management, and explicit model warm-up (`npm run ai:warmup`).
+- **Phase 5.3 (AI Receptionist Orchestration & Tool Routing):** Dual-path orchestration engine (`AIReceptionistService`), sub-millisecond deterministic intent classifier (`FastIntentRouter`), direct database tool integration for services/staff/business info ($< 15$ms), graceful Ollama fallback for open questions, and zero-crash offline resilience.
 
 ---
 
@@ -32,15 +33,16 @@ Status: Completed
 
 The platform runs local AI inference using **Ollama** and the **`llama3.2:3b`** model on standard CPU hardware without paid cloud APIs, subscriptions, or GPU requirements.
 
-| Capability | Specification / Metric |
+| Capability | Specification / Measured Metric |
 |---|---|
 | **Model** | `llama3.2:3b` (2.0 GB disk / RAM footprint) |
 | **Inference Engine** | Ollama v0.33.2 (Local loopback `http://127.0.0.1:11434`) |
-| **Generation Modes** | Non-streaming `generate()` & Progressive streaming `generateStream()` |
-| **Warm Average Latency** | **3.25 seconds** (1.04s min, 4.72s max) |
-| **Generation Speed** | **12.49 tokens / second** |
+| **Deterministic Fast Path** | **$< 1.0 ms** (Greetings, Goodbyes, Booking Prompts) |
+| **Database Tool Queries** | **$< 15.0 ms** (Services, Staff, Location, Hours) |
+| **LLM Reasoning Latency** | **$\sim 2.2$ - 3.2 seconds** (Open-ended general questions) |
+| **Throughput Speed** | **12.49 tokens / second** |
 | **Keep-Alive Policy** | `5m` (Resident during calls, auto-released after 5m idle) |
-| **Full Architecture** | [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md) & [`docs/OLLAMA_BENCHMARK.md`](docs/OLLAMA_BENCHMARK.md) |
+| **Full Architecture** | [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md) & [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md) |
 
 ---
 
@@ -76,7 +78,7 @@ The platform runs local AI inference using **Ollama** and the **`llama3.2:3b`** 
 - **ORM:** [Prisma ORM](https://www.prisma.io/)
 - **Authentication & Security:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies), `OwnershipService`
 - **Validation:** [Zod](https://zod.dev/)
-- **AI Tool Subsystem:** `AIToolRegistry`, `AIToolRouter`, `AIContextBuilder`, `AITool` contracts
+- **AI Orchestration:** `AIReceptionistService`, `FastIntentRouter`, `AIToolRegistry`, `AIToolRouter`, `AIContextBuilder`
 - **Local AI Generation Layer:** `OllamaModelAdapter`, `ModelValidator`, `OllamaRuntimeService`
 - **Seeding & Verification:** `prisma/seed.ts`, `prisma/verify-seed.ts`
 
@@ -126,8 +128,8 @@ npm --prefix backend run db:verify-demo
 # Pre-warm local AI model in RAM (optional)
 npm --prefix backend run ai:warmup
 
-# Benchmark local Ollama inference performance
-npm --prefix backend run benchmark:ollama
+# Run live AI receptionist orchestration demonstration
+npm --prefix backend run ai:orchestrate
 
 # Run all 100+ backend automated integration tests
 npm --prefix backend run test
@@ -167,7 +169,7 @@ npm --prefix frontend run dev
 | **Phase 5.1**| **AI Receptionist Architecture & Tool Layer** | Model-agnostic tool framework, registry, router, validation, 11 tools | **Completed** ✅ |
 | **Phase 5.2.1**| **Ollama Runtime & Performance Benchmark** | Ollama v0.33.2, llama3.2:3b, CPU inference benchmark, performance docs | **Completed** ✅ |
 | **Phase 5.2.2**| **Ollama Model Adapter & Local Generation** | `AIModel`, `OllamaModelAdapter`, streaming, aborts, timeouts, keep-alive | **Completed** ✅ |
-| **Phase 5.2.3**| **Tool Calling & Receptionist Orchestration** | Tool execution loop, dynamic prompt assembly, chat endpoints | *Upcoming* ⏳ |
+| **Phase 5.3** | **AI Receptionist Orchestration & Fast Routing** | `AIReceptionistService`, `FastIntentRouter`, tool integration, LLM fallback | **Completed** ✅ |
 | **Phase 6** | **Voice Pipeline & RAG Knowledge Retrieval** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 7** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
 | **Phase 8** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |

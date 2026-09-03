@@ -1,6 +1,6 @@
 # AI Receptionist Architecture & Tool Foundation
 
-This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, and model generation adapter.
+This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, model generation adapter, and orchestration routing subsystem.
 
 ---
 
@@ -15,6 +15,7 @@ The core objective of the platform is to enable autonomous, low-latency conversa
 4. **Enforced Business Invariants:** AI tools pass through existing business services, ensuring that conflict detection, tenant verification, and validation rules cannot be bypassed.
 5. **Model-Agnostic Design:** The tool framework is independent of any specific LLM provider or orchestration framework, preparing for future integration with local Ollama models.
 6. **Low Latency by Design:** Minimal context construction prevents bloated prompts, reduces LLM token generation time, and executes small, indexed database queries.
+7. **Dual-Path Orchestration:** Common inquiries (greetings, services, staff, business info) are resolved via fast deterministic rules ($< 1$ms) or database micro-tools ($< 15$ms) without invoking the LLM, preserving system responsiveness.
 
 ---
 
@@ -32,37 +33,31 @@ The core objective of the platform is to enable autonomous, low-latency conversa
                      (Minimal tenant & session metadata)
                                       │
                                       ▼
-                        [ Local AI Model Adapter ]
-                     (Ollama HTTP REST / llama3.2:3b)
-                                      │
-                        (Emits Structured AIToolCall)
+                       [ AIReceptionistService ]
                                       │
                                       ▼
-                            [ AI Tool Router ]
-                     ┌────────────────┴────────────────┐
-                     ▼                                 ▼
-          [ Context & Tenant Check ]         [ Zod Input Validation ]
-                     └────────────────┬────────────────┘
-                                      ▼
-                           [ AI Tool Registry ]
+                            [ FastIntentRouter ]
+                        (Regex & Keyword Heuristics)
                                       │
-        ┌───────────────────┬─────────┴─────────┬───────────────────┐
-        ▼                   ▼                   ▼                   ▼
-  Customer Tools      Service Tools        Staff Tools      Appointment Tools
- (search_customer,   (get_services,       (get_staff,       (check_availability,
-  get_customer)       get_service_details) get_staff_details)get_appointments,
-                                                             create_appointment,
-                                                             cancel_appointment)
-        └───────────────────┼───────────────────┼───────────────────┘
-                            ▼
-                [ Existing Business Services ]
-               (AppointmentService, OwnershipService,
-                CustomerService, StaffService)
-                            │
-               (Transactional Conflict Checks)
-                            │
-                            ▼
-                    [ PostgreSQL 16 ]
+              ┌───────────────────────┴───────────────────────┐
+              │                                               │
+      [ Deterministic / Tool ]                        [ UNKNOWN Intent ]
+              │                                               │
+      ┌───────┴───────┐                                       ▼
+      ▼               ▼                            [ Local Ollama Adapter ]
+Deterministic   Database Tool                            (llama3.2:3b)
+  Fast Path       Execution                                   │
+ (GREETING/     (get_services/                                │
+  GOODBYE)        get_staff)                                  │
+      │               │                                       │
+      ▼               ▼                                       │
+   (< 1 ms)        (< 15 ms)                                  │
+      │               │                                       │
+      └───────────────┼───────────────────────────────────────┘
+                      │
+                      ▼
+          [ AIReceptionistResponse ]
+    (Text, Action, Intent, Source, Latency)
 ```
 
 ---
@@ -73,9 +68,9 @@ The core objective of the platform is to enable autonomous, low-latency conversa
 backend/src/modules/ai/
 ├── types/
 │   ├── context.types.ts          -> AIConversationContext, AIChannel, BuildAIContextInput
-│   ├── intent.types.ts           -> Controlled AIIntent enum definitions
+│   ├── intent.types.ts           -> Controlled AIIntent enum definitions (GREETING, GOODBYE, etc.)
 │   ├── action.types.ts           -> Controlled AIAction enum definitions
-│   ├── request-response.types.ts -> AIReceptionistRequest, AIReceptionistResponse
+│   ├── request-response.types.ts -> AIReceptionistRequest, AIReceptionistResponse, AIResponseSource
 │   ├── tool.types.ts             -> AIToolDefinition, AIToolCall, AIToolResult, AITool
 │   └── index.ts
 ├── tools/
@@ -99,6 +94,12 @@ backend/src/modules/ai/
 ├── runtime/
 │   ├── ollama-runtime.service.ts -> Probing local Ollama service & model availability
 │   └── index.ts
+├── routing/
+│   ├── intent-router.ts          -> FastIntentRouter regex & keyword heuristics
+│   └── index.ts
+├── services/
+│   ├── ai-receptionist.service.ts-> AIReceptionistService dual-path orchestrator
+│   └── index.ts
 └── index.ts
 ```
 
@@ -106,10 +107,9 @@ backend/src/modules/ai/
 
 ## 4. Controlled AI Intents & Actions
 
-To maintain predictable behavior and simplify faculty evaluation, receptionist capabilities are categorized into discrete intents and executable actions:
-
 ### AI Intents (`AIIntent`)
-- `GENERAL_CONVERSATION`: Greetings, polite remarks, clarifications.
+- `GREETING`: Direct greetings ("Hello", "Good morning").
+- `GOODBYE`: Sign-offs ("Goodbye", "Have a great day").
 - `CUSTOMER_LOOKUP`: Identifying caller by name, phone, or account.
 - `SERVICE_INFORMATION`: Inquiring about service offerings, pricing, or duration.
 - `STAFF_INFORMATION`: Inquiring about practitioners, doctors, or specialists.
@@ -119,7 +119,8 @@ To maintain predictable behavior and simplify faculty evaluation, receptionist c
 - `CANCEL_APPOINTMENT`: Cancelling a booked appointment.
 - `RESCHEDULE_APPOINTMENT`: Modifying an existing appointment time.
 - `BUSINESS_INFORMATION`: Inquiring about business location, phone, or operating hours.
-- `UNKNOWN`: Fallback for unrecognized requests.
+- `GENERAL_CONVERSATION`: Small talk or conversational turns.
+- `UNKNOWN`: Fallback for unrecognized requests routed to Ollama.
 
 ### AI Actions (`AIAction`)
 - `NONE`, `SEARCH_CUSTOMER`, `GET_CUSTOMER`, `GET_SERVICES`, `GET_SERVICE_DETAILS`, `GET_STAFF`, `GET_STAFF_DETAILS`, `CHECK_AVAILABILITY`, `CREATE_APPOINTMENT`, `GET_APPOINTMENTS`, `CANCEL_APPOINTMENT`, `RESCHEDULE_APPOINTMENT`, `GET_BUSINESS_INFO`.
@@ -139,7 +140,6 @@ export interface AITool<TInput = any, TResult = any> {
   execute(input: TInput, context: AIConversationContext): Promise<AIToolResult<TResult>>;
 }
 ```
-Exposes `getAvailableTools()` which outputs standard parameter schemas suitable for LLM function calling.
 
 ### `AIToolRouter`
 Coordinates safe tool execution:
@@ -187,10 +187,11 @@ If an overlap occurs, the router catches `ConflictError` and returns `SCHEDULING
 
 In conversational voice applications, low end-to-end latency is critical. The platform achieves low latency through deliberate architectural decisions:
 
-1. **Targeted Context Injection:** Instead of passing the entire customer directory or calendar into the system prompt, the `AIContextBuilder` injects only tenant identity and session metadata ($< 100$ tokens).
-2. **On-Demand Data Retrieval:** The AI fetches specific records only when needed via micro-queries (*e.g., `check_availability` queries a single 30-minute window rather than loading the whole month*).
-3. **Small JSON Payloads:** Tool outputs are filtered to essential fields, minimizing token consumption during local inference.
-4. **Direct PostgreSQL Indexing:** Database queries leverage composite indexes on `[businessId, startTime]`, `[staffId, startTime]`, and `[businessId, phone]`.
+1. **Deterministic Fast Path:** Common questions bypass the LLM entirely, responding in $< 1$ ms.
+2. **Micro-Tool Execution:** Database queries execute against indexed PostgreSQL columns in $< 15$ ms.
+3. **Concise Spoken Responses:** Responses are formatted into brief, conversational sentences suitable for fast TTS synthesis.
+4. **Targeted Context Injection:** System prompts inject minimal tenant identity metadata ($< 100$ tokens).
+5. **Memory Keep-Alive:** Ollama models remain resident in RAM (`OLLAMA_KEEP_ALIVE=5m`) to avoid cold-start delays.
 
 ---
 
@@ -198,34 +199,8 @@ In conversational voice applications, low end-to-end latency is critical. The pl
 
 The platform utilizes a 100% free, local AI inference runtime powered by **Ollama** running the compact **`llama3.2:3b`** model (2.0 GB):
 
-```text
-AI Receptionist Core
-        │
-        ▼
-Local Model Adapter (Fetch REST)
-        │
-        ▼
-Ollama Runtime (Port 11434)
-        │
-        ▼
-llama3.2:3b (CPU-First Inference)
-```
-
-### Verified Performance Benchmarks
-- **Average Warm Latency:** **3.25 seconds** (1.04s min, 4.72s max)
-- **CPU Throughput:** **12.49 tokens/second** on Intel Core i5 CPU
-- **Memory Footprint:** ~2.0 GB RAM
+- **Average Warm Latency:** **3.25 seconds**
+- **CPU Throughput:** **12.49 tokens/second**
 - Complete benchmark details: [`docs/OLLAMA_BENCHMARK.md`](docs/OLLAMA_BENCHMARK.md).
-
----
-
-## 10. AI Model Generation Adapter Layer
-
-Implemented in [`backend/src/modules/ai/model/`](backend/src/modules/ai/model/):
-
-- **Model Abstraction (`AIModel`):** Generic TypeScript interface allowing non-streaming (`generate`) and progressive chunk streaming (`generateStream`).
-- **Ollama Adapter (`OllamaModelAdapter`):** Communicates with Ollama `/api/chat` using native Node.js `fetch`.
-- **Cancellation & Timeout:** Controlled via `AbortController` linked with caller `AbortSignal`.
-- **Keep-Alive Management:** Default `5m` keep-alive retains model weights in RAM during active calls while freeing memory after idle periods.
-- **Warm-Up Capability:** Explicit `npm run ai:warmup` script pre-loads weights into memory for zero cold-start delay during demos.
-- Full details: [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md).
+- Complete adapter details: [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md).
+- Complete orchestration details: [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md).
