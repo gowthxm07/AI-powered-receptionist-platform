@@ -14,6 +14,7 @@ import { runIntentRouterTests } from './intent-router.test';
 import { runAiReceptionistTests } from './ai-receptionist.test';
 import { runSessionStoreTests } from './session-store.test';
 import { runMultiTurnBookingTests } from './multi-turn-booking.test';
+import { runConversationApiTests } from './conversation-api.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -35,6 +36,7 @@ async function runAllTestSuites() {
   await runAiReceptionistTests();
   await runSessionStoreTests();
   await runMultiTurnBookingTests();
+  await runConversationApiTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
