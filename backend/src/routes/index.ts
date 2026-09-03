@@ -6,6 +6,7 @@ import customerRoutes from './customer.routes';
 import staffRoutes from './staff.routes';
 import serviceRoutes from './service.routes';
 import appointmentRoutes from './appointment.routes';
+import aiRoutes from './ai.routes';
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use('/customers', customerRoutes);
 router.use('/staff', staffRoutes);
 router.use('/services', serviceRoutes);
 router.use('/appointments', appointmentRoutes);
+router.use('/ai', aiRoutes);
 
 export default router;
