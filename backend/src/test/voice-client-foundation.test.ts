@@ -134,21 +134,45 @@ export async function runVoiceClientFoundationTests(): Promise<void> {
   console.log(`  ✓ Mobile turn dispatched via transport layer: Total=${turnResult.metrics.totalMs}ms (Audio URL: ${turnResult.audio.url}).`);
 
   // ---------------------------------------------------------
-  // TEST GROUP 5: Error Message Mapping & Recovery
+  // TEST GROUP 5: Error Message Mapping & Secure Context Recovery
   // ---------------------------------------------------------
-  console.log('\n5. Testing User-Facing Error Mapping:');
+  console.log('\n5. Testing User-Facing Error Mapping & Secure Context Rules:');
   const errorMap: Record<string, string> = {
-    NotAllowedError: 'Microphone access was denied. Please allow microphone permission in your browser settings.',
+    INSECURE_CONTEXT: 'Microphone access requires a secure HTTPS connection when using this device over the local network.',
+    UNSUPPORTED_APIS: 'Your browser does not support audio recording APIs (MediaRecorder / getUserMedia). Please use Chrome, Safari, or Firefox.',
+    NotAllowedError: 'Microphone permission was denied. Please allow microphone access in your browser settings.',
+    PermissionDeniedError: 'Microphone permission was denied. Please allow microphone access in your browser settings.',
     NotFoundError: 'No microphone device found on this system.',
+    DevicesNotFoundError: 'No microphone device found on this system.',
+    NotReadableError: 'Microphone is currently in use by another application or unavailable.',
+    TrackStartError: 'Microphone is currently in use by another application or unavailable.',
     SESSION_EXPIRED: 'The voice transport session has expired or does not exist.',
     SESSION_BUSINESS_MISMATCH: 'Forbidden: The provided voice transport session does not belong to the requested business.',
-    UNSUPPORTED_BROWSER: 'Your browser does not support audio recording. Please use Chrome, Safari, or Firefox.',
   };
 
-  assert(errorMap['NotAllowedError'].includes('Microphone access was denied'));
+  // 1. Secure context verification: !isSecureContext must yield HTTPS error, not generic unsupported browser
+  assert(errorMap['INSECURE_CONTEXT'].includes('HTTPS connection'));
+  assert(!errorMap['INSECURE_CONTEXT'].includes('Please use Chrome, Safari, or Firefox'));
+
+  // 2. Genuine absence of APIs: Yields unsupported browser message
+  assert(errorMap['UNSUPPORTED_APIS'].includes('MediaRecorder / getUserMedia'));
+
+  // 3. Permission denied mappings
+  assert(errorMap['NotAllowedError'].includes('Microphone permission was denied'));
+  assert(errorMap['PermissionDeniedError'].includes('Microphone permission was denied'));
+
+  // 4. Device not found mappings
+  assert(errorMap['NotFoundError'].includes('No microphone device found'));
+  assert(errorMap['DevicesNotFoundError'].includes('No microphone device found'));
+
+  // 5. Hardware busy mappings
+  assert(errorMap['NotReadableError'].includes('in use by another application'));
+  assert(errorMap['TrackStartError'].includes('in use by another application'));
+
+  // 6. Session and auth errors
   assert(errorMap['SESSION_EXPIRED'].includes('expired'));
   assert(errorMap['SESSION_BUSINESS_MISMATCH'].includes('Forbidden'));
-  console.log('  ✓ User-friendly non-technical error mappings verified.');
+  console.log('  ✓ Secure context, unsupported APIs, and permission error mappings verified.');
 
   // Clean up session
   await voiceTransportSessionManager.terminateTransportSession(mobileSessionRes.session.transportSessionId);
