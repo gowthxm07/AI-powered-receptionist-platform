@@ -4,3 +4,5 @@ export * from './types/speech.types';
 export * from './providers/mock-stt.provider';
 export * from './providers/mock-tts.provider';
 export * from './providers/whisper-cpp.provider';
+export * from './providers/piper.provider';
+export * from './services/audio-storage.service';
