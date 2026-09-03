@@ -1,6 +1,6 @@
 # AI Receptionist Architecture & Tool Foundation
 
-This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, model generation adapter, and orchestration routing subsystem.
+This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, model generation adapter, orchestration routing subsystem, and multi-turn booking engine.
 
 ---
 
@@ -15,7 +15,7 @@ The core objective of the platform is to enable autonomous, low-latency conversa
 4. **Enforced Business Invariants:** AI tools pass through existing business services, ensuring that conflict detection, tenant verification, and validation rules cannot be bypassed.
 5. **Model-Agnostic Design:** The tool framework is independent of any specific LLM provider or orchestration framework, preparing for future integration with local Ollama models.
 6. **Low Latency by Design:** Minimal context construction prevents bloated prompts, reduces LLM token generation time, and executes small, indexed database queries.
-7. **Dual-Path Orchestration:** Common inquiries (greetings, services, staff, business info) are resolved via fast deterministic rules ($< 1$ms) or database micro-tools ($< 15$ms) without invoking the LLM, preserving system responsiveness.
+7. **Dual-Path Orchestration:** Common inquiries (greetings, services, staff, business info) and multi-turn appointment booking workflows resolve via fast deterministic rules ($< 1$ms) or database micro-tools ($< 15$ms) without invoking the LLM, preserving system responsiveness.
 
 ---
 
@@ -35,29 +35,33 @@ The core objective of the platform is to enable autonomous, low-latency conversa
                                       ▼
                        [ AIReceptionistService ]
                                       │
-                                      ▼
-                            [ FastIntentRouter ]
-                        (Regex & Keyword Heuristics)
+                       [ Active Session Check ]
                                       │
               ┌───────────────────────┴───────────────────────┐
               │                                               │
-      [ Deterministic / Tool ]                        [ UNKNOWN Intent ]
+     [ Active Booking State ]                         [ No Active State ]
               │                                               │
-      ┌───────┴───────┐                                       ▼
-      ▼               ▼                            [ Local Ollama Adapter ]
-Deterministic   Database Tool                            (llama3.2:3b)
-  Fast Path       Execution                                   │
- (GREETING/     (get_services/                                │
-  GOODBYE)        get_staff)                                  │
-      │               │                                       │
-      ▼               ▼                                       │
-   (< 1 ms)        (< 15 ms)                                  │
-      │               │                                       │
-      └───────────────┼───────────────────────────────────────┘
-                      │
-                      ▼
-          [ AIReceptionistResponse ]
-    (Text, Action, Intent, Source, Latency)
+              ▼                                               ▼
+   [ AppointmentStateMachine ]                       [ FastIntentRouter ]
+  (Deterministic Multi-Turn:                                  │
+   Service -> Staff -> Date                           ┌───────┴───────┐
+   -> Slot -> Confirm)                                │               │
+              │                                       ▼               ▼
+              │                                 Deterministic    LLM Fallback
+              │                                   Fast Path        (Ollama)
+              │                                       │               │
+              └───────────────────────┬───────────────┘               │
+                                      │                               │
+                                      ▼                               ▼
+                          [ AIToolRouter Execution ]                  │
+                         (get_services, get_staff,                    │
+                          create_appointment)                         │
+                                      │                               │
+                                      └───────────────┬───────────────┘
+                                                      │
+                                                      ▼
+                                          [ AIReceptionistResponse ]
+                                    (Text, Action, Intent, Source, Latency)
 ```
 
 ---
@@ -96,6 +100,14 @@ backend/src/modules/ai/
 │   └── index.ts
 ├── routing/
 │   ├── intent-router.ts          -> FastIntentRouter regex & keyword heuristics
+│   └── index.ts
+├── conversation/
+│   ├── conversation-session.types.ts -> BookingConversationStep, ConversationSessionData
+│   ├── session-store.interface.ts    -> IConversationSessionStore contract
+│   ├── in-memory-session-store.ts    -> InMemorySessionStore implementation with TTL
+│   ├── appointment-slot-finder.ts    -> Real PostgreSQL slot discovery
+│   ├── appointment-state-machine.ts  -> Multi-turn appointment booking state machine
+│   ├── parsers/                      -> ServiceMatcher, StaffMatcher, DateParser, TimeParser, ConfirmationParser
 │   └── index.ts
 ├── services/
 │   ├── ai-receptionist.service.ts-> AIReceptionistService dual-path orchestrator
@@ -188,10 +200,11 @@ If an overlap occurs, the router catches `ConflictError` and returns `SCHEDULING
 In conversational voice applications, low end-to-end latency is critical. The platform achieves low latency through deliberate architectural decisions:
 
 1. **Deterministic Fast Path:** Common questions bypass the LLM entirely, responding in $< 1$ ms.
-2. **Micro-Tool Execution:** Database queries execute against indexed PostgreSQL columns in $< 15$ ms.
-3. **Concise Spoken Responses:** Responses are formatted into brief, conversational sentences suitable for fast TTS synthesis.
-4. **Targeted Context Injection:** System prompts inject minimal tenant identity metadata ($< 100$ tokens).
-5. **Memory Keep-Alive:** Ollama models remain resident in RAM (`OLLAMA_KEEP_ALIVE=5m`) to avoid cold-start delays.
+2. **Deterministic Multi-Turn Booking:** Entire 6-turn booking conversations complete in $< 80$ ms total with zero LLM calls.
+3. **Micro-Tool Execution:** Database queries execute against indexed PostgreSQL columns in $< 15$ ms.
+4. **Concise Spoken Responses:** Responses are formatted into brief, conversational sentences suitable for fast TTS synthesis.
+5. **Targeted Context Injection:** System prompts inject minimal tenant identity metadata ($< 100$ tokens).
+6. **Memory Keep-Alive:** Ollama models remain resident in RAM (`OLLAMA_KEEP_ALIVE=5m`) to avoid cold-start delays.
 
 ---
 
@@ -204,3 +217,4 @@ The platform utilizes a 100% free, local AI inference runtime powered by **Ollam
 - Complete benchmark details: [`docs/OLLAMA_BENCHMARK.md`](docs/OLLAMA_BENCHMARK.md).
 - Complete adapter details: [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md).
 - Complete orchestration details: [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md).
+- Complete conversation engine details: [`docs/APPOINTMENT_CONVERSATION_ENGINE.md`](docs/APPOINTMENT_CONVERSATION_ENGINE.md).

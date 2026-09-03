@@ -182,6 +182,18 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
+### Phase 5.4: Multi-Turn Appointment Conversation Engine (COMPLETED ✅)
+- [x] Deterministic booking state machine (`AppointmentStateMachine`)
+- [x] In-memory session store with TTL expiration (`InMemorySessionStore`)
+- [x] Real database slot discovery from PostgreSQL records (`AppointmentSlotFinder`)
+- [x] Heuristic parsers: `ServiceMatcher`, `StaffMatcher`, `DateParser`, `TimeParser`, `ConfirmationParser`
+- [x] Mid-flow informational question interruption handling
+- [x] Zero-LLM booking turns ($< 80$ms total dialogue execution)
+- [x] Comprehensive multi-turn test suite with DB integration verification
+- [x] Complete conversation engine documentation (`docs/APPOINTMENT_CONVERSATION_ENGINE.md`)
+
+---
+
 ### Phase 6: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
 - [ ] Local Speech-to-Text (STT) using Whisper
 - [ ] Local Text-to-Speech (TTS) using Piper
