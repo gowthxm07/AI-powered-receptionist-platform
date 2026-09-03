@@ -1,6 +1,6 @@
 # AI Receptionist Architecture & Tool Foundation
 
-This document defines the **Phase 5.1 AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, and the low-latency design strategy.
+This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, and local Ollama runtime layer.
 
 ---
 
@@ -32,19 +32,19 @@ The core objective of the platform is to enable autonomous, low-latency conversa
                      (Minimal tenant & session metadata)
                                       │
                                       ▼
-                        [ Future Local AI Engine ]
-                     (Ollama / Local LLM Inference)
+                        [ Local AI Model Adapter ]
+                     (Ollama HTTP REST / llama3.2:3b)
                                       │
                         (Emits Structured AIToolCall)
                                       │
                                       ▼
-                           [ AI Tool Router ]
-                    ┌─────────────────┴─────────────────┐
-                    ▼                                   ▼
-         [ Context & Tenant Check ]           [ Zod Input Validation ]
-                    └─────────────────┬─────────────────┘
+                            [ AI Tool Router ]
+                     ┌────────────────┴────────────────┐
+                     ▼                                 ▼
+          [ Context & Tenant Check ]         [ Zod Input Validation ]
+                     └────────────────┬────────────────┘
                                       ▼
-                          [ AI Tool Registry ]
+                           [ AI Tool Registry ]
                                       │
         ┌───────────────────┬─────────┴─────────┬───────────────────┐
         ▼                   ▼                   ▼                   ▼
@@ -89,6 +89,9 @@ backend/src/modules/ai/
 │   └── index.ts
 ├── context/
 │   ├── context-builder.ts        -> Lightweight AIContextBuilder
+│   └── index.ts
+├── runtime/
+│   ├── ollama-runtime.service.ts -> Probing local Ollama service & model availability
 │   └── index.ts
 └── index.ts
 ```
@@ -185,9 +188,25 @@ In conversational voice applications, low end-to-end latency is critical. The pl
 
 ---
 
-## 9. Future Local LLM Integration (Phase 5.2 Preview)
+## 9. Local AI Runtime Layer (Ollama + `llama3.2:3b`)
 
-The tool layer is designed to connect seamlessly to local open-source LLMs running via **Ollama** (*e.g., Llama 3, Mistral, Qwen*):
-- Ollama emits standard JSON function calls (`{"name": "check_availability", "arguments": {...}}`).
-- The `AIToolRouter` executes the call and returns the tool output.
-- The LLM synthesizes the natural language vocal response for the caller.
+The platform utilizes a 100% free, local AI inference runtime powered by **Ollama** running the compact **`llama3.2:3b`** model (2.0 GB):
+
+```text
+AI Receptionist Core
+        │
+        ▼
+Local Model Adapter (Fetch REST)
+        │
+        ▼
+Ollama Runtime (Port 11434)
+        │
+        ▼
+llama3.2:3b (CPU-First Inference)
+```
+
+### Verified Performance Benchmarks
+- **Average Warm Latency:** **3.25 seconds** (1.04s min, 4.72s max)
+- **CPU Throughput:** **12.49 tokens/second** on Intel Core i5 CPU
+- **Memory Footprint:** ~2.0 GB RAM
+- Complete benchmark details: [`docs/OLLAMA_BENCHMARK.md`](file:///d:/Receptionist/docs/OLLAMA_BENCHMARK.md).

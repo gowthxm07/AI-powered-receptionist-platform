@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 5.1 — AI Receptionist Architecture and Tool Foundation
+Current Milestone: PHASE 5.2.1 — Ollama Local Runtime & Performance Benchmark
 Status: Completed
 ```
 
@@ -23,6 +23,21 @@ Status: Completed
 - **Phase 3.5 (Appointment Management & Scheduling):** Complete appointment scheduling engine with interval overlap conflict detection, dynamic catalog service duration calculation, availability check API (`/api/appointments/availability`), multi-tenant cross-resource validation, and interactive frontend booking dashboard (`/dashboard/appointments`).
 - **Phase 4 (Demo Data & Database Seeding):** 143 meaningful records populated into PostgreSQL across 3 demo users, 4 multi-tenant businesses, 16 staff specialists, 20 catalog services, 56 customers, and 44 conflict-free appointments (Today, Past, Future) with automated verification.
 - **Phase 5.1 (AI Receptionist Architecture & Tool Foundation):** Model-agnostic AI subsystem (`modules/ai`), centralized `AIToolRegistry`, secure `AIToolRouter` with Zod validation, lightweight `AIContextBuilder`, and 11 controlled business tools across Customers, Services, Staff, Appointments, and Business Info with strict multi-tenant isolation and conflict protection.
+- **Phase 5.2.1 (Ollama Local Runtime & Performance Benchmark):** Ollama v0.33.2 runtime integration, `llama3.2:3b` model verification, typed configuration, automated `benchmark:ollama` performance suite, and real measured CPU inference benchmarks (3.25s avg latency, 12.5 tokens/sec).
+
+---
+
+## 🤖 Local AI Runtime & Performance (Ollama)
+
+The platform runs local AI inference using **Ollama** and the **`llama3.2:3b`** model on standard CPU hardware without paid cloud APIs, subscriptions, or GPU requirements.
+
+| Metric | Measured Value (Intel Core i5 CPU / 8 GB RAM) |
+|---|---|
+| **Model** | `llama3.2:3b` (2.0 GB disk / RAM footprint) |
+| **Inference Engine** | Ollama v0.33.2 (Local loopback `http://127.0.0.1:11434`) |
+| **Warm Average Latency** | **3.25 seconds** (1.04s min, 4.72s max) |
+| **Generation Speed** | **12.49 tokens / second** |
+| **Full Report** | [`docs/OLLAMA_BENCHMARK.md`](docs/OLLAMA_BENCHMARK.md) |
 
 ---
 
@@ -59,6 +74,7 @@ Status: Completed
 - **Authentication & Security:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies), `OwnershipService`
 - **Validation:** [Zod](https://zod.dev/)
 - **AI Tool Subsystem:** `AIToolRegistry`, `AIToolRouter`, `AIContextBuilder`, `AITool` contracts
+- **Local AI Runtime:** Ollama (`llama3.2:3b`), `OllamaRuntimeService`
 - **Seeding & Verification:** `prisma/seed.ts`, `prisma/verify-seed.ts`
 
 ---
@@ -80,7 +96,7 @@ cp frontend/.env.example frontend/.env.local
 
 ---
 
-### Step 2: Start PostgreSQL & Seed Demo Data
+### Step 2: Start PostgreSQL, Seed Demo Data & Verify Ollama
 
 ```bash
 # Start PostgreSQL container
@@ -91,6 +107,9 @@ npm --prefix backend run db:deploy
 
 # Populate 140+ record demonstration dataset
 npm --prefix backend run db:seed
+
+# Pull local AI model (if not already downloaded)
+ollama pull llama3.2:3b
 ```
 
 ---
@@ -100,6 +119,9 @@ npm --prefix backend run db:seed
 ```bash
 # Verify database seeding metrics and zero scheduling conflicts
 npm --prefix backend run db:verify-demo
+
+# Benchmark local Ollama inference performance
+npm --prefix backend run benchmark:ollama
 
 # Run all 100+ backend automated integration tests
 npm --prefix backend run test
@@ -137,7 +159,8 @@ npm --prefix frontend run dev
 | **Phase 3.5** | **Appointment Management & Scheduling** | Conflict detection, dynamic duration, availability check, bookings | **Completed** ✅ |
 | **Phase 4** | **Demo Data & Database Seeding** | 143 deterministic records, multi-business demo, seed verification | **Completed** ✅ |
 | **Phase 5.1**| **AI Receptionist Architecture & Tool Layer** | Model-agnostic tool framework, registry, router, validation, 11 tools | **Completed** ✅ |
-| **Phase 5.2**| **Local AI Integration & Conversational Engine** | Ollama local LLM, prompt engineering, tool calling, transcripts | *Upcoming* ⏳ |
+| **Phase 5.2.1**| **Ollama Runtime & Performance Benchmark** | Ollama v0.33.2, llama3.2:3b, CPU inference benchmark, performance docs | **Completed** ✅ |
+| **Phase 5.2.2**| **Local AI Integration & Tool Calling** | Ollama function calling, receptionist prompts, dialogue orchestration | *Upcoming* ⏳ |
 | **Phase 6** | **Voice Pipeline & RAG Knowledge Retrieval** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 7** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
 | **Phase 8** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
