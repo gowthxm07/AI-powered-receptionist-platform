@@ -5,6 +5,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useBusiness } from '../../context/BusinessContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { StatsCard } from './StatsCard';
+import { QuickActions } from './QuickActions';
+import { RecentActivity } from './RecentActivity';
+import { AIReceptionistCard } from './AIReceptionistCard';
+import { AIPerformanceCard } from './AIPerformanceCard';
+import { SystemStatus } from './SystemStatus';
 import {
   Users,
   UserCheck,
@@ -17,13 +22,9 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-interface DashboardOverviewProps {
-  children?: React.ReactNode;
-}
-
-export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ children }) => {
+export const DashboardOverview: React.FC = () => {
   const { user } = useAuth();
-  const { selectedBusiness, businesses, loading: loadingBiz } = useBusiness();
+  const { selectedBusiness, loading: loadingBiz } = useBusiness();
   const { stats, loading: loadingStats, error, refetch } = useDashboardStats();
 
   const isAllEmpty =
@@ -59,7 +60,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ children }
             <p className="text-slate-300 text-xs sm:text-sm max-w-2xl">
               {selectedBusiness ? (
                 <>
-                  Managing operations for <span className="text-white font-medium">{selectedBusiness.name}</span> ({selectedBusiness.phone}). All statistics and records are isolated to this business.
+                  Managing operations for <span className="text-white font-medium">{selectedBusiness.name}</span> ({selectedBusiness.phone}). All statistics, customers, staff, and services are scoped to this business.
                 </>
               ) : (
                 'Review your live business overview, customer records, staff roster, and AI receptionist readiness.'
@@ -161,8 +162,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ children }
         </div>
       )}
 
-      {/* Additional dashboard components (Quick actions, AI cards, etc.) */}
-      {children}
+      {/* Quick Operations Section */}
+      <QuickActions />
+
+      {/* 2-Column Main Dashboard Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: AI Receptionist Card & Latency Telemetry */}
+        <div className="space-y-6">
+          <AIReceptionistCard />
+          <AIPerformanceCard />
+        </div>
+
+        {/* Right Column: Recent Activity & System Health */}
+        <div className="space-y-6">
+          <RecentActivity />
+          <SystemStatus />
+        </div>
+      </div>
     </div>
   );
 };
