@@ -205,7 +205,19 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 6: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
+### Phase 6.1: AI Receptionist Web Conversation Console (COMPLETED ✅)
+- [x] Dedicated conversational dashboard route (`/dashboard/ai-receptionist` and `/receptionist`)
+- [x] Multi-tenant business selector integration with safe session reset
+- [x] Conversational chat interface with auto-scroll and lightweight typing indicator
+- [x] Session ID persistence across multi-turn booking flows
+- [x] Live technical telemetry panel (Intent, Action, Booking Step, Source, Latency)
+- [x] Anti-duplicate submission protection & keyboard shortcuts (`Enter` to send, `Shift+Enter` for newline)
+- [x] Error handling with session expiration recovery (`SESSION_EXPIRED` 410 handler)
+- [x] Complete web console documentation (`docs/AI_RECEPTIONIST_WEB_CONSOLE.md`)
+
+---
+
+### Phase 6.2: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
 - [ ] Local Speech-to-Text (STT) using Whisper
 - [ ] Local Text-to-Speech (TTS) using Piper
 - [ ] Vector Database setup (ChromaDB / Qdrant)
