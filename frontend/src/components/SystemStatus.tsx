@@ -11,6 +11,7 @@ import {
   Server, 
   AlertTriangle 
 } from 'lucide-react';
+import { getApiBaseUrl } from '../lib/api';
 
 interface HealthApiResponse {
   success: boolean;
@@ -31,15 +32,14 @@ export const SystemStatus: React.FC = () => {
   const [latency, setLatency] = useState<number | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const checkHealth = async () => {
     setStatus('loading');
     setErrorMessage(null);
     const startTime = performance.now();
 
     try {
-      const res = await fetch(`${apiUrl}/api/health`, {
+      const url = `${getApiBaseUrl()}/api/health`;
+      const res = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -148,11 +148,11 @@ export const SystemStatus: React.FC = () => {
               <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-1">
                 GET
               </span>
-              <div className="font-mono text-xs text-slate-200 truncate">{apiUrl}/api/health</div>
+              <div className="font-mono text-xs text-slate-200 truncate">/api/health</div>
             </div>
             <span className="text-xs text-slate-400 flex items-center space-x-1">
               <Server className="w-3.5 h-3.5 text-slate-400 inline" />
-              <span>Port: 5000 (Express API)</span>
+              <span>Express API (Proxied via Next.js)</span>
             </span>
           </div>
 
@@ -169,7 +169,7 @@ export const SystemStatus: React.FC = () => {
             </div>
             <span className="text-xs text-slate-400 flex items-center space-x-1">
               <Clock className="w-3.5 h-3.5 text-slate-400 inline" />
-              <span>CORS: Enabled (Localhost:3000)</span>
+              <span>Proxy: Next.js Rewrite</span>
             </span>
           </div>
         </div>
@@ -189,7 +189,7 @@ export const SystemStatus: React.FC = () => {
           <div className="p-4 font-mono text-xs overflow-x-auto text-slate-300 leading-relaxed min-h-[120px] flex flex-col justify-center">
             {status === 'loading' && (
               <div className="text-slate-400 animate-pulse">
-                Fetching data from {apiUrl}/api/health...
+                Fetching data from /api/health...
               </div>
             )}
 

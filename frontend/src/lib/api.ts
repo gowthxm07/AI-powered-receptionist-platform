@@ -16,17 +16,23 @@ import {
   AvailabilityCheckResult,
 } from '../types/dashboard';
 
+/**
+ * Resolves the base URL for API requests.
+ * - In the browser: ALWAYS returns an empty string `""` so that all fetch requests use relative paths
+ *   (e.g., `/api/...`) which route through the Next.js internal rewrite proxy on the current origin.
+ *   This eliminates Mixed Content (HTTPS -> HTTP), avoids cross-port CORS issues on mobile,
+ *   and guarantees requests from external devices reach the backend.
+ * - On the server (SSR): Connects to the local Express backend directly over loopback HTTP.
+ */
 export function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
-  }
-  // When executing inside the browser, use relative paths to leverage Next.js rewrite proxy.
-  // This automatically prevents Mixed Content errors on HTTPS mobile connections and avoids CORS.
   if (typeof window !== 'undefined') {
     return '';
   }
-  // Server-side execution (SSR) connects to local backend loopback directly
-  return process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:5000';
+  return (
+    process.env.BACKEND_INTERNAL_URL ||
+    process.env.INTERNAL_API_URL ||
+    'http://127.0.0.1:5000'
+  ).replace(/\/$/, '');
 }
 
 export class ApiError extends Error {
@@ -49,11 +55,22 @@ async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...(options.headers || {}),
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Always send and receive HTTP-only cookies
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include', // Always send and receive HTTP-only cookies
+    });
+  } catch (err: any) {
+    if (err instanceof TypeError && err.message?.toLowerCase().includes('fetch')) {
+      throw new ApiError(
+        'Unable to connect to the backend server. Please verify the backend service is running.',
+        503
+      );
+    }
+    throw err;
+  }
 
   let data: ApiResponse<T>;
   try {
@@ -112,10 +129,7 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
-    delete: (id: string) =>
-      fetcher<void>(`/api/customers/${id}`, {
-        method: 'DELETE',
-      }),
+    delete: (id: string) => fetcher<void>(`/api/customers/${id}`, { method: 'DELETE' }),
   },
   staff: {
     getAll: (businessId?: string) =>
@@ -134,10 +148,7 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
-    delete: (id: string) =>
-      fetcher<void>(`/api/staff/${id}`, {
-        method: 'DELETE',
-      }),
+    delete: (id: string) => fetcher<void>(`/api/staff/${id}`, { method: 'DELETE' }),
   },
   services: {
     getAll: (businessId?: string) =>
@@ -156,29 +167,16 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
-    delete: (id: string) =>
-      fetcher<void>(`/api/services/${id}`, {
-        method: 'DELETE',
-      }),
+    delete: (id: string) => fetcher<void>(`/api/services/${id}`, { method: 'DELETE' }),
   },
   appointments: {
-    getAll: (params: {
-      businessId?: string;
-      staffId?: string;
-      customerId?: string;
-      status?: string;
-      startDate?: string;
-      endDate?: string;
-    } = {}) => {
-      const searchParams = new URLSearchParams();
-      if (params.businessId) searchParams.append('businessId', params.businessId);
-      if (params.staffId) searchParams.append('staffId', params.staffId);
-      if (params.customerId) searchParams.append('customerId', params.customerId);
-      if (params.status) searchParams.append('status', params.status);
-      if (params.startDate) searchParams.append('startDate', params.startDate);
-      if (params.endDate) searchParams.append('endDate', params.endDate);
-
-      const qs = searchParams.toString();
+    getAll: (params?: { businessId?: string; staffId?: string; customerId?: string; status?: string }) => {
+      const query = new URLSearchParams();
+      if (params?.businessId) query.append('businessId', params.businessId);
+      if (params?.staffId) query.append('staffId', params.staffId);
+      if (params?.customerId) query.append('customerId', params.customerId);
+      if (params?.status) query.append('status', params.status);
+      const qs = query.toString();
       return fetcher<Appointment[]>(qs ? `/api/appointments?${qs}` : '/api/appointments', {
         method: 'GET',
       });
@@ -196,37 +194,35 @@ export const api = {
       }),
     cancel: (id: string) =>
       fetcher<Appointment>(`/api/appointments/${id}/cancel`, {
-        method: 'PATCH',
+        method: 'POST',
       }),
-    checkAvailability: (params: {
-      businessId: string;
-      staffId: string;
-      startTime: string;
-      durationMinutes?: number;
-      endTime?: string;
-      excludeAppointmentId?: string;
-    }) => {
-      const searchParams = new URLSearchParams();
-      searchParams.append('businessId', params.businessId);
-      searchParams.append('staffId', params.staffId);
-      searchParams.append('startTime', params.startTime);
-      if (params.durationMinutes) searchParams.append('durationMinutes', String(params.durationMinutes));
-      if (params.endTime) searchParams.append('endTime', params.endTime);
-      if (params.excludeAppointmentId) searchParams.append('excludeAppointmentId', params.excludeAppointmentId);
-
-      return fetcher<AvailabilityCheckResult>(`/api/appointments/availability?${searchParams.toString()}`, {
+    checkAvailability: (params: { businessId: string; staffId: string; startTime: string; durationMinutes: number; excludeAppointmentId?: string }) => {
+      const query = new URLSearchParams({
+        businessId: params.businessId,
+        staffId: params.staffId,
+        startTime: params.startTime,
+        durationMinutes: params.durationMinutes.toString(),
+      });
+      if (params.excludeAppointmentId) {
+        query.append('excludeAppointmentId', params.excludeAppointmentId);
+      }
+      return fetcher<AvailabilityCheckResult>(`/api/appointments/availability?${query.toString()}`, {
         method: 'GET',
       });
     },
   },
-  health: {
-    check: () => fetcher<{ status: string; uptimeSeconds: number }>('/api/health', { method: 'GET' }),
-  },
   ai: {
-    conversation: (input: import('../types/conversation').ConversationRequestInput) =>
-      fetcher<import('../types/conversation').ConversationResponseData>('/api/ai/conversation', {
+    conversation: (input: { sessionId?: string; businessId: string; customerId?: string; message: string }) =>
+      fetcher<any>('/api/ai/conversation', {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+  },
+  health: {
+    check: () =>
+      fetcher<{ status: string; uptimeSeconds: number; timestamp: string; environment: string; version: string }>(
+        '/api/health',
+        { method: 'GET' }
+      ),
   },
 };

@@ -19,12 +19,25 @@ export class VoiceTransportClient {
     return (this.baseUrl || getApiBaseUrl()).replace(/\/$/, '');
   }
 
+  private async executeFetch(url: string, init?: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, init);
+    } catch (err: any) {
+      if (err instanceof TypeError && err.message?.toLowerCase().includes('fetch')) {
+        throw new Error(
+          'Unable to connect to the AI receptionist backend. Please verify that the backend server is running and accessible.'
+        );
+      }
+      throw err;
+    }
+  }
+
   /**
    * Create a new voice transport session mapped to the selected business.
    */
   public async createSession(input: CreateVoiceSessionInput): Promise<VoiceTransportSession> {
     const url = `${this.getUrl()}/api/ai/voice/transport/session`;
-    const response = await fetch(url, {
+    const response = await this.executeFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,7 +50,12 @@ export class VoiceTransportClient {
       }),
     });
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Invalid response received from backend (${response.status}: ${response.statusText})`);
+    }
 
     if (!response.ok || !data.success) {
       throw new Error(data.error?.message || data.message || `Failed to create voice session (${response.status})`);
@@ -51,12 +69,17 @@ export class VoiceTransportClient {
    */
   public async getSession(transportSessionId: string): Promise<VoiceTransportSession> {
     const url = `${this.getUrl()}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
-    const response = await fetch(url, {
+    const response = await this.executeFetch(url, {
       method: 'GET',
       credentials: 'include',
     });
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Invalid response received from backend (${response.status})`);
+    }
 
     if (!response.ok || !data.success) {
       throw new Error(data.error?.message || data.message || `Failed to retrieve voice session (${response.status})`);
@@ -70,7 +93,7 @@ export class VoiceTransportClient {
    */
   public async terminateSession(transportSessionId: string): Promise<void> {
     const url = `${this.getUrl()}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
-    const response = await fetch(url, {
+    const response = await this.executeFetch(url, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -102,13 +125,18 @@ export class VoiceTransportClient {
     formData.append('channel', channel);
 
     const url = `${this.getUrl()}/api/ai/voice/transport/turn`;
-    const response = await fetch(url, {
+    const response = await this.executeFetch(url, {
       method: 'POST',
       credentials: 'include',
       body: formData,
     });
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Invalid response from voice transport engine (${response.status})`);
+    }
 
     if (!response.ok || !data.success) {
       throw new Error(data.error?.message || data.message || `Failed to process audio turn (${response.status})`);
@@ -118,7 +146,7 @@ export class VoiceTransportClient {
   }
 
   /**
-   * Generate an absolute audio playback URL for a synthesized audio response.
+   * Generate a relative audio playback URL for a synthesized audio response.
    */
   public getAudioStreamUrl(audioId: string): string {
     return `${this.getUrl()}/api/ai/voice/audio/${encodeURIComponent(audioId)}`;
