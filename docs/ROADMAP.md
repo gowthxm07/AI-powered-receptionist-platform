@@ -217,12 +217,28 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 6.2: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
-- [ ] Local Speech-to-Text (STT) using Whisper
-- [ ] Local Text-to-Speech (TTS) using Piper
-- [ ] Vector Database setup (ChromaDB / Qdrant)
-- [ ] RAG Knowledge base ingestion for business FAQs, company guidelines, and services
-- [ ] Real-time semantic retrieval during receptionist dialogues
+### Phase 6.2.1: Local Speech Technology Benchmark & Evaluation (COMPLETED ✅)
+- [x] Local CPU Speech-to-Text evaluation (`whisper.cpp` `tiny.en` vs `base.en`)
+- [x] Local CPU Text-to-Speech evaluation (`Piper TTS` `lessac-medium` vs Windows SAPI)
+- [x] Reproducible benchmark suites (`benchmark:stt`, `benchmark:tts`, `benchmark:speech`)
+- [x] 8 GB RAM memory budget coexistence analysis (< 5.6 GB combined active load)
+- [x] End-to-end voice latency budget determination (~1.41s deterministic / ~4.33s LLM fallback)
+- [x] Safe runtime detection and non-crashing fallbacks (`SpeechDetectorService`)
+- [x] Comprehensive evaluation documentation (`docs/VOICE_TECHNOLOGY_EVALUATION.md`)
+
+---
+
+### Phase 6.2.2: Local Speech-to-Text & Text-to-Speech Engine Integration (Upcoming ⏳)
+- [ ] Native STT audio ingestion service using `whisper.cpp`
+- [ ] Native TTS speech streaming service using `Piper TTS`
+- [ ] Audio format transcoding & WAV stream helpers
+
+---
+
+### Phase 6.3: RAG Knowledge Retrieval & Vector Database (Upcoming ⏳)
+- [ ] Local Vector Database setup (ChromaDB / Qdrant)
+- [ ] Business FAQ document ingestion & semantic chunking
+- [ ] Real-time vector search retrieval during AI receptionist dialogues
 
 ---
 

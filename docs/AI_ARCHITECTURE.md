@@ -235,3 +235,15 @@ The platform utilizes a 100% free, local AI inference runtime powered by **Ollam
 - Complete orchestration details: [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md).
 - Complete conversation engine details: [`docs/APPOINTMENT_CONVERSATION_ENGINE.md`](docs/APPOINTMENT_CONVERSATION_ENGINE.md).
 - Complete REST API details: [`docs/CONVERSATION_API.md`](docs/CONVERSATION_API.md).
+
+---
+
+## 10. Local Speech Technologies (whisper.cpp & Piper TTS)
+
+Phase 6.2.1 evaluated speech-to-text (STT) and text-to-speech (TTS) engines on CPU hardware:
+
+- **Speech-to-Text:** `whisper.cpp` (`tiny.en`) — **989 ms avg latency** (RTF: **0.466x**), **~77 MB RAM**.
+- **Text-to-Speech:** `Piper TTS` (`en_US-lessac-medium`) — **764 ms avg latency** (RTF: **0.212x**), **~60 MB RAM**.
+- **Full Coexistence:** All 7 core services (Windows + Docker Postgres + Backend + Next.js + Ollama + Whisper + Piper) consume **~5.6 GB RAM** out of 8 GB.
+- Complete voice technology evaluation details: [`docs/VOICE_TECHNOLOGY_EVALUATION.md`](docs/VOICE_TECHNOLOGY_EVALUATION.md).
+
