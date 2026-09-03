@@ -82,7 +82,6 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 - [x] SaaS-style dashboard layout with responsive desktop sidebar and mobile navigation drawer
 - [x] Global `BusinessContext` with multi-tenant switching and local preference recall
 - [x] Real-time statistics cards powered by backend domain APIs (Customers, Staff, Services)
-- [x] Dedicated upcoming appointments indicator clearly labeled for Phase 4
 - [x] Quick operations shortcut grid for business workflows
 - [x] AI Receptionist status preview card highlighting local open-source technology stack
 - [x] Sub-second AI latency telemetry section reserved for Whisper, Ollama, and Piper
@@ -103,10 +102,23 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
+### Phase 3.5: Appointment Management and Scheduling (COMPLETED ✅)
+- [x] Complete appointment scheduling relational data model with composite querying indexes
+- [x] Interval overlap conflict detection algorithm (`existing.startTime < new.endTime AND existing.endTime > new.startTime`)
+- [x] Clean back-to-back appointment support without false-positive collisions
+- [x] Soft cancellation lifecycle (`status: CANCELLED`) releasing time slots while preserving historical dialogue records
+- [x] Lightweight availability check API (`GET /api/appointments/availability`) for interactive UI indicators and future AI tool calling
+- [x] Strict cross-business resource validation preventing cross-tenant customer, staff, or service misuse
+- [x] Interactive booking and rescheduling dashboard UI (`/dashboard/appointments`) with status and specialist filters
+- [x] Comprehensive backend integration test suite (93 total master tests passing)
+- [x] Complete scheduling architecture documentation (`docs/APPOINTMENTS.md`)
+
+---
+
 ### Phase 4: Local AI Integration & Conversational Receptionist (Upcoming ⏳)
 - [ ] Ollama integration (Local LLM inference via REST/TypeScript client)
 - [ ] Prompt engineering for receptionist persona, greetings, and inquiry classification
-- [ ] Function/Tool calling for appointments (e.g., `checkAvailability`, `bookAppointment`)
+- [ ] Function/Tool calling for appointments (`checkAvailability`, `bookAppointment`, `cancelAppointment`)
 - [ ] Call and conversation transcript logging into database
 - [ ] Automated conversation summarization generator
 

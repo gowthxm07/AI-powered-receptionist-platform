@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 3.4 — Core Management Frontend
+Current Milestone: PHASE 3.5 — Appointment Management and Scheduling
 Status: Completed
 ```
 
@@ -18,8 +18,9 @@ Status: Completed
 - **Phase 3.1 (Authentication Backend):** Secure JWT authentication with HTTP-only cookies, Bcrypt password hashing, User registration & login, `/api/auth/me`, and role-based authorization middleware.
 - **Phase 3.2 (Authentication Frontend):** React `AuthContext` state management, typed API client with `credentials: "include"`, `/login` and `/register` responsive forms with validation and password toggles, protected `/dashboard` shell, and automatic redirection flows.
 - **Phase 3.2.1 (Authorization & Data Isolation):** Complete multi-tenant business data isolation, route protection across all domain APIs, server-enforced `OwnershipService` rules preventing cross-business data leakage, and rigorous security integration test suites.
-- **Phase 3.3 (Professional Multi-Tenant Dashboard):** Real-data business dashboard overview with business selector, dynamic stats calculation (customers, staff, services), quick operations shortcuts, AI receptionist and latency telemetry cards, recent activity placeholder, and responsive sidebar navigation.
-- **Phase 3.4 (Core Management Frontend):** Complete database-backed frontend management modules for Customers (`/dashboard/customers`), Staff specialists (`/dashboard/staff`), and Services catalog (`/dashboard/services`) with real-time CRUD, instant search, responsive tables/cards, modal dialogs, and delete confirmations.
+- **Phase 3.3 (Professional Multi-Tenant Dashboard):** Real-data business dashboard overview with business selector, dynamic stats calculation (customers, staff, services, appointments), quick operations shortcuts, AI receptionist and latency telemetry cards, recent activity placeholder, and responsive sidebar navigation.
+- **Phase 3.4 (Core Management Frontend):** Complete database-backed frontend management modules for Customers (`/dashboard/customers`), Staff specialists (`/dashboard/staff`), and Services catalog (`/dashboard/services`).
+- **Phase 3.5 (Appointment Management & Scheduling):** Complete appointment scheduling engine with interval overlap conflict detection, dynamic catalog service duration calculation, availability check API (`/api/appointments/availability`), multi-tenant cross-resource validation, and interactive frontend booking dashboard (`/dashboard/appointments`).
 
 ---
 
@@ -32,7 +33,7 @@ Status: Completed
 - **Icons:** [Lucide React](https://lucide.dev/)
 - **State & Context:** React Context API (`AuthContext`, `BusinessContext`)
 - **API Client:** Native `fetch` wrapper with HTTP-only cookie support (`lib/api.ts`)
-- **Management UI:** `CustomerModal`, `StaffModal`, `ServiceModal`, `ConfirmDialog`, `Toast`
+- **Management UI:** `AppointmentModal`, `AppointmentTable`, `AppointmentFilters`, `CustomerModal`, `StaffModal`, `ServiceModal`, `ConfirmDialog`, `Toast`
 - **Linting:** ESLint
 
 ### Backend
@@ -68,7 +69,7 @@ Status: Completed
 │  ├── /dashboard/customers   -> Real-Data Customer CRUD      │
 │  ├── /dashboard/staff       -> Real-Data Staff Roster CRUD  │
 │  ├── /dashboard/services    -> Real-Data Services CRUD      │
-│  ├── /dashboard/appointments-> Appointments Calendar Shell  │
+│  ├── /dashboard/appointments-> Real-Data Appointment Engine │
 │  ├── /dashboard/conversations-> Dialogue Transcripts Shell  │
 │  ├── /dashboard/ai-receptionist -> AI Engine Shell          │
 │  └── /dashboard/settings    -> Business Settings Shell      │
@@ -85,7 +86,8 @@ Status: Completed
 │  ├── /api/businesses  -> Owned Business CRUD (Protected)    │
 │  ├── /api/customers   -> Owned Customer CRUD (Protected)    │
 │  ├── /api/staff       -> Owned Staff Roster CRUD (Protected)│
-│  └── /api/services    -> Owned Services Catalog (Protected) │
+│  ├── /api/services    -> Owned Services Catalog (Protected) │
+│  └── /api/appointments-> Appointment Scheduling & Conflicts │
 └──────────────┬──────────────────────────────┬───────────────┘
                │                              │
                ▼ (Prisma ORM)                 ▼ (Future Phase)
@@ -94,7 +96,8 @@ Status: Completed
 │   • Users & Roles (Auth)     │ │   • Ollama (Local LLM)     │
 │   • Multi-Tenant Businesses  │ │   • Whisper (STT)          │
 │   • Isolated Staff & Catalog │ │   • Piper (TTS)            │
-│   • Scoped Customer Records  │ │                            │
+│   • Customer Directories     │ │                            │
+│   • Appointments & Schedules │ │                            │
 └──────────────────────────────┘ └────────────────────────────┘
 ```
 
@@ -186,6 +189,7 @@ npm --prefix frontend run dev
 | **Phase 3.2.1**| **Authorization & Business Data Isolation** | Multi-tenant scoping, route protection, cross-tenant isolation | **Completed** ✅ |
 | **Phase 3.3** | **Professional Multi-Tenant Dashboard** | Real-data overview, business selector, stats, responsive UI | **Completed** ✅ |
 | **Phase 3.4** | **Core Management Frontend** | Real CRUD UI for Customers, Staff, and Services | **Completed** ✅ |
+| **Phase 3.5** | **Appointment Management & Scheduling** | Conflict detection, dynamic duration, availability check, bookings | **Completed** ✅ |
 | **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
 | **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 6** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
