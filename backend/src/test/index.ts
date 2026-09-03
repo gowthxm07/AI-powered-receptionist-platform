@@ -19,6 +19,7 @@ import { runSpeechBenchmarkUnitTests } from './speech-benchmark.test';
 import { runSpeechPipelineTests } from './speech-pipeline.test';
 import { runVoiceOrchestratorTests } from './voice-orchestrator.test';
 import { runVoiceTransportTests } from './voice-transport.test';
+import { runVoiceClientFoundationTests } from './voice-client-foundation.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -45,6 +46,7 @@ async function runAllTestSuites() {
   await runSpeechPipelineTests();
   await runVoiceOrchestratorTests();
   await runVoiceTransportTests();
+  await runVoiceClientFoundationTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
