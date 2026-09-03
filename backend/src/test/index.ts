@@ -4,6 +4,7 @@ import { runAuthorizationMiddlewareTests } from './authorization.test';
 import { runAuthIntegrationTests } from './auth-integration.test';
 import { runCrossBusinessIsolationTests } from './cross-business-isolation.test';
 import { runDatabaseIntegrationTests } from './db-integration.test';
+import { runAppointmentTests } from './appointment.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -15,6 +16,7 @@ async function runAllTestSuites() {
   await runAuthIntegrationTests();
   await runCrossBusinessIsolationTests();
   await runDatabaseIntegrationTests();
+  await runAppointmentTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
