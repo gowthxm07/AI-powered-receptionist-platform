@@ -20,12 +20,13 @@ export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
   }
-  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    const protocol = window.location.protocol || 'http:';
-    const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:5000`;
+  // When executing inside the browser, use relative paths to leverage Next.js rewrite proxy.
+  // This automatically prevents Mixed Content errors on HTTPS mobile connections and avoids CORS.
+  if (typeof window !== 'undefined') {
+    return '';
   }
-  return 'http://localhost:5000';
+  // Server-side execution (SSR) connects to local backend loopback directly
+  return process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:5000';
 }
 
 export class ApiError extends Error {

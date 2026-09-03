@@ -22,6 +22,7 @@ export function getLocalIpAddresses(): string[] {
 function printNetworkInfo(): void {
   const ips = getLocalIpAddresses();
   const hostname = os.hostname();
+  const primaryIp = ips[0] || '127.0.0.1';
 
   console.log('\n===============================================================');
   console.log('📡 SMART RECEPTIONIST: LOCAL NETWORK & MOBILE ACCESS DISCOVERY');
@@ -38,26 +39,25 @@ function printNetworkInfo(): void {
       console.log(`   [${idx + 1}] ${ip}`);
     });
 
-    const primaryIp = ips[0];
     console.log('\n📱 Mobile Phone Access URLs (on same Wi-Fi network):');
-    console.log(`   🎙️  Mobile Voice Receptionist : http://${primaryIp}:3000/voice`);
-    console.log(`   📊 Main Dashboard            : http://${primaryIp}:3000/dashboard`);
-    console.log(`   ⚡ Backend REST API Engine    : http://${primaryIp}:5000`);
-    console.log(`   🩺 Backend Health Check      : http://${primaryIp}:5000/api/health`);
+    console.log(`   🔒 Secure HTTPS Voice Client (Recommended): https://${primaryIp}:3000/voice`);
+    console.log(`   🌐 Standard HTTP Voice Client            : http://${primaryIp}:3000/voice`);
+    console.log(`   📊 Main Dashboard Overview              : https://${primaryIp}:3000/dashboard`);
+    console.log(`   ⚡ Backend REST API Engine (Proxied)     : https://${primaryIp}:3000/api/health`);
+    console.log(`   🩺 Direct Backend Health Check           : http://${primaryIp}:5000/api/health`);
   }
 
-  console.log('\n📋 Quick Start Commands:');
-  console.log('   1. Start Backend:  npm --prefix backend run dev');
-  console.log('   2. Start Frontend: npm --prefix frontend run dev -- -H 0.0.0.0');
+  console.log('\n📋 Simple Startup Workflow:');
+  console.log('   1. Start Backend:   npm --prefix backend run dev');
+  console.log('   2. Start Mobile UI: npm --prefix frontend run dev:https');
+  console.log('      (Or from root:   npm run dev:mobile)');
 
-  console.log('\n🛡️  Mobile Browser & Network Tips:');
-  console.log('   • Connect both Laptop and Mobile Phone to the same Wi-Fi network.');
-  console.log('   • If prompted by Windows Defender Firewall, allow Node.js on Private Networks.');
-  console.log('   • On Chrome Android, open chrome://flags/#unsafely-treat-insecure-origin-as-secure');
-  console.log(`     and add "http://${ips[0] || '<LAPTOP_IP>'}:3000" if microphone permission is blocked on HTTP.`);
+  console.log('\n🛡️  Mobile Microphone & Security Notes:');
+  console.log('   • Mobile browsers (Android Chrome / Safari) enforce HTTPS for microphone access.');
+  console.log('   • When opening https://' + primaryIp + ':3000/voice on your phone:');
+  console.log('     Tap "Advanced" -> "Proceed to site (unsafe)" to accept the local dev certificate.');
+  console.log('   • Next.js proxies all API requests internally, eliminating Mixed Content and CORS issues.');
   console.log('===============================================================\n');
 }
 
-if (require.main === module) {
-  printNetworkInfo();
-}
+printNetworkInfo();

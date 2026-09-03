@@ -62,3 +62,5 @@ backend/runtime/
 *.zip
 *.tar.gz
 *.wav
+certificates/*.pem
+frontend/certificates/*.pem
