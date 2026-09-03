@@ -44,3 +44,19 @@ Thumbs.db
 
 # Local tool helpers
 powershell.bat
+
+# Local Voice & AI Models, Binaries, and Audio Benchmarks
+local-models/
+local-tools/
+voice-models/
+benchmark-output/
+backend/local-models/
+backend/local-tools/
+backend/benchmark-output/
+*.bin
+*.gguf
+*.onnx
+*.onnx.json
+*.zip
+*.tar.gz
+*.wav
