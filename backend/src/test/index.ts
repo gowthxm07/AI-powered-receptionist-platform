@@ -7,6 +7,7 @@ import { runDatabaseIntegrationTests } from './db-integration.test';
 import { runAppointmentTests } from './appointment.test';
 import { runDemoSeedTests } from './demo-seed.test';
 import { runAiToolsTests } from './ai-tools.test';
+import { runOllamaRuntimeTests } from './ollama-runtime.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -21,6 +22,7 @@ async function runAllTestSuites() {
   await runAppointmentTests();
   await runDemoSeedTests();
   await runAiToolsTests();
+  await runOllamaRuntimeTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
