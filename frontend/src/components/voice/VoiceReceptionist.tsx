@@ -274,6 +274,18 @@ export const VoiceReceptionist: React.FC = () => {
             {showDiagnostics && diagnostics && (
               <div className="mt-2 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[10px] space-y-1 font-mono text-slate-300">
                 <div className="flex justify-between">
+                  <span className="text-slate-500">Current Origin:</span>
+                  <span className="text-slate-200 truncate max-w-[200px]">{diagnostics.origin}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">API Base Routing:</span>
+                  <span className="text-emerald-400 font-bold">{diagnostics.apiBaseUrl}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Session Endpoint:</span>
+                  <span className="text-indigo-400 font-bold truncate max-w-[200px]">{diagnostics.sessionEndpoint}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-500">Protocol:</span>
                   <span className={diagnostics.protocol === 'https:' ? 'text-emerald-400' : 'text-amber-400'}>
                     {diagnostics.protocol}

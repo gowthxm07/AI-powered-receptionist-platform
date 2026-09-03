@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { MicrophonePermissionState, MicrophoneDiagnostics } from '../types/voice';
+import { getApiBaseUrl } from '../lib/api';
 
 /**
  * Determine the best browser-supported audio MIME type for MediaRecorder.
@@ -42,6 +43,9 @@ export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
       supportedMimeType: '',
       protocol: '',
       host: '',
+      origin: '',
+      apiBaseUrl: '',
+      sessionEndpoint: '/api/ai/voice/transport/session',
     };
   }
 
@@ -50,6 +54,7 @@ export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
   const hasGUM = !!(hasMediaDev && typeof navigator.mediaDevices.getUserMedia === 'function');
   const hasMR = typeof MediaRecorder !== 'undefined';
   const supportedMime = getSupportedMimeType();
+  const apiBase = getApiBaseUrl();
 
   return {
     isSecureContext: isSecure,
@@ -59,6 +64,9 @@ export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
     supportedMimeType: supportedMime,
     protocol: window.location.protocol || '',
     host: window.location.host || '',
+    origin: window.location.origin || `${window.location.protocol}//${window.location.host}`,
+    apiBaseUrl: apiBase === '' ? '/api (relative proxy)' : apiBase,
+    sessionEndpoint: `${apiBase}/api/ai/voice/transport/session`,
   };
 }
 

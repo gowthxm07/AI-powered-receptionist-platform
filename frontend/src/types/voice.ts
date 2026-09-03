@@ -20,6 +20,9 @@ export interface MicrophoneDiagnostics {
   supportedMimeType: string;
   protocol: string;
   host: string;
+  origin: string;
+  apiBaseUrl: string;
+  sessionEndpoint: string;
 }
 
 export interface VoiceTransportSession {
