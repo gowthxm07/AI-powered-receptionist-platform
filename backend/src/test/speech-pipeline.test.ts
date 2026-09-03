@@ -7,6 +7,7 @@ import { WhisperCppProvider } from '../modules/speech/providers/whisper-cpp.prov
 import { PiperProvider } from '../modules/speech/providers/piper.provider';
 import { MockSTTProvider } from '../modules/speech/providers/mock-stt.provider';
 import { MockTTSProvider } from '../modules/speech/providers/mock-tts.provider';
+import { audioConverterService, AudioConverterService } from '../modules/speech/services/audio-converter.service';
 import { SpeechPipelineService } from '../modules/speech/services/speech-pipeline.service';
 import { sessionStore } from '../modules/ai/conversation/in-memory-session-store';
 import { BookingConversationStep } from '../modules/ai/conversation/conversation-session.types';
@@ -74,6 +75,20 @@ export async function runSpeechPipelineTests(): Promise<void> {
   assert.strictEqual(mockFailRes.success, false);
   assert.strictEqual(mockFailRes.error?.code, 'STT_PROCESSING_FAILED');
   console.log('  ✓ STT provider error handling and mock behaviors verified.');
+
+  // ---------------------------------------------------------
+  // TEST GROUP 2.5: Audio Format Conversion & 16kHz PCM Detection
+  // ---------------------------------------------------------
+  console.log('\n2.5. Testing Audio Format Conversion & Header Inspection:');
+  
+  // Missing file handling
+  const missingConv = await audioConverterService.convertTo16kMonoWav('non/existent/audio.webm');
+  assert.strictEqual(missingConv.success, false);
+  assert(missingConv.error?.includes('does not exist'));
+
+  // Non-existent file format check
+  assert.strictEqual(audioConverterService.is16kMonoPcmWav('non/existent.wav'), false);
+  console.log('  ✓ AudioConverterService defenses and format check verified.');
 
   // ---------------------------------------------------------
   // TEST GROUP 3: TTS Provider Defenses & Mock Tests
