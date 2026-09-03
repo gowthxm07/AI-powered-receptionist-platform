@@ -1,3 +1,10 @@
+export type AppointmentStatus =
+  | 'SCHEDULED'
+  | 'CONFIRMED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'NO_SHOW';
+
 export interface Business {
   id: string;
   name: string;
@@ -111,11 +118,67 @@ export interface UpdateServiceInput {
   isActive?: boolean;
 }
 
+export interface Appointment {
+  id: string;
+  businessId: string;
+  customerId: string;
+  staffId?: string | null;
+  serviceId: string;
+  startTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  business?: {
+    id: string;
+    name: string;
+    phone?: string;
+  } | null;
+  customer?: Customer | null;
+  staff?: Staff | null;
+  service?: Service | null;
+}
+
+export interface CreateAppointmentInput {
+  businessId: string;
+  customerId: string;
+  staffId?: string | null;
+  serviceId: string;
+  startTime: string;
+  endTime?: string;
+  status?: AppointmentStatus;
+  notes?: string | null;
+}
+
+export interface UpdateAppointmentInput {
+  businessId?: string;
+  customerId?: string;
+  staffId?: string | null;
+  serviceId?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: AppointmentStatus;
+  notes?: string | null;
+}
+
+export interface AppointmentFilters {
+  status?: AppointmentStatus | 'ALL';
+  staffId?: string | 'ALL';
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AvailabilityCheckResult {
+  available: boolean;
+  reason?: string;
+}
+
 export interface DashboardStats {
   totalCustomers: number;
   activeStaff: number;
   totalStaff: number;
   availableServices: number;
   totalServices: number;
-  upcomingAppointments: number | null; // null indicates Phase 4 module
+  upcomingAppointments: number | null;
 }

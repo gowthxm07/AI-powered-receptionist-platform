@@ -11,7 +11,7 @@ const initialStats: DashboardStats = {
   totalStaff: 0,
   availableServices: 0,
   totalServices: 0,
-  upcomingAppointments: null,
+  upcomingAppointments: 0,
 };
 
 export function useDashboardStats() {
@@ -35,18 +35,23 @@ export function useDashboardStats() {
       setError(null);
 
       // Fetch real business-scoped data in parallel
-      const [customersRes, staffRes, servicesRes] = await Promise.all([
+      const [customersRes, staffRes, servicesRes, appointmentsRes] = await Promise.all([
         api.customers.getAll(selectedBusinessId),
         api.staff.getAll(selectedBusinessId),
         api.services.getAll(selectedBusinessId),
+        api.appointments.getAll({ businessId: selectedBusinessId }),
       ]);
 
       const customers = customersRes.success && Array.isArray(customersRes.data) ? customersRes.data : [];
       const staff = staffRes.success && Array.isArray(staffRes.data) ? staffRes.data : [];
       const services = servicesRes.success && Array.isArray(servicesRes.data) ? servicesRes.data : [];
+      const appointments = appointmentsRes.success && Array.isArray(appointmentsRes.data) ? appointmentsRes.data : [];
 
       const activeStaffCount = staff.filter((s) => s.isActive).length;
       const availableServicesCount = services.filter((s) => s.isActive).length;
+      const activeAppointmentsCount = appointments.filter(
+        (a) => a.status === 'SCHEDULED' || a.status === 'CONFIRMED'
+      ).length;
 
       setStats({
         totalCustomers: customers.length,
@@ -54,7 +59,7 @@ export function useDashboardStats() {
         totalStaff: staff.length,
         availableServices: availableServicesCount,
         totalServices: services.length,
-        upcomingAppointments: null, // Module coming in Phase 4
+        upcomingAppointments: activeAppointmentsCount,
       });
     } catch (err) {
       console.error('Failed to load dashboard statistics:', err);

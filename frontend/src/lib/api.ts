@@ -10,6 +10,10 @@ import {
   Service,
   CreateServiceInput,
   UpdateServiceInput,
+  Appointment,
+  CreateAppointmentInput,
+  UpdateAppointmentInput,
+  AvailabilityCheckResult,
 } from '../types/dashboard';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -144,6 +148,64 @@ export const api = {
       fetcher<void>(`/api/services/${id}`, {
         method: 'DELETE',
       }),
+  },
+  appointments: {
+    getAll: (params: {
+      businessId?: string;
+      staffId?: string;
+      customerId?: string;
+      status?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {}) => {
+      const searchParams = new URLSearchParams();
+      if (params.businessId) searchParams.append('businessId', params.businessId);
+      if (params.staffId) searchParams.append('staffId', params.staffId);
+      if (params.customerId) searchParams.append('customerId', params.customerId);
+      if (params.status) searchParams.append('status', params.status);
+      if (params.startDate) searchParams.append('startDate', params.startDate);
+      if (params.endDate) searchParams.append('endDate', params.endDate);
+
+      const qs = searchParams.toString();
+      return fetcher<Appointment[]>(qs ? `/api/appointments?${qs}` : '/api/appointments', {
+        method: 'GET',
+      });
+    },
+    getById: (id: string) => fetcher<Appointment>(`/api/appointments/${id}`, { method: 'GET' }),
+    create: (input: CreateAppointmentInput) =>
+      fetcher<Appointment>('/api/appointments', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (id: string, input: UpdateAppointmentInput) =>
+      fetcher<Appointment>(`/api/appointments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    cancel: (id: string) =>
+      fetcher<Appointment>(`/api/appointments/${id}/cancel`, {
+        method: 'PATCH',
+      }),
+    checkAvailability: (params: {
+      businessId: string;
+      staffId: string;
+      startTime: string;
+      durationMinutes?: number;
+      endTime?: string;
+      excludeAppointmentId?: string;
+    }) => {
+      const searchParams = new URLSearchParams();
+      searchParams.append('businessId', params.businessId);
+      searchParams.append('staffId', params.staffId);
+      searchParams.append('startTime', params.startTime);
+      if (params.durationMinutes) searchParams.append('durationMinutes', String(params.durationMinutes));
+      if (params.endTime) searchParams.append('endTime', params.endTime);
+      if (params.excludeAppointmentId) searchParams.append('excludeAppointmentId', params.excludeAppointmentId);
+
+      return fetcher<AvailabilityCheckResult>(`/api/appointments/availability?${searchParams.toString()}`, {
+        method: 'GET',
+      });
+    },
   },
   health: {
     check: () => fetcher<{ status: string; uptimeSeconds: number }>('/api/health', { method: 'GET' }),

@@ -136,15 +136,23 @@ export const DashboardOverview: React.FC = () => {
           loading={loadingStats}
         />
 
-        {/* Upcoming Appointments (Phase 4 indicator) */}
+        {/* Upcoming Appointments */}
         <StatsCard
           title="Upcoming Bookings"
-          value="Phase 4"
-          subtitle="Autonomous calendar scheduling"
+          value={loadingStats ? '-' : (stats.upcomingAppointments ?? 0)}
+          subtitle="Confirmed & scheduled slots"
           icon={Calendar}
           colorScheme="amber"
-          badge="Coming Soon"
-          badgeVariant="warning"
+          badge={
+            typeof stats.upcomingAppointments === 'number' && stats.upcomingAppointments > 0
+              ? `${stats.upcomingAppointments} Active`
+              : 'No Bookings'
+          }
+          badgeVariant={
+            typeof stats.upcomingAppointments === 'number' && stats.upcomingAppointments > 0
+              ? 'warning'
+              : 'default'
+          }
           loading={loadingStats}
         />
       </div>
