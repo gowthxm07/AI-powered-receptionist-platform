@@ -238,16 +238,18 @@ The platform utilizes a 100% free, local AI inference runtime powered by **Ollam
 
 ---
 
-## 10. Local Speech Technologies & Pipeline Integration (whisper.cpp & Piper TTS)
+## 10. Local Speech Technologies, Orchestration & Latency Analysis (whisper.cpp & Piper TTS)
 
-Phases 6.2.1 and 6.2.2 integrated speech-to-text (STT) and text-to-speech (TTS) engines with the core AI receptionist conversation engine:
+Phases 6.2.1, 6.2.2, and 6.3 integrated speech-to-text (STT) and text-to-speech (TTS) engines with the core AI receptionist conversation engine:
 
-- **Speech-to-Text:** `whisper.cpp` (`tiny.en`) — **~1,090 ms live transcription latency** (RTF: **0.466x**), **~77 MB RAM**.
-- **Text-to-Speech:** `Piper TTS` (`en_US-lessac-medium`) — **~780 ms neural synthesis latency** (RTF: **0.212x**), **~60 MB RAM**.
-- **End-to-End Latency:** **~1.90 seconds** on deterministic booking turns (STT 1112ms + FastIntentRouter 2.7ms + Piper TTS 780ms).
+- **Speech-to-Text:** `whisper.cpp` (`tiny.en`) — **~936 ms live transcription latency** (RTF: **0.466x**), **~77 MB RAM**.
+- **Text-to-Speech:** `Piper TTS` (`en_US-lessac-medium`) — **~608 ms neural synthesis latency** (RTF: **0.212x**), **~60 MB RAM**.
+- **Voice Orchestrator:** `VoiceConversationOrchestrator` coordinating STT, Text Normalization, Conversation State Machine, and Neural TTS with stage-by-stage timing instrumentation.
+- **End-to-End Deterministic Latency:** **~1.44 – 1.55 seconds** (STT ~936ms + FastIntentRouter ~1.5ms + Piper TTS ~608ms).
 - **Voice REST API:** `POST /api/ai/voice/conversation` and safe streaming `GET /api/ai/voice/audio/:audioId`.
-- **Full Coexistence:** All 7 core services (Windows + Docker Postgres + Backend + Next.js + Ollama + Whisper + Piper) consume **~5.6 GB RAM** out of 8 GB.
+- **Full Coexistence:** All 7 core services (Windows + Docker Postgres + Backend + Next.js + Ollama + Whisper + Piper) consume **~5.59 GB RAM** out of 8 GB.
 - Complete voice technology evaluation details: [`docs/VOICE_TECHNOLOGY_EVALUATION.md`](docs/VOICE_TECHNOLOGY_EVALUATION.md).
 - Complete speech pipeline integration details: [`docs/LOCAL_SPEECH_PIPELINE.md`](docs/LOCAL_SPEECH_PIPELINE.md).
+- Complete voice latency benchmark & analysis: [`docs/VOICE_LATENCY_ANALYSIS.md`](docs/VOICE_LATENCY_ANALYSIS.md).
 
 
