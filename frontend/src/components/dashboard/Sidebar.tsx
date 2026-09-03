@@ -11,6 +11,7 @@ import {
   Calendar,
   MessageSquare,
   Bot,
+  Mic,
   Settings,
   X,
   Sparkles,
@@ -70,6 +71,13 @@ const navItems: NavItem[] = [
     name: 'AI Receptionist',
     href: '/dashboard/ai-receptionist',
     icon: Bot,
+    isReady: true,
+  },
+  {
+    name: 'Voice Receptionist',
+    href: '/voice',
+    icon: Mic,
+    badge: 'Real-Time',
     isReady: true,
   },
   {

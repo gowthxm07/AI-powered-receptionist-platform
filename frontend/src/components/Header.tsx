@@ -27,6 +27,9 @@ export const Header: React.FC = () => {
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
+          <Link href="/voice" className="hover:text-indigo-400 transition-colors flex items-center space-x-1 text-emerald-400 font-semibold">
+            <span>🎙️ Voice Call</span>
+          </Link>
           <a href="/#features" className="hover:text-indigo-400 transition-colors">
             Features
           </a>
