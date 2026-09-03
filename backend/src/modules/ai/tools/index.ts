@@ -4,3 +4,4 @@ export * from './customer.tools';
 export * from './service.tools';
 export * from './staff.tools';
 export * from './business.tools';
+export * from './appointment.tools';
