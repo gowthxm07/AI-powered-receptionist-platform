@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 3.5 — Appointment Management and Scheduling
+Current Milestone: PHASE 4 — Demo Data and Database Seeding
 Status: Completed
 ```
 
@@ -21,6 +21,20 @@ Status: Completed
 - **Phase 3.3 (Professional Multi-Tenant Dashboard):** Real-data business dashboard overview with business selector, dynamic stats calculation (customers, staff, services, appointments), quick operations shortcuts, AI receptionist and latency telemetry cards, recent activity placeholder, and responsive sidebar navigation.
 - **Phase 3.4 (Core Management Frontend):** Complete database-backed frontend management modules for Customers (`/dashboard/customers`), Staff specialists (`/dashboard/staff`), and Services catalog (`/dashboard/services`).
 - **Phase 3.5 (Appointment Management & Scheduling):** Complete appointment scheduling engine with interval overlap conflict detection, dynamic catalog service duration calculation, availability check API (`/api/appointments/availability`), multi-tenant cross-resource validation, and interactive frontend booking dashboard (`/dashboard/appointments`).
+- **Phase 4 (Demo Data & Database Seeding):** 143 meaningful records populated into PostgreSQL across 3 demo users, 4 multi-tenant businesses, 16 staff specialists, 20 catalog services, 56 customers, and 44 conflict-free appointments (Today, Past, Future) with automated verification.
+
+---
+
+## 🔑 Demo Login Credentials (Development Only)
+
+> [!NOTE]
+> Use the demo accounts below to test multi-tenant dashboard switching and appointment management.
+
+| Demo Account | Email | Password | Owned Enterprises |
+|---|---|---|---|
+| **Dr. Sarah Jenkins** | `sarah.jenkins@luminahealth.demo` | `DemoUser123!` | 1. **Lumina Dental Care**<br>2. **Radiance Dermatology & Aesthetics** |
+| **Marcus Vance** | `marcus.vance@apexadvisory.demo` | `DemoUser123!` | 3. **Apex Strategy & Financial Advisory** |
+| **Elena Rostova** | `elena.rostova@zenithsalon.demo` | `DemoUser123!` | 4. **Zenith Luxury Hair & Spa Studio** |
 
 ---
 
@@ -34,7 +48,6 @@ Status: Completed
 - **State & Context:** React Context API (`AuthContext`, `BusinessContext`)
 - **API Client:** Native `fetch` wrapper with HTTP-only cookie support (`lib/api.ts`)
 - **Management UI:** `AppointmentModal`, `AppointmentTable`, `AppointmentFilters`, `CustomerModal`, `StaffModal`, `ServiceModal`, `ConfirmDialog`, `Toast`
-- **Linting:** ESLint
 
 ### Backend
 - **Runtime:** [Node.js](https://nodejs.org/)
@@ -44,86 +57,18 @@ Status: Completed
 - **ORM:** [Prisma ORM](https://www.prisma.io/)
 - **Authentication & Security:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies), `OwnershipService`
 - **Validation:** [Zod](https://zod.dev/)
-- **Utilities:** `cors`, `dotenv`
-- **Execution & Transpilation:** `tsx`, `tsc`
-
-### DevOps & Tools
-- **Containerization:** Docker & Docker Compose (`docker-compose.yml`)
-- **VCS:** Git & GitHub
-- **Package Manager:** npm
-
----
-
-## 🏗 Project Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Next.js Client UI                        │
-│             (React + TypeScript + Tailwind CSS)             │
-│                 http://localhost:3000                       │
-│                                                             │
-│  ├── /                      -> Public Landing Page          │
-│  ├── /login                 -> Authenticated Sign In Form   │
-│  ├── /register              -> New Account Creation Form    │
-│  ├── /dashboard             -> Multi-Tenant Overview (Real) │
-│  ├── /dashboard/customers   -> Real-Data Customer CRUD      │
-│  ├── /dashboard/staff       -> Real-Data Staff Roster CRUD  │
-│  ├── /dashboard/services    -> Real-Data Services CRUD      │
-│  ├── /dashboard/appointments-> Real-Data Appointment Engine │
-│  ├── /dashboard/conversations-> Dialogue Transcripts Shell  │
-│  ├── /dashboard/ai-receptionist -> AI Engine Shell          │
-│  └── /dashboard/settings    -> Business Settings Shell      │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ REST / JSON (CORS + Cookies)
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Express API Server                      │
-│             (Node.js + TypeScript + Middleware)             │
-│                 http://localhost:5000                       │
-│                                                             │
-│  ├── /api/health      -> System & Uptime Diagnostic (Public)│
-│  ├── /api/auth        -> Register, Login, Me, Logout        │
-│  ├── /api/businesses  -> Owned Business CRUD (Protected)    │
-│  ├── /api/customers   -> Owned Customer CRUD (Protected)    │
-│  ├── /api/staff       -> Owned Staff Roster CRUD (Protected)│
-│  ├── /api/services    -> Owned Services Catalog (Protected) │
-│  └── /api/appointments-> Appointment Scheduling & Conflicts │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │                              │
-               ▼ (Prisma ORM)                 ▼ (Future Phase)
-┌──────────────────────────────┐ ┌────────────────────────────┐
-│      PostgreSQL Database     │ │       Local AI Engine      │
-│   • Users & Roles (Auth)     │ │   • Ollama (Local LLM)     │
-│   • Multi-Tenant Businesses  │ │   • Whisper (STT)          │
-│   • Isolated Staff & Catalog │ │   • Piper (TTS)            │
-│   • Customer Directories     │ │                            │
-│   • Appointments & Schedules │ │                            │
-└──────────────────────────────┘ └────────────────────────────┘
-```
+- **Seeding & Verification:** `prisma/seed.ts`, `prisma/verify-seed.ts`
 
 ---
 
 ## ⚡ Installation & Quickstart Guide
 
-### Prerequisites
-- **Node.js**: v18.0.0 or later (`node -v`)
-- **npm**: v9.0.0 or later (`npm -v`)
-- **Docker & Docker Compose** (for PostgreSQL)
-
----
-
-### Step 1: Clone Repository
+### Step 1: Clone Repository & Configure Environment
 
 ```bash
 git clone https://github.com/gowthxm07/AI-powered-receptionist-platform.git
 cd AI-powered-receptionist-platform
-```
 
----
-
-### Step 2: Configure Environment Variables
-
-```bash
 # Backend Environment
 cp backend/.env.example backend/.env
 
@@ -133,36 +78,34 @@ cp frontend/.env.example frontend/.env.local
 
 ---
 
-### Step 3: Start Local Database & Apply Migrations
+### Step 2: Start PostgreSQL & Seed Demo Data
 
 ```bash
-# Start PostgreSQL Container
+# Start PostgreSQL container
 docker compose up -d
 
-# Apply Version-Controlled Migrations
+# Apply migrations
 npm --prefix backend run db:deploy
+
+# Populate 140+ record demonstration dataset
+npm --prefix backend run db:seed
 ```
 
 ---
 
-### Step 4: Install Dependencies
+### Step 3: Run Automated Verification & Test Suite
 
 ```bash
-# Backend
-npm --prefix backend install
+# Verify database seeding metrics and zero scheduling conflicts
+npm --prefix backend run db:verify-demo
 
-# Frontend
-npm --prefix frontend install
-```
-
----
-
-### Step 5: Run the Applications & Test Suite
-
-#### Run All Automated Tests
-```bash
+# Run all 90+ backend automated integration tests
 npm --prefix backend run test
 ```
+
+---
+
+### Step 4: Start Applications
 
 #### Run Backend API Server
 ```bash
@@ -190,16 +133,8 @@ npm --prefix frontend run dev
 | **Phase 3.3** | **Professional Multi-Tenant Dashboard** | Real-data overview, business selector, stats, responsive UI | **Completed** ✅ |
 | **Phase 3.4** | **Core Management Frontend** | Real CRUD UI for Customers, Staff, and Services | **Completed** ✅ |
 | **Phase 3.5** | **Appointment Management & Scheduling** | Conflict detection, dynamic duration, availability check, bookings | **Completed** ✅ |
-| **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
-| **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
-| **Phase 6** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
-| **Phase 7** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
-
----
-
-## 🛡 License & Tech Constraints
-
-This project is built strictly following open-source, free principles:
-- **No paid API keys or subscriptions required**
-- **No proprietary cloud auth or DB lock-in** (JWT + PostgreSQL run locally)
-- **Local AI & Privacy First**
+| **Phase 4** | **Demo Data & Database Seeding** | 143 deterministic records, multi-business demo, seed verification | **Completed** ✅ |
+| **Phase 5** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
+| **Phase 6** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
+| **Phase 7** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
+| **Phase 8** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
