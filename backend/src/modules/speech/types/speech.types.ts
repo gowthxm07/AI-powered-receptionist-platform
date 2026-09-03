@@ -57,7 +57,7 @@ export interface SpeechPipelineInput {
   businessId: string;
   sessionId?: string;
   customerId?: string;
-  channel?: string;
+  channel?: 'WEB' | 'VOICE' | 'PHONE';
   metadata?: Record<string, any>;
 }
 
@@ -72,7 +72,7 @@ export interface SpeechPipelineResult {
   sessionId: string;
   transcript: string;
   response: string;
-  source: 'deterministic' | 'tool' | 'llm';
+  source: 'deterministic' | 'tool' | 'llm' | 'fallback';
   action?: string;
   intent?: string;
   audio: SpeechPipelineAudioResponse | null;

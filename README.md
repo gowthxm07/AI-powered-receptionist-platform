@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 6.2.1 — Local Speech Technology Evaluation & Performance Benchmark
+Current Milestone: PHASE 6.2.2 — Local Speech Runtime Integration
 Status: Completed
 ```
 
@@ -30,6 +30,7 @@ Status: Completed
 - **Phase 5.5 (Conversation REST API & Performance Instrumentation):** Production-grade `POST /api/ai/conversation` gateway, strict multi-tenant session and customer isolation, high-resolution `performance.now()` latency telemetry, safe structured server logging, and 16 automated test suites.
 - **Phase 6.1 (AI Receptionist Web Conversation Console):** Real-time web chat console (`/dashboard/ai-receptionist` and `/receptionist`), session preservation across turns, multi-tenant enterprise switcher integration, live technical telemetry panel (Intent, Action, Step, Source, Latency), duplicate request prevention, auto-scroll, and demonstration chips.
 - **Phase 6.2.1 (Local Speech Technology Benchmark & Evaluation):** Complete CPU speech evaluation of `whisper.cpp` (`tiny.en` vs `base.en`) and `Piper TTS` (`lessac-medium`) vs Windows SAPI, measuring latency (STT: 989ms, TTS: 764ms), RTF (STT: 0.466x, TTS: 0.212x), memory budget (< 5.6 GB combined in 8 GB RAM), and end-to-end voice latency budgets.
+- **Phase 6.2.2 (Local Speech Runtime Integration):** Native asynchronous `whisper.cpp` STT and `Piper` neural TTS providers, path-traversal-safe `AudioStorageService`, end-to-end `SpeechPipelineService` (Audio -> STT -> AI Engine -> TTS -> Audio), `POST /api/ai/voice/conversation` and `GET /api/ai/voice/audio/:audioId` endpoints, and live reproducible voice demo script (`npm run demo:voice`).
 
 ---
 
@@ -41,15 +42,17 @@ The platform runs local AI inference and speech processing on standard CPU hardw
 |---|---|
 | **Model** | `llama3.2:3b` (2.0 GB disk / RAM footprint) |
 | **Inference Engine** | Ollama v0.33.2 (Local loopback `http://127.0.0.1:11434`) |
-| **Speech-to-Text (STT)** | **`whisper.cpp (tiny.en)`** — **989 ms avg latency** (RTF: **0.466x**, ~77 MB RAM) |
-| **Text-to-Speech (TTS)** | **`Piper TTS (lessac-medium)`** — **764 ms avg latency** (RTF: **0.212x**, ~60 MB RAM) |
+| **Speech-to-Text (STT)** | **`whisper.cpp (tiny.en)`** — **1,090 ms live latency** (RTF: **0.466x**, ~77 MB RAM) |
+| **Text-to-Speech (TTS)** | **`Piper TTS (lessac-medium)`** — **780 ms live latency** (RTF: **0.212x**, ~60 MB RAM) |
+| **End-to-End Voice Roundtrip** | **~1.90 seconds total** (STT 1112ms + FastIntentRouter 2.7ms + Piper TTS 780ms) |
+| **Voice Conversation API** | **`POST /api/ai/voice/conversation` & `GET /api/ai/voice/audio/:audioId`** |
 | **Conversation Console Route** | **`/dashboard/ai-receptionist` & `/receptionist`** |
 | **Deterministic Fast Path API** | **$< 4.5 ms total API latency** (Greetings, Goodbyes, Booking Prompts) |
 | **Multi-Turn Booking API** | **$< 21.0 ms total API latency per turn** (100% zero-LLM deterministic execution) |
 | **Database Tool Queries** | **$< 8.0 ms total API latency** (Services, Staff, Location, Hours) |
 | **LLM Reasoning Latency** | **$\sim 2.2$ - 3.5 seconds** (Open-ended general questions) |
 | **Combined 8GB RAM Coexistence** | **~5.59 GB Total Load** (~70% of 8 GB RAM, 2.6 GB headroom) |
-| **Full Architecture** | [`docs/VOICE_TECHNOLOGY_EVALUATION.md`](docs/VOICE_TECHNOLOGY_EVALUATION.md) & [`docs/AI_RECEPTIONIST_WEB_CONSOLE.md`](docs/AI_RECEPTIONIST_WEB_CONSOLE.md) |
+| **Full Architecture** | [`docs/LOCAL_SPEECH_PIPELINE.md`](docs/LOCAL_SPEECH_PIPELINE.md) & [`docs/VOICE_TECHNOLOGY_EVALUATION.md`](docs/VOICE_TECHNOLOGY_EVALUATION.md) |
 
 ---
 

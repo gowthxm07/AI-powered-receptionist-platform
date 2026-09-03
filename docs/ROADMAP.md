@@ -228,10 +228,16 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 6.2.2: Local Speech-to-Text & Text-to-Speech Engine Integration (Upcoming ⏳)
-- [ ] Native STT audio ingestion service using `whisper.cpp`
-- [ ] Native TTS speech streaming service using `Piper TTS`
-- [ ] Audio format transcoding & WAV stream helpers
+### Phase 6.2.2: Local Speech Runtime Integration (COMPLETED ✅)
+- [x] Asynchronous `WhisperCppProvider` STT with WAV validation and banner stripping
+- [x] Asynchronous `PiperProvider` neural TTS with length limits and unique output paths
+- [x] Directory-traversal-safe `AudioStorageService` with TTL audio cleanup
+- [x] Unified `SpeechPipelineService` (Audio -> STT -> AI Receptionist -> TTS -> Audio)
+- [x] REST endpoints: `POST /api/ai/voice/conversation`, `GET /api/ai/voice/audio/:audioId`, `GET /api/ai/voice/status`
+- [x] Session preservation, deterministic fast paths, and multi-tenant security across voice turns
+- [x] Live reproducible demonstration script (`npm run demo:voice`)
+- [x] 18 master test suites passing
+- [x] Comprehensive technical documentation (`docs/LOCAL_SPEECH_PIPELINE.md`)
 
 ---
 

@@ -169,7 +169,7 @@ export class SpeechPipelineService {
         businessId,
         sessionId,
         customerId: customerId || null,
-        channel,
+        channel: channel || 'VOICE',
         metadata: {
           businessName: business.name,
           ...(input.metadata || {}),
@@ -208,7 +208,7 @@ export class SpeechPipelineService {
       sessionId,
       transcript: sttResult.transcript,
       response: engineResult.response,
-      source: engineResult.source,
+      source: engineResult.source || 'deterministic',
       action: engineResult.action,
       intent: engineResult.intent,
       audio: audioResponse,

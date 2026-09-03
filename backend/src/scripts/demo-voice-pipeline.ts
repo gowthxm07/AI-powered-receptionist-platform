@@ -61,7 +61,7 @@ export async function runVoicePipelineDemo(): Promise<void> {
   const turn1Result = await speechPipelineService.processVoiceTurn({
     audioFilePath: inputAudioFile,
     businessId: business.id,
-    channel: 'VOICE_DEMO',
+    channel: 'VOICE',
   });
 
   console.log('\n================================================================');
@@ -91,7 +91,7 @@ export async function runVoicePipelineDemo(): Promise<void> {
     audioFilePath: inputAudioTurn2,
     businessId: business.id,
     sessionId: turn1Result.sessionId,
-    channel: 'VOICE_DEMO',
+    channel: 'VOICE',
   });
 
   console.log('\n================================================================');

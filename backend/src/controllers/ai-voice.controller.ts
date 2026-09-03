@@ -61,7 +61,7 @@ export class AIVoiceController {
         businessId,
         sessionId,
         customerId: customerId || undefined,
-        channel: channel || 'VOICE',
+        channel: (channel as any) || 'VOICE',
         metadata,
       });
 
