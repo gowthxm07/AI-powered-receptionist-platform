@@ -122,7 +122,8 @@ export class VoiceConversationOrchestrator {
       };
     }
 
-    // Verify customer tenant isolation if customerId is provided
+    // Verify customer tenant isolation and resolve customer details if customerId is provided
+    let customerRecord: { id: string; name: string; phone: string | null } | null = null;
     if (customerId) {
       const customer = await prisma.customer.findFirst({
         where: { id: customerId, businessId },
@@ -156,6 +157,7 @@ export class VoiceConversationOrchestrator {
           },
         };
       }
+      customerRecord = customer;
     }
 
     // Resolve or continue conversation session
@@ -220,6 +222,14 @@ export class VoiceConversationOrchestrator {
           },
         };
       }
+
+      // Attach customer identity to existing session if identified mid-conversation
+      if (customerRecord && !existingSession.customerId) {
+        existingSession.customerId = customerRecord.id;
+        existingSession.customerName = customerRecord.name;
+        existingSession.customerPhone = customerRecord.phone || undefined;
+        await this.sessions.setSession(existingSession);
+      }
     } else {
       sessionId = `sess_voice_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
       const now = new Date();
@@ -227,7 +237,9 @@ export class VoiceConversationOrchestrator {
         sessionId,
         businessId,
         step: BookingConversationStep.IDLE,
-        customerId: customerId || undefined,
+        customerId: customerRecord?.id,
+        customerName: customerRecord?.name,
+        customerPhone: customerRecord?.phone || undefined,
         createdAt: now,
         updatedAt: now,
         expiresAt: new Date(now.getTime() + 15 * 60 * 1000), // 15 min TTL
