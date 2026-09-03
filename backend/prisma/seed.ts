@@ -5,6 +5,7 @@ import { DEMO_BUSINESSES } from './seed-data/businesses';
 import { DEMO_STAFF } from './seed-data/staff';
 import { DEMO_SERVICES } from './seed-data/services';
 import { DEMO_CUSTOMERS } from './seed-data/customers';
+import { getDemoAppointments } from './seed-data/appointments';
 
 const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
@@ -152,6 +153,73 @@ export async function seedCustomers(): Promise<{ customersCount: number }> {
   return { customersCount: DEMO_CUSTOMERS.length };
 }
 
+export async function seedAppointments(baseDate: Date = new Date()): Promise<{
+  appointmentsCount: number;
+  todayCount: number;
+  pastCount: number;
+  futureCount: number;
+}> {
+  console.log('\n--- 4. Seeding Deterministic Conflict-Free Appointments ---');
+
+  const demoAppointments = getDemoAppointments(baseDate);
+
+  let todayCount = 0;
+  let pastCount = 0;
+  let futureCount = 0;
+
+  const todayStart = new Date(baseDate);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(baseDate);
+  todayEnd.setUTCHours(23, 59, 59, 999);
+
+  for (const apt of demoAppointments) {
+    await prisma.appointment.upsert({
+      where: { id: apt.id },
+      update: {
+        businessId: apt.businessId,
+        customerId: apt.customerId,
+        staffId: apt.staffId,
+        serviceId: apt.serviceId,
+        startTime: apt.startTime,
+        endTime: apt.endTime,
+        status: apt.status,
+        notes: apt.notes,
+      },
+      create: {
+        id: apt.id,
+        businessId: apt.businessId,
+        customerId: apt.customerId,
+        staffId: apt.staffId,
+        serviceId: apt.serviceId,
+        startTime: apt.startTime,
+        endTime: apt.endTime,
+        status: apt.status,
+        notes: apt.notes,
+      },
+    });
+
+    if (apt.startTime >= todayStart && apt.startTime <= todayEnd) {
+      todayCount++;
+    } else if (apt.startTime < todayStart) {
+      pastCount++;
+    } else {
+      futureCount++;
+    }
+  }
+
+  console.log(`  ✓ Seeded ${demoAppointments.length} appointments:`);
+  console.log(`    • Today's Active Slots:  ${todayCount}`);
+  console.log(`    • Past / Completed:      ${pastCount}`);
+  console.log(`    • Future / Upcoming:     ${futureCount}`);
+
+  return {
+    appointmentsCount: demoAppointments.length,
+    todayCount,
+    pastCount,
+    futureCount,
+  };
+}
+
 async function main() {
   const isReset = process.argv.includes('--reset');
 
@@ -167,17 +235,21 @@ async function main() {
     const { usersCount, businessesCount } = await seedUsersAndBusinesses();
     const { staffCount, servicesCount } = await seedStaffAndServices();
     const { customersCount } = await seedCustomers();
+    const { appointmentsCount, todayCount, pastCount, futureCount } = await seedAppointments();
 
-    const totalRecords = usersCount + businessesCount + staffCount + servicesCount + customersCount;
+    const totalRecords =
+      usersCount + businessesCount + staffCount + servicesCount + customersCount + appointmentsCount;
 
     console.log('\n======================================================');
-    console.log('🎉 Core Management Data Seeded Successfully!');
-    console.log(`  • Demo Users:      ${usersCount}`);
-    console.log(`  • Demo Businesses: ${businessesCount}`);
-    console.log(`  • Staff Roster:    ${staffCount}`);
-    console.log(`  • Services Catalog:${servicesCount}`);
-    console.log(`  • Customer List:   ${customersCount}`);
-    console.log(`  • Total Records:   ${totalRecords}`);
+    console.log('🎉 Multi-Tenant Demo Dataset Seeded Successfully!');
+    console.log(`  • Demo Users:        ${usersCount}`);
+    console.log(`  • Demo Businesses:   ${businessesCount}`);
+    console.log(`  • Staff Specialists: ${staffCount}`);
+    console.log(`  • Bookable Services: ${servicesCount}`);
+    console.log(`  • Customers:         ${customersCount}`);
+    console.log(`  • Appointments:      ${appointmentsCount} (Today: ${todayCount}, Past: ${pastCount}, Future: ${futureCount})`);
+    console.log('------------------------------------------------------');
+    console.log(`  🌟 TOTAL SEEDED RECORDS: ${totalRecords} (Target: >100 records)`);
     console.log('======================================================\n');
   } catch (error) {
     console.error('Database seeding failed:', error);
