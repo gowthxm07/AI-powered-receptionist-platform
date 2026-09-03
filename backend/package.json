@@ -15,7 +15,12 @@
     "db:status": "prisma migrate status",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:validate": "prisma validate"
+    "db:validate": "prisma validate",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset-demo": "tsx prisma/seed.ts --reset"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
