@@ -45,11 +45,26 @@ export interface TextToSpeechProvider {
   synthesize(text: string, options?: TextToSpeechOptions): Promise<TextToSpeechResult>;
 }
 
-export interface SpeechPipelineMetrics {
+export interface VoiceStageMetrics {
+  audioInputProcessingMs: number;
+  sttLatencyMs: number;
+  conversationLatencyMs: number;
+  ttsLatencyMs: number;
+  totalPipelineLatencyMs: number;
+}
+
+export interface SpeechPipelineMetrics extends VoiceStageMetrics {
   sttMs: number;
   conversationMs: number;
   ttsMs: number;
   totalMs: number;
+}
+
+export interface VoiceOrchestrationOptions {
+  enableConciseVoiceFormatting?: boolean;
+  synthesizeSpeech?: boolean;
+  sttTimeoutMs?: number;
+  ttsTimeoutMs?: number;
 }
 
 export interface SpeechPipelineInput {
@@ -59,6 +74,7 @@ export interface SpeechPipelineInput {
   customerId?: string;
   channel?: 'WEB' | 'VOICE' | 'PHONE';
   metadata?: Record<string, any>;
+  options?: VoiceOrchestrationOptions;
 }
 
 export interface SpeechPipelineAudioResponse {

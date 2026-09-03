@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { speechPipelineService } from '../modules/speech/services/speech-pipeline.service';
+import { voiceConversationOrchestrator } from '../modules/speech/services/voice-orchestrator.service';
 import { AudioStorageService } from '../modules/speech/services/audio-storage.service';
 import { SpeechDetectorService } from '../modules/speech/speech-detector.service';
 import { speechConfig } from '../modules/speech/speech.config';
@@ -55,8 +55,8 @@ export class AIVoiceController {
         return;
       }
 
-      // 2. Execute end-to-end speech pipeline
-      const pipelineResult = await speechPipelineService.processVoiceTurn({
+      // 2. Execute end-to-end voice orchestrator pipeline
+      const pipelineResult = await voiceConversationOrchestrator.orchestrateVoiceTurn({
         audioFilePath: tempAudioPath,
         businessId,
         sessionId,

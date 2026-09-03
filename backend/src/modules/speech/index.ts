@@ -6,4 +6,5 @@ export * from './providers/mock-tts.provider';
 export * from './providers/whisper-cpp.provider';
 export * from './providers/piper.provider';
 export * from './services/audio-storage.service';
+export * from './services/voice-orchestrator.service';
 export * from './services/speech-pipeline.service';
