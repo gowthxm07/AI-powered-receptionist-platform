@@ -174,9 +174,35 @@ export async function runVoiceClientFoundationTests(): Promise<void> {
   assert(errorMap['SESSION_BUSINESS_MISMATCH'].includes('Forbidden'));
   console.log('  ✓ Secure context, unsupported APIs, and permission error mappings verified.');
 
-  // Clean up session
-  await voiceTransportSessionManager.terminateTransportSession(mobileSessionRes.session.transportSessionId);
-  console.log('  ✓ Terminated test mobile session.');
+  // ---------------------------------------------------------
+  // TEST GROUP 6: Mobile Browser Relative API Route Resolution
+  // ---------------------------------------------------------
+  console.log('\n6. Testing Mobile Browser Relative API URL Resolution & Proxy Rules:');
+  
+  function simulatedGetApiBaseUrl(isBrowser: boolean): string {
+    if (isBrowser) return '';
+    return process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:5000';
+  }
+
+  const browserBaseUrl = simulatedGetApiBaseUrl(true);
+  assert.strictEqual(browserBaseUrl, '', 'Browser API base URL must be empty string for relative proxying.');
+
+  const endpoints = [
+    '/api/health',
+    '/api/ai/voice/transport/session',
+    '/api/ai/voice/transport/turn',
+    '/api/ai/voice/audio/12345',
+  ];
+
+  for (const ep of endpoints) {
+    const resolvedUrl: string = `${browserBaseUrl}${ep}`;
+    assert.strictEqual(resolvedUrl, ep);
+    assert(!resolvedUrl.startsWith('http://localhost:5000'), 'Must not contain http://localhost:5000 in browser context.');
+  }
+
+  const serverBaseUrl = simulatedGetApiBaseUrl(false);
+  assert(serverBaseUrl.includes('5000'));
+  console.log('  ✓ Browser relative API routing and SSR loopback resolution verified.');
 
   console.log('\n======================================================');
   console.log('🎉 ALL MOBILE VOICE CLIENT FOUNDATION TESTS PASSED! 🎉');

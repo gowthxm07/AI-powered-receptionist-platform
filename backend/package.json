@@ -16,6 +16,7 @@
     "benchmark:voice": "tsx src/scripts/benchmark-voice-latency.ts",
      "benchmark:voice-transport": "tsx src/scripts/benchmark-voice-transport.ts",
     "network:info": "tsx src/scripts/network-info.ts",
+    "verify:proxy": "tsx src/scripts/verify-proxy.ts",
     "verify:mobile-voice": "tsx src/scripts/verify-mobile-voice.ts",
     "demo:voice": "tsx src/scripts/demo-voice-pipeline.ts",
     "demo:voice-conversation": "tsx src/scripts/demo-voice-conversation.ts",
