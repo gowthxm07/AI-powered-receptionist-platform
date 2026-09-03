@@ -194,6 +194,17 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
+### Phase 5.5: Conversation API & Performance Instrumentation (COMPLETED ✅)
+- [x] Unified REST dialogue endpoint (`POST /api/ai/conversation`)
+- [x] Strict multi-tenant session and customer isolation verification
+- [x] Session lifecycle management: new session generation, continuation, and 15-minute expiration detection (HTTP 410)
+- [x] High-resolution Node.js `performance.now()` latency telemetry (`latencyMs`, `totalLatencyMs`)
+- [x] Safe structured performance logging (zero sensitive data or phone numbers logged)
+- [x] 16 automated master test suites verified
+- [x] Complete REST API specification (`docs/CONVERSATION_API.md`)
+
+---
+
 ### Phase 6: Voice Pipeline & RAG Knowledge Retrieval (Upcoming ⏳)
 - [ ] Local Speech-to-Text (STT) using Whisper
 - [ ] Local Text-to-Speech (TTS) using Piper

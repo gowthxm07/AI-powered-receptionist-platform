@@ -1,6 +1,6 @@
 # AI Receptionist Architecture & Tool Foundation
 
-This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, model generation adapter, orchestration routing subsystem, and multi-turn booking engine.
+This document defines the **AI Receptionist Architecture** for the **AI-Powered Smart Receptionist Platform**. It details the model-agnostic layer, tool registry, tool router, conversation context, multi-tenant isolation, appointment conflict safety, low-latency design strategy, local Ollama runtime layer, model generation adapter, orchestration routing subsystem, multi-turn booking engine, and conversation REST API gateway.
 
 ---
 
@@ -16,52 +16,60 @@ The core objective of the platform is to enable autonomous, low-latency conversa
 5. **Model-Agnostic Design:** The tool framework is independent of any specific LLM provider or orchestration framework, preparing for future integration with local Ollama models.
 6. **Low Latency by Design:** Minimal context construction prevents bloated prompts, reduces LLM token generation time, and executes small, indexed database queries.
 7. **Dual-Path Orchestration:** Common inquiries (greetings, services, staff, business info) and multi-turn appointment booking workflows resolve via fast deterministic rules ($< 1$ms) or database micro-tools ($< 15$ms) without invoking the LLM, preserving system responsiveness.
+8. **Unified REST Dialogue Gateway:** The conversational runtime is exposed via `POST /api/ai/conversation`, providing a decoupled interface for web, voice, and telephony clients with high-resolution performance metrics.
 
 ---
 
 ## 2. End-to-End Conceptual Flow Diagram
 
 ```text
-                                Caller / User
-                                      │
-                                      ▼
-                          [ Inbound Dialogue Stream ]
-                           (Web Chat / Voice / Phone)
-                                      │
-                                      ▼
+                     Client (Web / Voice / Phone)
+                                   │
+                                   ▼
+                   [ POST /api/ai/conversation ]
+               (Zod Validation + Tenant Verification)
+                                   │
+                                   ▼
                         [ AI Context Builder ]
                      (Minimal tenant & session metadata)
-                                      │
-                                      ▼
+                                   │
+                                   ▼
                        [ AIReceptionistService ]
-                                      │
+                                   │
                        [ Active Session Check ]
-                                      │
-              ┌───────────────────────┴───────────────────────┐
-              │                                               │
-     [ Active Booking State ]                         [ No Active State ]
-              │                                               │
-              ▼                                               ▼
-   [ AppointmentStateMachine ]                       [ FastIntentRouter ]
-  (Deterministic Multi-Turn:                                  │
-   Service -> Staff -> Date                           ┌───────┴───────┐
-   -> Slot -> Confirm)                                │               │
-              │                                       ▼               ▼
-              │                                 Deterministic    LLM Fallback
-              │                                   Fast Path        (Ollama)
-              │                                       │               │
-              └───────────────────────┬───────────────┘               │
-                                      │                               │
-                                      ▼                               ▼
-                          [ AIToolRouter Execution ]                  │
-                         (get_services, get_staff,                    │
-                          create_appointment)                         │
-                                      │                               │
-                                      └───────────────┬───────────────┘
-                                                      │
-                                                      ▼
-                                          [ AIReceptionistResponse ]
-                                    (Text, Action, Intent, Source, Latency)
+                                   │
+              ┌────────────────────┴────────────────────┐
+              │                                         │
+     [ Active Booking State ]                   [ No Active State ]
+              │                                         │
+              ▼                                         ▼
+   [ AppointmentStateMachine ]                 [ FastIntentRouter ]
+  (Deterministic Multi-Turn:                            │
+   Service -> Staff -> Date                     ┌───────┴───────┐
+   -> Slot -> Confirm)                          │               │
+              │                                 ▼               ▼
+              │                           Deterministic    LLM Fallback
+              │                             Fast Path        (Ollama)
+              │                                 │               │
+              └────────────────────┬────────────┘               │
+                                   │                            │
+                                   ▼                            ▼
+                       [ AIToolRouter Execution ]               │
+                      (get_services, get_staff,                 │
+                       create_appointment)                      │
+                                   │                            │
+                                   └────────────┬───────────────┘
+                                                │
+                                                ▼
+                                    [ AIReceptionistResponse ]
+                              (Text, Action, Intent, Source, Latency)
+                                                │
+                                                ▼
+                                  [ AIConversationController ]
+                               (High-Res Timing & Safe Logging)
+                                                │
+                                                ▼
+                                        HTTP 200 OK JSON
 ```
 
 ---
@@ -69,50 +77,57 @@ The core objective of the platform is to enable autonomous, low-latency conversa
 ## 3. Modular AI Subsystem Structure
 
 ```text
-backend/src/modules/ai/
-├── types/
-│   ├── context.types.ts          -> AIConversationContext, AIChannel, BuildAIContextInput
-│   ├── intent.types.ts           -> Controlled AIIntent enum definitions (GREETING, GOODBYE, etc.)
-│   ├── action.types.ts           -> Controlled AIAction enum definitions
-│   ├── request-response.types.ts -> AIReceptionistRequest, AIReceptionistResponse, AIResponseSource
-│   ├── tool.types.ts             -> AIToolDefinition, AIToolCall, AIToolResult, AITool
-│   └── index.ts
-├── tools/
-│   ├── registry.ts               -> Centralized AIToolRegistry singleton
-│   ├── router.ts                 -> Secure AIToolRouter with Zod validation
-│   ├── customer.tools.ts         -> search_customer, get_customer
-│   ├── service.tools.ts          -> get_services, get_service_details
-│   ├── staff.tools.ts            -> get_staff, get_staff_details
-│   ├── business.tools.ts         -> get_business_info
-│   ├── appointment.tools.ts      -> check_availability, get_appointments, create_appointment, cancel_appointment
-│   └── index.ts
-├── context/
-│   ├── context-builder.ts        -> Lightweight AIContextBuilder
-│   └── index.ts
-├── model/
-│   ├── model.types.ts            -> AIModel, AIModelRequest, AIModelResponse, AIModelStreamChunk
-│   ├── model-validator.ts        -> Request bounding and defensive sanitization
-│   ├── ollama-errors.ts          -> Typed Ollama error taxonomy
-│   ├── ollama-model-adapter.ts   -> Native fetch model adapter (streaming + non-streaming)
-│   └── index.ts
-├── runtime/
-│   ├── ollama-runtime.service.ts -> Probing local Ollama service & model availability
-│   └── index.ts
-├── routing/
-│   ├── intent-router.ts          -> FastIntentRouter regex & keyword heuristics
-│   └── index.ts
-├── conversation/
-│   ├── conversation-session.types.ts -> BookingConversationStep, ConversationSessionData
-│   ├── session-store.interface.ts    -> IConversationSessionStore contract
-│   ├── in-memory-session-store.ts    -> InMemorySessionStore implementation with TTL
-│   ├── appointment-slot-finder.ts    -> Real PostgreSQL slot discovery
-│   ├── appointment-state-machine.ts  -> Multi-turn appointment booking state machine
-│   ├── parsers/                      -> ServiceMatcher, StaffMatcher, DateParser, TimeParser, ConfirmationParser
-│   └── index.ts
-├── services/
-│   ├── ai-receptionist.service.ts-> AIReceptionistService dual-path orchestrator
-│   └── index.ts
-└── index.ts
+backend/src/
+├── controllers/
+│   └── ai-conversation.controller.ts -> POST /api/ai/conversation controller
+├── routes/
+│   └── ai.routes.ts                  -> AI API route mounting
+├── validation/
+│   └── ai-conversation.validation.ts -> Zod schemas for conversation API
+└── modules/ai/
+    ├── types/
+    │   ├── context.types.ts          -> AIConversationContext, AIChannel, BuildAIContextInput
+    │   ├── intent.types.ts           -> Controlled AIIntent enum definitions (GREETING, GOODBYE, etc.)
+    │   ├── action.types.ts           -> Controlled AIAction enum definitions
+    │   ├── request-response.types.ts -> AIReceptionistRequest, AIReceptionistResponse, AIResponseSource
+    │   ├── tool.types.ts             -> AIToolDefinition, AIToolCall, AIToolResult, AITool
+    │   └── index.ts
+    ├── tools/
+    │   ├── registry.ts               -> Centralized AIToolRegistry singleton
+    │   ├── router.ts                 -> Secure AIToolRouter with Zod validation
+    │   ├── customer.tools.ts         -> search_customer, get_customer
+    │   ├── service.tools.ts          -> get_services, get_service_details
+    │   ├── staff.tools.ts            -> get_staff, get_staff_details
+    │   ├── business.tools.ts         -> get_business_info
+    │   ├── appointment.tools.ts      -> check_availability, get_appointments, create_appointment, cancel_appointment
+    │   └── index.ts
+    ├── context/
+    │   ├── context-builder.ts        -> Lightweight AIContextBuilder
+    │   └── index.ts
+    ├── model/
+    │   ├── model.types.ts            -> AIModel, AIModelRequest, AIModelResponse, AIModelStreamChunk
+    │   ├── model-validator.ts        -> Request bounding and defensive sanitization
+    │   ├── ollama-errors.ts          -> Typed Ollama error taxonomy
+    │   ├── ollama-model-adapter.ts   -> Native fetch model adapter (streaming + non-streaming)
+    │   └── index.ts
+    ├── runtime/
+    │   ├── ollama-runtime.service.ts -> Probing local Ollama service & model availability
+    │   └── index.ts
+    ├── routing/
+    │   ├── intent-router.ts          -> FastIntentRouter regex & keyword heuristics
+    │   └── index.ts
+    ├── conversation/
+    │   ├── conversation-session.types.ts -> BookingConversationStep, ConversationSessionData
+    │   ├── session-store.interface.ts    -> IConversationSessionStore contract
+    │   ├── in-memory-session-store.ts    -> InMemorySessionStore implementation with TTL
+    │   ├── appointment-slot-finder.ts    -> Real PostgreSQL slot discovery
+    │   ├── appointment-state-machine.ts  -> Multi-turn appointment booking state machine
+    │   ├── parsers/                      -> ServiceMatcher, StaffMatcher, DateParser, TimeParser, ConfirmationParser
+    │   └── index.ts
+    ├── services/
+    │   ├── ai-receptionist.service.ts-> AIReceptionistService dual-path orchestrator
+    │   └── index.ts
+    └── index.ts
 ```
 
 ---
@@ -202,9 +217,10 @@ In conversational voice applications, low end-to-end latency is critical. The pl
 1. **Deterministic Fast Path:** Common questions bypass the LLM entirely, responding in $< 1$ ms.
 2. **Deterministic Multi-Turn Booking:** Entire 6-turn booking conversations complete in $< 80$ ms total with zero LLM calls.
 3. **Micro-Tool Execution:** Database queries execute against indexed PostgreSQL columns in $< 15$ ms.
-4. **Concise Spoken Responses:** Responses are formatted into brief, conversational sentences suitable for fast TTS synthesis.
-5. **Targeted Context Injection:** System prompts inject minimal tenant identity metadata ($< 100$ tokens).
-6. **Memory Keep-Alive:** Ollama models remain resident in RAM (`OLLAMA_KEEP_ALIVE=5m`) to avoid cold-start delays.
+4. **REST Gateway Efficiency:** API overhead is $< 3$ ms for validation and routing.
+5. **Concise Spoken Responses:** Responses are formatted into brief, conversational sentences suitable for fast TTS synthesis.
+6. **Targeted Context Injection:** System prompts inject minimal tenant identity metadata ($< 100$ tokens).
+7. **Memory Keep-Alive:** Ollama models remain resident in RAM (`OLLAMA_KEEP_ALIVE=5m`) to avoid cold-start delays.
 
 ---
 
@@ -218,3 +234,4 @@ The platform utilizes a 100% free, local AI inference runtime powered by **Ollam
 - Complete adapter details: [`docs/OLLAMA_ADAPTER.md`](docs/OLLAMA_ADAPTER.md).
 - Complete orchestration details: [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md).
 - Complete conversation engine details: [`docs/APPOINTMENT_CONVERSATION_ENGINE.md`](docs/APPOINTMENT_CONVERSATION_ENGINE.md).
+- Complete REST API details: [`docs/CONVERSATION_API.md`](docs/CONVERSATION_API.md).

@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 5.4 — Multi-Turn Appointment Conversation Engine
+Current Milestone: PHASE 5.5 — Conversation API & Low-Latency Performance Instrumentation
 Status: Completed
 ```
 
@@ -27,6 +27,7 @@ Status: Completed
 - **Phase 5.2.2 (Ollama Model Adapter & Local Generation Layer):** `AIModel` abstraction, `OllamaModelAdapter` with native fetch, progressive text chunk streaming (`AsyncIterable`), timeout and `AbortController` cancellation, defensive context limits (`ModelValidator`), keep-alive RAM management, and explicit model warm-up (`npm run ai:warmup`).
 - **Phase 5.3 (AI Receptionist Orchestration & Tool Routing):** Dual-path orchestration engine (`AIReceptionistService`), sub-millisecond deterministic intent classifier (`FastIntentRouter`), direct database tool integration for services/staff/business info ($< 15$ms), graceful Ollama fallback for open questions, and zero-crash offline resilience.
 - **Phase 5.4 (Multi-Turn Appointment Conversation Engine):** Full multi-turn deterministic booking state machine (`AppointmentStateMachine`), in-memory session management with TTL expiration (`InMemorySessionStore`), real database slot discovery (`AppointmentSlotFinder`), intelligent service/staff/date/time heuristics, and 100% zero-LLM multi-turn booking execution ($< 80$ms total dialogue latency).
+- **Phase 5.5 (Conversation REST API & Performance Instrumentation):** Production-grade `POST /api/ai/conversation` gateway, strict multi-tenant session and customer isolation, high-resolution `performance.now()` latency telemetry, safe structured server logging, and 16 automated test suites.
 
 ---
 
@@ -38,12 +39,13 @@ The platform runs local AI inference using **Ollama** and the **`llama3.2:3b`** 
 |---|---|
 | **Model** | `llama3.2:3b` (2.0 GB disk / RAM footprint) |
 | **Inference Engine** | Ollama v0.33.2 (Local loopback `http://127.0.0.1:11434`) |
-| **Deterministic Fast Path** | **$< 1.0 ms** (Greetings, Goodbyes, Booking Prompts) |
-| **Multi-Turn Booking Turns** | **$< 35.0 ms per turn** (100% zero-LLM deterministic execution) |
-| **Database Tool Queries** | **$< 15.0 ms** (Services, Staff, Location, Hours) |
-| **LLM Reasoning Latency** | **$\sim 2.2$ - 3.2 seconds** (Open-ended general questions) |
+| **Conversation REST API** | **POST `/api/ai/conversation`** (Unified Gateway) |
+| **Deterministic Fast Path API** | **$< 4.5 ms total API latency** (Greetings, Goodbyes, Booking Prompts) |
+| **Multi-Turn Booking API** | **$< 21.0 ms total API latency per turn** (100% zero-LLM deterministic execution) |
+| **Database Tool Queries** | **$< 8.0 ms total API latency** (Services, Staff, Location, Hours) |
+| **LLM Reasoning Latency** | **$\sim 2.2$ - 3.5 seconds** (Open-ended general questions) |
 | **Keep-Alive Policy** | `5m` (Resident during calls, auto-released after 5m idle) |
-| **Full Architecture** | [`docs/APPOINTMENT_CONVERSATION_ENGINE.md`](docs/APPOINTMENT_CONVERSATION_ENGINE.md) & [`docs/AI_ORCHESTRATION.md`](docs/AI_ORCHESTRATION.md) |
+| **Full Architecture** | [`docs/CONVERSATION_API.md`](docs/CONVERSATION_API.md) & [`docs/APPOINTMENT_CONVERSATION_ENGINE.md`](docs/APPOINTMENT_CONVERSATION_ENGINE.md) |
 
 ---
 
@@ -79,6 +81,7 @@ The platform runs local AI inference using **Ollama** and the **`llama3.2:3b`** 
 - **ORM:** [Prisma ORM](https://www.prisma.io/)
 - **Authentication & Security:** `jsonwebtoken`, `bcryptjs`, `cookie-parser` (HTTP-only cookies), `OwnershipService`
 - **Validation:** [Zod](https://zod.dev/)
+- **Conversation REST Gateway:** `AIConversationController`, `aiConversationRequestSchema`, `POST /api/ai/conversation`
 - **AI Conversation Engine:** `AppointmentStateMachine`, `InMemorySessionStore`, `AppointmentSlotFinder`, `ServiceMatcher`, `StaffMatcher`, `DateParser`, `TimeParser`, `ConfirmationParser`
 - **AI Orchestration:** `AIReceptionistService`, `FastIntentRouter`, `AIToolRegistry`, `AIToolRouter`, `AIContextBuilder`
 - **Local AI Generation Layer:** `OllamaModelAdapter`, `ModelValidator`, `OllamaRuntimeService`
@@ -173,6 +176,7 @@ npm --prefix frontend run dev
 | **Phase 5.2.2**| **Ollama Model Adapter & Local Generation** | `AIModel`, `OllamaModelAdapter`, streaming, aborts, timeouts, keep-alive | **Completed** ✅ |
 | **Phase 5.3** | **AI Receptionist Orchestration & Fast Routing** | `AIReceptionistService`, `FastIntentRouter`, tool integration, LLM fallback | **Completed** ✅ |
 | **Phase 5.4** | **Multi-Turn Appointment Conversation Engine** | `AppointmentStateMachine`, session store, slot finder, zero-LLM booking | **Completed** ✅ |
+| **Phase 5.5** | **Conversation REST API & Performance Instrumentation**| `POST /api/ai/conversation`, tenant isolation, performance telemetry | **Completed** ✅ |
 | **Phase 6** | **Voice Pipeline & RAG Knowledge Retrieval** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 7** | **Admin Dashboard & Unified Experience** | Live simulator, call analytics, settings | *Upcoming* ⏳ |
 | **Phase 8** | **Testing, Hardening & Capstone Presentation** | End-to-end testing, documentation, capstone demo prep | *Upcoming* ⏳ |
