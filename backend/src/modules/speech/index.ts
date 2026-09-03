@@ -8,3 +8,4 @@ export * from './providers/piper.provider';
 export * from './services/audio-storage.service';
 export * from './services/voice-orchestrator.service';
 export * from './services/speech-pipeline.service';
+export * from './transport';
