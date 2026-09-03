@@ -9,6 +9,7 @@ import { runDemoSeedTests } from './demo-seed.test';
 import { runAiToolsTests } from './ai-tools.test';
 import { runOllamaRuntimeTests } from './ollama-runtime.test';
 import { runModelAbstractionTests } from './model-abstraction.test';
+import { runOllamaAdapterTests } from './ollama-adapter.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -25,6 +26,7 @@ async function runAllTestSuites() {
   await runAiToolsTests();
   await runOllamaRuntimeTests();
   await runModelAbstractionTests();
+  await runOllamaAdapterTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
