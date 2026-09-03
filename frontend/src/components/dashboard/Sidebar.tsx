@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     name: 'AI Receptionist',
     href: '/dashboard/ai-receptionist',
     icon: Bot,
-    badge: 'Phase 4',
+    isReady: true,
   },
   {
     name: 'Settings',
