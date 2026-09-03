@@ -7,12 +7,17 @@ export interface AIReceptionistRequest {
   context: AIConversationContext;
 }
 
+export type AIResponseSource = 'deterministic' | 'tool' | 'llm' | 'fallback';
+
 export interface AIReceptionistResponse<T = unknown> {
   success: boolean;
   response: string;
   action: AIAction;
   intent?: AIIntent;
   sessionId: string;
+  source?: AIResponseSource;
+  toolUsed?: string;
+  latencyMs?: number;
   data?: T;
   error?: {
     code: string;
