@@ -305,6 +305,7 @@ export class VoiceTurnTransportService {
           audioConversionMs: orchestratorResult.metrics.audioConversionMs || 0,
           sttMs: orchestratorResult.metrics.sttLatencyMs,
           conversationMs: orchestratorResult.metrics.conversationLatencyMs,
+          responseOptimizationMs: orchestratorResult.metrics.responseOptimizationMs || 0,
           ttsMs: orchestratorResult.metrics.ttsLatencyMs,
           totalMs: totalPipelineMs,
         },

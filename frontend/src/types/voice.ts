@@ -46,6 +46,7 @@ export interface VoiceTurnMetrics {
   audioConversionMs?: number;
   sttMs: number;
   conversationMs: number;
+  responseOptimizationMs?: number;
   ttsMs: number;
   totalMs: number;
 }

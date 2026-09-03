@@ -99,6 +99,12 @@ export const VoiceSessionInfo: React.FC<VoiceSessionInfoProps> = ({
                 <span>Conversation Engine:</span>
                 <span className="text-slate-300">{metrics.conversationMs.toFixed(1)} ms</span>
               </div>
+              {metrics.responseOptimizationMs !== undefined && metrics.responseOptimizationMs > 0 && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Voice Optimizer:</span>
+                  <span className="text-indigo-300">{metrics.responseOptimizationMs.toFixed(1)} ms</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400">
                 <span>Neural Voice (Piper):</span>
                 <span className="text-slate-300">{metrics.ttsMs.toFixed(1)} ms</span>

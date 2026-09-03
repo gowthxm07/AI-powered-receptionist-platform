@@ -50,6 +50,7 @@ export interface VoiceStageMetrics {
   audioConversionMs?: number;
   sttLatencyMs: number;
   conversationLatencyMs: number;
+  responseOptimizationMs?: number;
   ttsLatencyMs: number;
   totalPipelineLatencyMs: number;
 }
@@ -58,6 +59,7 @@ export interface SpeechPipelineMetrics extends VoiceStageMetrics {
   audioConversionMs?: number;
   sttMs: number;
   conversationMs: number;
+  responseOptimizationMs?: number;
   ttsMs: number;
   totalMs: number;
 }

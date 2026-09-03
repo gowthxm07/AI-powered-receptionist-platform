@@ -8,12 +8,14 @@ import { BookingConversationStep } from '../../ai/conversation/conversation-sess
 import { WhisperCppProvider } from '../providers/whisper-cpp.provider';
 import { PiperProvider } from '../providers/piper.provider';
 import { audioConverterService, AudioConverterService } from './audio-converter.service';
+import { voiceResponseOptimizer, VoiceResponseOptimizer } from './voice-response-optimizer.service';
 import {
   SpeechToTextProvider,
   TextToSpeechProvider,
   SpeechPipelineInput,
   SpeechPipelineResult,
   SpeechToTextResult,
+  SpeechPipelineAudioResponse,
 } from '../types/speech.types';
 
 export class VoiceConversationOrchestrator {
@@ -40,14 +42,7 @@ export class VoiceConversationOrchestrator {
    */
   public normalizeVoiceResponse(text: string): string {
     if (!text) return '';
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '$1') // remove bold
-      .replace(/\*(.*?)\*/g, '$1')     // remove italics
-      .replace(/`(.*?)`/g, '$1')       // remove inline code
-      .replace(/^\s*[-•*]\s+/gm, '')   // remove bullet points
-      .replace(/\n+/g, ' ')           // collapse newlines to single spaces
-      .replace(/\s{2,}/g, ' ')         // collapse multiple spaces
-      .trim();
+    return voiceResponseOptimizer.optimizeForVoice(text, { channel: 'VOICE' }).text;
   }
 
   /**
@@ -77,6 +72,7 @@ export class VoiceConversationOrchestrator {
           audioConversionMs: 0,
           sttLatencyMs: 0,
           conversationLatencyMs: 0,
+          responseOptimizationMs: 0,
           ttsLatencyMs: 0,
           totalPipelineLatencyMs: totalMs,
           sttMs: 0,
@@ -112,6 +108,7 @@ export class VoiceConversationOrchestrator {
           audioConversionMs: 0,
           sttLatencyMs: 0,
           conversationLatencyMs: 0,
+          responseOptimizationMs: 0,
           ttsLatencyMs: 0,
           totalPipelineLatencyMs: totalMs,
           sttMs: 0,
@@ -149,6 +146,7 @@ export class VoiceConversationOrchestrator {
             audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
+            responseOptimizationMs: 0,
             ttsLatencyMs: 0,
             totalPipelineLatencyMs: totalMs,
             sttMs: 0,
@@ -187,6 +185,7 @@ export class VoiceConversationOrchestrator {
             audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
+            responseOptimizationMs: 0,
             ttsLatencyMs: 0,
             totalPipelineLatencyMs: totalMs,
             sttMs: 0,
@@ -216,6 +215,7 @@ export class VoiceConversationOrchestrator {
             audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
+            responseOptimizationMs: 0,
             ttsLatencyMs: 0,
             totalPipelineLatencyMs: totalMs,
             sttMs: 0,
@@ -299,6 +299,7 @@ export class VoiceConversationOrchestrator {
           audioConversionMs,
           sttLatencyMs,
           conversationLatencyMs: 0,
+          responseOptimizationMs: 0,
           ttsLatencyMs: 0,
           totalPipelineLatencyMs,
           sttMs: sttLatencyMs,
@@ -315,11 +316,25 @@ export class VoiceConversationOrchestrator {
 
     // Handle Empty Transcription (Clarification Prompt)
     if (!sttResult.transcript || sttResult.transcript.trim().length === 0) {
-      const clarifyResponse = "I'm sorry, I didn't catch that. Could you please repeat what you said?";
-      let clarifyAudio = null;
+      const optClarify = voiceResponseOptimizer.optimizeForVoice(
+        "I'm sorry, I didn't catch that. Could you please repeat what you said?",
+        { channel, enableConciseFormatting: input.options?.enableConciseVoiceFormatting }
+      );
+      const clarifyResponse = optClarify.text;
+      const turnKey = input.metadata?.transportSessionId
+        ? `${input.metadata.transportSessionId}_clarify`
+        : `${sessionId}_clarify_${Date.now()}`;
+
+      const ttsDecision = voiceResponseOptimizer.evaluateTtsDecision(
+        clarifyResponse,
+        turnKey,
+        { synthesizeSpeech: input.options?.synthesizeSpeech }
+      );
+
+      let clarifyAudio: SpeechPipelineAudioResponse | null = null;
       let ttsLatencyMs = 0;
 
-      if (input.options?.synthesizeSpeech !== false) {
+      if (ttsDecision.shouldSynthesize) {
         const ttsStart = performance.now();
         const ttsRes = await this.ttsProvider.synthesize(clarifyResponse);
         ttsLatencyMs = Number((performance.now() - ttsStart).toFixed(2));
@@ -329,7 +344,10 @@ export class VoiceConversationOrchestrator {
             fileName: ttsRes.audioFileName,
             durationSec: ttsRes.durationSec,
           };
+          voiceResponseOptimizer.recordTurnSynthesis(turnKey, clarifyResponse, clarifyAudio);
         }
+      } else if (ttsDecision.cachedAudio) {
+        clarifyAudio = ttsDecision.cachedAudio;
       }
 
       const totalPipelineLatencyMs = Number((performance.now() - pipelineStartTime).toFixed(2));
@@ -347,6 +365,7 @@ export class VoiceConversationOrchestrator {
           audioConversionMs,
           sttLatencyMs,
           conversationLatencyMs: 0,
+          responseOptimizationMs: optClarify.latencyMs,
           ttsLatencyMs,
           totalPipelineLatencyMs,
           sttMs: sttLatencyMs,
@@ -377,18 +396,33 @@ export class VoiceConversationOrchestrator {
     const conversationLatencyMs = Number((performance.now() - convStageStart).toFixed(2));
 
     // ---------------------------------------------------------
-    // STAGE 4: Voice Response Normalization & Neural TTS
+    // STAGE 4: Voice Response Optimization & Neural TTS
     // ---------------------------------------------------------
-    const normalizedText = input.options?.enableConciseVoiceFormatting !== false
-      ? this.normalizeVoiceResponse(engineResult.response)
-      : engineResult.response;
+    const optRes = voiceResponseOptimizer.optimizeForVoice(
+      engineResult.response,
+      {
+        channel,
+        enableConciseFormatting: input.options?.enableConciseVoiceFormatting,
+      }
+    );
+    const responseOptimizationMs = optRes.latencyMs;
+    const spokenText = optRes.text;
 
     let ttsLatencyMs = 0;
-    let audioResponse = null;
+    let audioResponse: SpeechPipelineAudioResponse | null = null;
+    const turnKey = input.metadata?.transportSessionId
+      ? `${input.metadata.transportSessionId}_turn_${input.metadata.turnCount || 0}`
+      : `${sessionId}_turn_${Date.now()}`;
 
-    if (input.options?.synthesizeSpeech !== false && normalizedText.length > 0) {
+    const ttsDecision = voiceResponseOptimizer.evaluateTtsDecision(
+      spokenText,
+      turnKey,
+      { synthesizeSpeech: input.options?.synthesizeSpeech }
+    );
+
+    if (ttsDecision.shouldSynthesize) {
       const ttsStageStart = performance.now();
-      const ttsResult = await this.ttsProvider.synthesize(normalizedText, {
+      const ttsResult = await this.ttsProvider.synthesize(spokenText, {
         timeoutMs: input.options?.ttsTimeoutMs,
       });
       ttsLatencyMs = Number((performance.now() - ttsStageStart).toFixed(2));
@@ -399,9 +433,12 @@ export class VoiceConversationOrchestrator {
           fileName: ttsResult.audioFileName,
           durationSec: ttsResult.durationSec,
         };
+        voiceResponseOptimizer.recordTurnSynthesis(turnKey, spokenText, audioResponse);
       } else {
         console.warn(`[Voice Orchestrator] TTS synthesis warning: ${ttsResult.error?.message}`);
       }
+    } else if (ttsDecision.cachedAudio) {
+      audioResponse = ttsDecision.cachedAudio;
     }
 
     // ---------------------------------------------------------
@@ -412,14 +449,14 @@ export class VoiceConversationOrchestrator {
 
     // Safe Structured Logging
     console.log(
-      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms convAudioMs=${audioConversionMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
+      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms convAudioMs=${audioConversionMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms optMs=${responseOptimizationMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
     );
 
     return {
       success: engineResult.success,
       sessionId,
       transcript: sttResult.transcript,
-      response: normalizedText,
+      response: spokenText,
       source: engineResult.source || 'deterministic',
       action: engineResult.action,
       intent: engineResult.intent,
@@ -429,6 +466,7 @@ export class VoiceConversationOrchestrator {
         audioConversionMs,
         sttLatencyMs,
         conversationLatencyMs,
+        responseOptimizationMs,
         ttsLatencyMs,
         totalPipelineLatencyMs,
         sttMs: sttLatencyMs,
