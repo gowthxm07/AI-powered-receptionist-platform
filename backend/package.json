@@ -13,6 +13,7 @@
     "benchmark:stt": "tsx src/scripts/benchmark-stt.ts",
     "benchmark:tts": "tsx src/scripts/benchmark-tts.ts",
     "benchmark:speech": "tsx src/scripts/benchmark-speech.ts",
+    "demo:voice": "tsx src/scripts/demo-voice-pipeline.ts",
     "ai:warmup": "tsx src/scripts/warmup-ollama.ts",
     "ai:smoke": "tsx src/scripts/smoke-test-ai.ts",
     "ai:orchestrate": "tsx src/scripts/demo-orchestrator.ts",
@@ -39,6 +40,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.3.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -47,6 +49,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.12.7",
     "prisma": "^5.22.0",
     "rimraf": "^5.0.5",
