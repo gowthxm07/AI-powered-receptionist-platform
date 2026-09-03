@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { MicrophonePermissionState } from '../types/voice';
+import { MicrophonePermissionState, MicrophoneDiagnostics } from '../types/voice';
 
 /**
  * Determine the best browser-supported audio MIME type for MediaRecorder.
@@ -28,6 +28,40 @@ export function getSupportedMimeType(): string {
   return '';
 }
 
+/**
+ * Perform safe, client-side runtime capability diagnostics.
+ * Does not expose PII, audio buffers, or sensitive credentials.
+ */
+export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
+  if (typeof window === 'undefined') {
+    return {
+      isSecureContext: false,
+      hasMediaDevices: false,
+      hasGetUserMedia: false,
+      hasMediaRecorder: false,
+      supportedMimeType: '',
+      protocol: '',
+      host: '',
+    };
+  }
+
+  const isSecure = typeof window.isSecureContext === 'boolean' ? window.isSecureContext : window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const hasMediaDev = !!(typeof navigator !== 'undefined' && navigator.mediaDevices);
+  const hasGUM = !!(hasMediaDev && typeof navigator.mediaDevices.getUserMedia === 'function');
+  const hasMR = typeof MediaRecorder !== 'undefined';
+  const supportedMime = getSupportedMimeType();
+
+  return {
+    isSecureContext: isSecure,
+    hasMediaDevices: hasMediaDev,
+    hasGetUserMedia: hasGUM,
+    hasMediaRecorder: hasMR,
+    supportedMimeType: supportedMime,
+    protocol: window.location.protocol || '',
+    host: window.location.host || '',
+  };
+}
+
 export interface UseMediaRecorderOptions {
   onAudioReady?: (blob: Blob, mimeType: string) => void;
   onError?: (err: Error) => void;
@@ -40,7 +74,9 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
   const [recordingDurationSec, setRecordingDurationSec] = useState<number>(0);
   const [permissionState, setPermissionState] = useState<MicrophonePermissionState>('prompt');
   const [isSupported, setIsSupported] = useState<boolean>(true);
+  const [isSecureContext, setIsSecureContext] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<MicrophoneDiagnostics | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -48,18 +84,36 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mimeTypeRef = useRef<string>('audio/webm');
 
-  // Check browser API compatibility
+  // Check browser API compatibility and security context
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-      const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
-      if (!hasMediaDevices || !hasMediaRecorder) {
+      const diag = getMicrophoneDiagnostics();
+      setDiagnostics(diag);
+      setIsSecureContext(diag.isSecureContext);
+
+      // Case 1: Insecure HTTP context on a LAN address (e.g. http://11.12.18.229:3000)
+      if (!diag.isSecureContext) {
+        setIsSupported(false);
+        setPermissionState('insecure-context');
+        setErrorMessage(
+          'Microphone access requires a secure HTTPS connection when accessing over the local network (e.g., https://<IP>:3000/voice).'
+        );
+        return;
+      }
+
+      // Case 2: Secure context but missing genuine browser APIs
+      if (!diag.hasGetUserMedia || !diag.hasMediaRecorder) {
         setIsSupported(false);
         setPermissionState('unsupported');
-        setErrorMessage('Your browser does not support audio recording. Please use Chrome, Safari, or Firefox.');
-      } else {
-        mimeTypeRef.current = getSupportedMimeType() || 'audio/webm';
+        setErrorMessage(
+          'Your browser does not support audio recording APIs (MediaRecorder / getUserMedia). Please use Chrome, Safari, or Firefox.'
+        );
+        return;
       }
+
+      // Case 3: Fully supported secure context
+      setIsSupported(true);
+      mimeTypeRef.current = diag.supportedMimeType || 'audio/webm';
     }
   }, []);
 
@@ -77,9 +131,25 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
    * Request microphone permission and acquire audio stream.
    */
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!isSupported) {
-      setErrorMessage('Audio recording is not supported in this browser.');
-      return false;
+    if (typeof window !== 'undefined') {
+      const diag = getMicrophoneDiagnostics();
+      setDiagnostics(diag);
+
+      if (!diag.isSecureContext) {
+        setPermissionState('insecure-context');
+        setErrorMessage(
+          'Microphone access requires a secure HTTPS connection when accessing over the local network.'
+        );
+        return false;
+      }
+
+      if (!diag.hasGetUserMedia || !diag.hasMediaRecorder) {
+        setPermissionState('unsupported');
+        setErrorMessage(
+          'Your browser does not support audio recording APIs. Please use Chrome, Safari, or Firefox.'
+        );
+        return false;
+      }
     }
 
     try {
@@ -96,20 +166,26 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
       setPermissionState('granted');
       return true;
     } catch (err: any) {
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      const errName = err?.name || '';
+
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
         setPermissionState('denied');
-        setErrorMessage('Microphone access was denied. Please allow microphone permission in your browser settings.');
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setErrorMessage('Microphone permission was denied. Please allow microphone access in your browser settings.');
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
         setPermissionState('unsupported');
-        setErrorMessage('No microphone device found on this system.');
+        setErrorMessage('No microphone was detected on this device.');
+      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+        setPermissionState('denied');
+        setErrorMessage('Microphone is currently in use by another application or unavailable.');
       } else {
         setPermissionState('denied');
-        setErrorMessage(err.message || 'Unable to access microphone.');
+        setErrorMessage(err?.message || 'Unable to access microphone.');
       }
+
       onError?.(err);
       return false;
     }
-  }, [isSupported, onError]);
+  }, [onError]);
 
   /**
    * Start recording audio turn.
@@ -200,7 +276,9 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
     recordingDurationSec,
     permissionState,
     isSupported,
+    isSecureContext,
     errorMessage,
+    diagnostics,
     requestPermission,
     startRecording,
     stopRecording,

@@ -10,7 +10,17 @@ export type VoiceUIState =
 
 export type VoiceClientChannel = 'MOBILE_WEB' | 'WEB_VOICE' | 'DESKTOP' | 'API';
 
-export type MicrophonePermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
+export type MicrophonePermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported' | 'insecure-context';
+
+export interface MicrophoneDiagnostics {
+  isSecureContext: boolean;
+  hasMediaDevices: boolean;
+  hasGetUserMedia: boolean;
+  hasMediaRecorder: boolean;
+  supportedMimeType: string;
+  protocol: string;
+  host: string;
+}
 
 export interface VoiceTransportSession {
   transportSessionId: string;
