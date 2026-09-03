@@ -85,6 +85,12 @@ export const VoiceSessionInfo: React.FC<VoiceSessionInfoProps> = ({
                 <span>Transport Overhead:</span>
                 <span className="text-slate-300">{metrics.transportOverheadMs.toFixed(1)} ms</span>
               </div>
+              {metrics.audioConversionMs !== undefined && metrics.audioConversionMs > 0 && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Audio Conversion (FFmpeg):</span>
+                  <span className="text-indigo-300">{metrics.audioConversionMs.toFixed(1)} ms</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400">
                 <span>Speech-to-Text (Whisper):</span>
                 <span className="text-slate-300">{metrics.sttMs.toFixed(1)} ms</span>

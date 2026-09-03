@@ -43,6 +43,7 @@ export interface VoiceTransportSession {
 export interface VoiceTurnMetrics {
   transportOverheadMs: number;
   audioValidationMs: number;
+  audioConversionMs?: number;
   sttMs: number;
   conversationMs: number;
   ttsMs: number;
