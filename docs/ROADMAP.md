@@ -129,7 +129,23 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 5: Local AI Integration & Conversational Receptionist (Upcoming ⏳)
+### Phase 5.1: AI Receptionist Architecture & Tool Foundation (COMPLETED ✅)
+- [x] Dedicated AI domain types (`AIConversationContext`, `AIIntent`, `AIAction`, `AIToolDefinition`, `AIToolCall`, `AIToolResult`)
+- [x] Centralized `AIToolRegistry` for discovering and registering structured tools
+- [x] Secure `AIToolRouter` with Zod input schema validation and error protection
+- [x] Controlled Customer Tools (`search_customer`, `get_customer`)
+- [x] Controlled Service Tools (`get_services`, `get_service_details`)
+- [x] Controlled Staff Tools (`get_staff`, `get_staff_details`)
+- [x] Controlled Business Information Tool (`get_business_info`)
+- [x] Controlled Appointment Tools (`check_availability`, `get_appointments`, `create_appointment`, `cancel_appointment`)
+- [x] Transactional appointment conflict detection preservation through tool calls
+- [x] Lightweight `AIContextBuilder` enforcing low-latency minimal context injection
+- [x] Complete automated test suite verifying tool security, validation, and multi-tenant isolation
+- [x] Complete architectural specification (`docs/AI_ARCHITECTURE.md`)
+
+---
+
+### Phase 5.2: Local AI Integration & Conversational Engine (Upcoming ⏳)
 - [ ] Ollama integration (Local LLM inference via REST/TypeScript client)
 - [ ] Prompt engineering for receptionist persona, greetings, and inquiry classification
 - [ ] Function/Tool calling for appointments (`checkAvailability`, `bookAppointment`, `cancelAppointment`)
