@@ -264,4 +264,16 @@ Phase 7.1 established a modular, transport-independent layer decoupling client c
 - **Multi-Tenant Session Defense:** Strict rejection of cross-business session reuse (`403 SESSION_BUSINESS_MISMATCH`).
 - Complete voice transport architecture details: [`docs/VOICE_TRANSPORT_ARCHITECTURE.md`](docs/VOICE_TRANSPORT_ARCHITECTURE.md).
 
+---
+
+## 12. Mobile Voice Client Interface & MediaRecorder Audio Capture
+
+Phase 7.2.1 established the dedicated frontend mobile voice receptionist client (`/voice`):
+
+- **Modular UI Hierarchy:** `VoiceReceptionist`, `VoiceStatus`, `VoiceActivityIndicator`, `VoiceControlButton`, `RecordingTimer`, `VoiceSessionInfo`.
+- **Presentation State Hook (`useVoiceSession`):** Coordinates 8 client presentation states (`IDLE` -> `CONNECTING` -> `READY` -> `RECORDING` -> `PROCESSING` -> `PLAYING` -> `ENDED`).
+- **Microphone & MediaRecorder (`useMediaRecorder`):** Requests `getUserMedia` audio permissions and captures audio turns dynamically matching browser codecs (`audio/webm`, `audio/ogg`, `audio/mp4`, `audio/wav`).
+- **Push-to-Talk Interaction:** Touch-friendly tap-to-speak and tap-to-stop buttons with live recording timers and real-time latency telemetry.
+- Complete mobile voice client architecture details: [`docs/MOBILE_VOICE_CLIENT.md`](docs/MOBILE_VOICE_CLIENT.md).
+
 

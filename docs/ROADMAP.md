@@ -262,11 +262,26 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 7.2: Mobile Web Voice Interface & Real-Time Client (Upcoming ⏳)
-- [ ] Responsive mobile voice receptionist interface
-- [ ] Browser MediaRecorder voice capture and turn streaming
-- [ ] Real-time audio playback and response visualization
-- [ ] Mobile-to-laptop local network connectivity
+### Phase 7.2.1: Mobile Voice Client Interface Foundation (COMPLETED ✅)
+- [x] Dedicated mobile-responsive voice receptionist route (`/voice`) with touch-optimized controls
+- [x] Modular UI component hierarchy (`VoiceReceptionist`, `VoiceStatus`, `VoiceActivityIndicator`, `VoiceControlButton`, `RecordingTimer`, `VoiceSessionInfo`)
+- [x] Frontend voice transport client (`VoiceTransportClient`) integrating with `/api/ai/voice/transport/*`
+- [x] Custom presentation state hook `useVoiceSession` managing 8-state lifecycle (`IDLE` -> `CONNECTING` -> `READY` -> `RECORDING` -> `PROCESSING` -> `PLAYING` -> `ENDED`)
+- [x] Browser microphone permission handling (`getUserMedia`) with friendly non-technical error handling
+- [x] `MediaRecorder` turn-based recording foundation with dynamic MIME negotiation (`audio/webm`, `audio/ogg`, `audio/mp4`, `audio/wav`)
+- [x] Push-to-Talk / Tap-to-Speak interaction model with animated waveform and duration timer
+- [x] Multi-tenant business selector and caller profile context integration
+- [x] Real-time latency telemetry drawer (`Overhead`, `STT`, `Conv`, `TTS`, `Total`)
+- [x] Mobile LAN testing guide for phone-to-laptop local Wi-Fi calling
+- [x] 21 automated master test suites passing
+- [x] Comprehensive technical documentation (`docs/MOBILE_VOICE_CLIENT.md`)
+
+---
+
+### Phase 7.2.2: Live Mobile End-to-End Voice Testing & Network Hardening (Upcoming ⏳)
+- [ ] End-to-end mobile browser microphone turn verification on local network
+- [ ] Adaptive audio gain control and echo cancellation optimizations
+- [ ] Visual soundwave frequency visualizer enhancements
 
 ---
 

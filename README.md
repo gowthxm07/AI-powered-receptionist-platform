@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 7.1 — Real-Time Voice Transport & Streaming Foundation
+Current Milestone: PHASE 7.2.1 — Mobile Voice Client Interface Foundation
 Status: Completed
 ```
 
@@ -33,6 +33,7 @@ Status: Completed
 - **Phase 6.2.2 (Local Speech Runtime Integration):** Native asynchronous `whisper.cpp` STT and `Piper` neural TTS providers, path-traversal-safe `AudioStorageService`, end-to-end `SpeechPipelineService` (Audio -> STT -> AI Engine -> TTS -> Audio), `POST /api/ai/voice/conversation` and `GET /api/ai/voice/audio/:audioId` endpoints, and live reproducible voice demo script (`npm run demo:voice`).
 - **Phase 6.3 (Interactive Real-Time Voice Conversation & Latency Optimization):** Unified `VoiceConversationOrchestrator`, stage-by-stage latency instrumentation (`audioInputProcessingMs`, `sttLatencyMs`, `conversationLatencyMs`, `ttsLatencyMs`, `totalPipelineLatencyMs`), multi-turn session continuity, booking state preservation during mid-flow inquiries, real 4-scenario benchmark suite (`npm run benchmark:voice`), and interactive voice demo (`npm run demo:voice-conversation`).
 - **Phase 7.1 (Real-Time Voice Transport & Streaming Foundation):** Modular transport abstraction (`IVoiceTransportSession`, `VoiceTurnTransportResult`), dedicated `VoiceTransportSessionManager` mapping transport sessions to AI conversation sessions, turn-based audio transport service (`VoiceTurnTransportService`), ultra-low measured transport overhead (**4.5 ms – 6.0 ms**), `POST /api/ai/voice/transport/*` API endpoints, live demo (`npm run demo:voice-transport`), and transport benchmark (`npm run benchmark:voice-transport`).
+- **Phase 7.2.1 (Mobile Voice Client Interface Foundation):** Dedicated mobile-responsive voice receptionist route (`/voice`), modular component architecture (`VoiceReceptionist`, `VoiceStatus`, `VoiceActivityIndicator`, `VoiceControlButton`, `RecordingTimer`, `VoiceSessionInfo`), `useVoiceSession` & `useMediaRecorder` hooks, push-to-talk audio turn capture, dynamic MIME negotiation, and real-time latency telemetry.
 
 ---
 
@@ -51,11 +52,12 @@ The platform runs local AI inference and speech processing on standard CPU hardw
 | **Deterministic Voice Turn Roundtrip** | **~1.54 – 1.69 seconds total** (STT ~940ms + Fast Router ~1.5ms + Piper TTS ~600ms) |
 | **Database Tool Voice Roundtrip** | **~2.84 seconds total** (STT ~990ms + DB Query ~8.9ms + Piper TTS ~1836ms) |
 | **LLM Fallback Voice Roundtrip** | **~12.36 seconds total** (STT ~1165ms + Ollama CPU ~8415ms + Piper TTS ~2777ms) |
+| **Mobile Voice Client Route** | **`/voice` (Touch-Friendly Responsive Interface)** |
 | **Voice Transport REST API** | **`POST /api/ai/voice/transport/session` & `POST /api/ai/voice/transport/turn`** |
 | **Deterministic Fast Path API** | **$< 4.5 ms total API latency** (Greetings, Goodbyes, Booking Prompts) |
 | **Multi-Turn Booking API** | **$< 21.0 ms total API latency per turn** (100% zero-LLM deterministic execution) |
 | **Combined 8GB RAM Coexistence** | **~5.59 GB Total Load** (~70% of 8 GB RAM, 2.6 GB headroom) |
-| **Full Architecture & Latency Analysis** | [`docs/VOICE_TRANSPORT_ARCHITECTURE.md`](docs/VOICE_TRANSPORT_ARCHITECTURE.md) & [`docs/VOICE_LATENCY_ANALYSIS.md`](docs/VOICE_LATENCY_ANALYSIS.md) |
+| **Full Architecture & Latency Analysis** | [`docs/MOBILE_VOICE_CLIENT.md`](docs/MOBILE_VOICE_CLIENT.md) & [`docs/VOICE_TRANSPORT_ARCHITECTURE.md`](docs/VOICE_TRANSPORT_ARCHITECTURE.md) |
 
 ---
 
