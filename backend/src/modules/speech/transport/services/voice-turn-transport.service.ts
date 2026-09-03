@@ -181,7 +181,7 @@ export class VoiceTurnTransportService {
         shouldCleanupTemp = true;
       }
 
-      if (!tempAudioPath || !fs.existsSync(tempAudioPath)) {
+      if (!tempAudioPath) {
         const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
         const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
         return {
@@ -208,33 +208,35 @@ export class VoiceTurnTransportService {
         };
       }
 
-      // Check audio size boundary
-      const fileStat = fs.statSync(tempAudioPath);
-      if (fileStat.size > speechConfig.stt.maxAudioSizeBytes) {
-        const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
-        const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
-        return {
-          success: false,
-          transportSessionId: session.transportSessionId,
-          conversationSessionId: session.conversationSessionId,
-          businessId,
-          transcript: '',
-          responseText: '',
-          source: 'deterministic',
-          audio: null,
-          metrics: {
-            transportOverheadMs: 0,
-            audioValidationMs,
-            sttMs: 0,
-            conversationMs: 0,
-            ttsMs: 0,
-            totalMs,
-          },
-          error: {
-            code: 'AUDIO_PAYLOAD_TOO_LARGE',
-            message: `Audio payload exceeds the ${speechConfig.stt.maxAudioSizeBytes / 1024 / 1024} MB size limit.`,
-          },
-        };
+      // Check audio size boundary if file exists
+      if (fs.existsSync(tempAudioPath)) {
+        const fileStat = fs.statSync(tempAudioPath);
+        if (fileStat.size > speechConfig.stt.maxAudioSizeBytes) {
+          const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
+          const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
+          return {
+            success: false,
+            transportSessionId: session.transportSessionId,
+            conversationSessionId: session.conversationSessionId,
+            businessId,
+            transcript: '',
+            responseText: '',
+            source: 'deterministic',
+            audio: null,
+            metrics: {
+              transportOverheadMs: 0,
+              audioValidationMs,
+              sttMs: 0,
+              conversationMs: 0,
+              ttsMs: 0,
+              totalMs,
+            },
+            error: {
+              code: 'AUDIO_PAYLOAD_TOO_LARGE',
+              message: `Audio payload exceeds the ${speechConfig.stt.maxAudioSizeBytes / 1024 / 1024} MB size limit.`,
+            },
+          };
+        }
       }
 
       const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
