@@ -11,23 +11,38 @@ import {
   DEFAULT_RECEPTIONIST_SYSTEM_PROMPT,
   ollamaModelAdapter,
 } from '../model';
+import {
+  BookingConversationStep,
+  IConversationSessionStore,
+  sessionStore,
+  appointmentStateMachine,
+  AppointmentStateMachine,
+} from '../conversation';
 
 export class AIReceptionistService {
   private toolRouter: AIToolRouter;
   private aiModel: AIModel;
+  private sessionStore: IConversationSessionStore;
+  private stateMachine: AppointmentStateMachine;
 
   constructor(options?: {
     toolRouter?: AIToolRouter;
     aiModel?: AIModel;
+    sessionStore?: IConversationSessionStore;
+    stateMachine?: AppointmentStateMachine;
   }) {
     this.toolRouter = options?.toolRouter || toolRouter;
     this.aiModel = options?.aiModel || ollamaModelAdapter;
+    this.sessionStore = options?.sessionStore || sessionStore;
+    this.stateMachine = options?.stateMachine || (options?.sessionStore ? new AppointmentStateMachine(options.sessionStore) : appointmentStateMachine);
   }
 
   /**
    * Main entry point for processing an inbound natural language inquiry.
-   * Prioritizes fast deterministic paths (< 1ms) and database tools (< 50ms)
-   * before falling back to local Ollama LLM reasoning.
+   * 1. Checks active multi-turn conversation session (booking state machine).
+   * 2. Runs fast deterministic routing (< 1ms).
+   * 3. Executes database micro-tools (< 15ms).
+   * 4. Falls back to local Ollama LLM for open questions.
    */
   public async processMessage(
     request: AIReceptionistRequest
@@ -70,8 +85,61 @@ export class AIReceptionistService {
 
     const trimmedMessage = request.message.trim();
     const sessionId = request.context.sessionId || 'session-default';
+    const businessId = request.context.businessId;
 
-    // 3. Fast Deterministic Intent Matching (< 1ms, 0 LLM calls)
+    // 3. Check for Active Multi-Turn Conversation Session
+    const activeSession = await this.sessionStore.getSession(sessionId);
+
+    if (
+      activeSession &&
+      activeSession.step !== BookingConversationStep.IDLE &&
+      activeSession.step !== BookingConversationStep.BOOKING_COMPLETE &&
+      activeSession.step !== BookingConversationStep.BOOKING_CANCELLED
+    ) {
+      // Check for mid-flow informational interruptions (e.g. "What services do you offer?")
+      const sideMatch = FastIntentRouter.routeIntent(trimmedMessage);
+      if (
+        sideMatch.intent === AIIntent.SERVICE_INFORMATION &&
+        activeSession.step !== BookingConversationStep.BOOKING_COLLECT_SERVICE
+      ) {
+        const toolRes = await this.toolRouter.executeTool({
+          tool: 'get_services',
+          input: { isActiveOnly: true },
+          context: request.context,
+        });
+
+        let naturalText: string;
+        if (toolRes.success && Array.isArray(toolRes.data) && toolRes.data.length > 0) {
+          const list = toolRes.data.slice(0, 4).map((s: any) => `${s.name} (${s.durationMinutes} mins)`).join(', ');
+          naturalText = `We offer ${list}. Continuing with your booking, what date would you prefer?`;
+        } else {
+          naturalText = 'I can help with our services, but currently no active services are cataloged.';
+        }
+
+        return {
+          success: true,
+          response: naturalText,
+          action: AIAction.GET_SERVICES,
+          intent: AIIntent.SERVICE_INFORMATION,
+          sessionId,
+          source: 'tool',
+          toolUsed: 'get_services',
+          data: toolRes.data,
+          latencyMs: performance.now() - startTime,
+        };
+      }
+
+      // Delegate to deterministic appointment state machine
+      const smResult = await this.stateMachine.handleTurn(
+        trimmedMessage,
+        activeSession,
+        request.context,
+        startTime
+      );
+      return smResult.response;
+    }
+
+    // 4. Fast Deterministic Intent Matching (< 1ms, 0 LLM calls)
     const match = FastIntentRouter.routeIntent(trimmedMessage);
 
     switch (match.intent) {
@@ -100,6 +168,32 @@ export class AIReceptionistService {
           response: 'Thank you for contacting us! Have a wonderful day.',
           action: AIAction.NONE,
           intent: AIIntent.GOODBYE,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        };
+      }
+
+      // ----------------------------------------------------
+      // MULTI-TURN INITIATION: BOOK APPOINTMENT
+      // ----------------------------------------------------
+      case AIIntent.BOOK_APPOINTMENT: {
+        const now = new Date();
+        await this.sessionStore.setSession({
+          sessionId,
+          businessId,
+          step: BookingConversationStep.BOOKING_COLLECT_SERVICE,
+          customerId: request.context.customerId || undefined,
+          createdAt: now,
+          updatedAt: now,
+          expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+        });
+
+        return {
+          success: true,
+          response: 'Sure! Which service would you like to book?',
+          action: AIAction.CREATE_APPOINTMENT,
+          intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
           source: 'deterministic',
           latencyMs: performance.now() - startTime,
@@ -233,21 +327,6 @@ export class AIReceptionistService {
           source: 'tool',
           toolUsed: 'search_customer',
           data: toolRes.data,
-          latencyMs: performance.now() - startTime,
-        };
-      }
-
-      // ----------------------------------------------------
-      // DETERMINISTIC PATH 3: BOOK APPOINTMENT
-      // ----------------------------------------------------
-      case AIIntent.BOOK_APPOINTMENT: {
-        return {
-          success: true,
-          response: "I'd be happy to help you schedule an appointment. Which service would you like to book, and what day and time works best for you?",
-          action: AIAction.CREATE_APPOINTMENT,
-          intent: AIIntent.BOOK_APPOINTMENT,
-          sessionId,
-          source: 'deterministic',
           latencyMs: performance.now() - startTime,
         };
       }

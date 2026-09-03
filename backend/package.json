@@ -13,6 +13,7 @@
     "ai:warmup": "tsx src/scripts/warmup-ollama.ts",
     "ai:smoke": "tsx src/scripts/smoke-test-ai.ts",
     "ai:orchestrate": "tsx src/scripts/demo-orchestrator.ts",
+    "ai:booking-demo": "tsx src/scripts/demo-booking-flow.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
