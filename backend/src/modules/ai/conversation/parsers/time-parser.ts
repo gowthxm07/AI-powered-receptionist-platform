@@ -18,7 +18,29 @@ export class TimeParser {
     }
 
     const raw = input.trim().toLowerCase();
-    const clean = raw.replace(/[?!,.]/g, ' ').replace(/\s+/g, ' ').trim();
+    let clean = raw
+      .replace(/a\.m\./gi, 'am')
+      .replace(/p\.m\./gi, 'pm')
+      .replace(/a\.m/gi, 'am')
+      .replace(/p\.m/gi, 'pm')
+      .replace(/[\-–—_]/g, ' ')
+      .replace(/[?!,.]/g, ' ')
+      .replace(/\ba\s+m\b/gi, 'am')
+      .replace(/\bp\s+m\b/gi, 'pm')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Map spoken word hours (e.g. "ten am" -> "10 am", "nine" -> "9")
+    const wordNumbers: Record<string, string> = {
+      one: '1', two: '2', three: '3', four: '4', five: '5',
+      six: '6', seven: '7', eight: '8', nine: '9', ten: '10',
+      eleven: '11', twelve: '12',
+    };
+    for (const [word, num] of Object.entries(wordNumbers)) {
+      const wordRegex = new RegExp(`\\b${word}\\b`, 'gi');
+      clean = clean.replace(wordRegex, num);
+    }
+    clean = clean.replace(/\b10\s*e\s*m\b/gi, '10 am').replace(/\b10eum\b/gi, '10 am').replace(/\bteneum\b/gi, '10 am');
 
     // 1. Ordinal / Index matching (e.g. "1", "first", "option 2", "2nd", "the third one", "last")
     if (/\b(1|first|1st|option 1|number 1)\b/i.test(clean) && availableSlots.length >= 1) {
@@ -60,10 +82,15 @@ export class TimeParser {
         if (
           clean.includes(`${hour} ${ampm}`) ||
           clean.includes(`${hour}${ampm}`) ||
+          clean.includes(`${hour} 0 0`) ||
+          clean.includes(`${hour} 00`) ||
+          clean.includes(`${hour} o clock`) ||
+          clean.includes(`${hour} oclock`) ||
           (ampm === 'am' && clean.includes(`${hour} in the morning`)) ||
           (ampm === 'pm' && clean.includes(`${hour} in the afternoon`)) ||
           (ampm === 'pm' && clean.includes(`${hour} in the evening`)) ||
-          clean === `${hour}`
+          clean === `${hour}` ||
+          clean.startsWith(`${hour} `)
         ) {
           return { matchedSlot: slot };
         }

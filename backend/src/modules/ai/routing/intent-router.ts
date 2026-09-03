@@ -96,7 +96,10 @@ export class FastIntentRouter {
     }
 
     // 9. Booking Intent
-    if (/\b(book|schedule|make an appointment|new appointment|reserve|booking|set up an appointment)\b/i.test(normalized)) {
+    if (
+      /\b(book|schedule|make an appointment|new appointment|reserve|booking|set up an appointment|bulk an appointment|get an appointment|want an appointment|need an appointment)\b/i.test(normalized) ||
+      (/\b(appointment|appointments)\b/i.test(normalized) && /\b(want|need|like|make|get|set|new)\b/i.test(normalized))
+    ) {
       return {
         intent: AIIntent.BOOK_APPOINTMENT,
         confidence: 0.94,

@@ -412,6 +412,7 @@ export class VoiceConversationOrchestrator {
         staffName: updatedSession?.selectedStaffName || null,
         date: updatedSession?.selectedDate || null,
         time: updatedSession?.availableSlots?.find((s) => s.startTime === updatedSession?.selectedStartTime)?.timeLabel || null,
+        appointmentId: (engineResult.data as any)?.id || (engineResult.data as any)?.appointment?.id || null,
       },
       error: engineResult.error || undefined,
     };
