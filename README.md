@@ -9,7 +9,7 @@ An autonomous, full-stack AI-integrated receptionist platform designed to stream
 ## 📌 Current Development Status
 
 ```
-Current Milestone: PHASE 3.2.1 — API Authorization & Business Data Isolation Verification
+Current Milestone: PHASE 3.3 — Professional Multi-Tenant Dashboard Foundation
 Status: Completed
 ```
 
@@ -18,6 +18,7 @@ Status: Completed
 - **Phase 3.1 (Authentication Backend):** Secure JWT authentication with HTTP-only cookies, Bcrypt password hashing, User registration & login, `/api/auth/me`, and role-based authorization middleware.
 - **Phase 3.2 (Authentication Frontend):** React `AuthContext` state management, typed API client with `credentials: "include"`, `/login` and `/register` responsive forms with validation and password toggles, protected `/dashboard` shell, and automatic redirection flows.
 - **Phase 3.2.1 (Authorization & Data Isolation):** Complete multi-tenant business data isolation, route protection across all domain APIs, server-enforced `OwnershipService` rules preventing cross-business data leakage, and rigorous security integration test suites.
+- **Phase 3.3 (Professional Multi-Tenant Dashboard):** Real-data business dashboard overview with business selector, dynamic stats calculation (customers, staff, services), quick operations shortcuts, AI receptionist and latency telemetry cards, recent activity placeholder, and responsive sidebar navigation.
 
 ---
 
@@ -28,8 +29,8 @@ Status: Completed
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 - **Icons:** [Lucide React](https://lucide.dev/)
-- **State & Context:** React Context API (`AuthContext`)
-- **API Client:** Native `fetch` wrapper with HTTP-only cookie support
+- **State & Context:** React Context API (`AuthContext`, `BusinessContext`)
+- **API Client:** Native `fetch` wrapper with HTTP-only cookie support (`lib/api.ts`)
 - **Linting:** ESLint
 
 ### Backend
@@ -58,10 +59,17 @@ Status: Completed
 │             (React + TypeScript + Tailwind CSS)             │
 │                 http://localhost:3000                       │
 │                                                             │
-│  ├── /                -> Public Landing & System Status     │
-│  ├── /login           -> Authenticated Sign In Form         │
-│  ├── /register        -> New Account Creation Form          │
-│  └── /dashboard       -> Protected Business Dashboard Shell │
+│  ├── /                      -> Public Landing Page          │
+│  ├── /login                 -> Authenticated Sign In Form   │
+│  ├── /register              -> New Account Creation Form    │
+│  ├── /dashboard             -> Multi-Tenant Overview (Real) │
+│  ├── /dashboard/customers   -> Customer Directory Shell     │
+│  ├── /dashboard/staff       -> Staff Roster Shell           │
+│  ├── /dashboard/services    -> Services Catalog Shell       │
+│  ├── /dashboard/appointments-> Appointments Calendar Shell  │
+│  ├── /dashboard/conversations-> Dialogue Transcripts Shell  │
+│  ├── /dashboard/ai-receptionist -> AI Engine Shell          │
+│  └── /dashboard/settings    -> Business Settings Shell      │
 └──────────────────────────────┬──────────────────────────────┘
                                │ REST / JSON (CORS + Cookies)
                                ▼
@@ -165,38 +173,6 @@ npm --prefix frontend run dev
 
 ---
 
-## 🌐 API Route Reference
-
-| Method | Endpoint | Description | Auth Required | Multi-Tenant Authorization Rule |
-|---|---|---|---|---|
-| `GET` | `/api/health` | Service liveness & uptime status | No | Public diagnostic |
-| `POST` | `/api/auth/register` | Register user & issue HTTP-only JWT cookie | No | Public registration |
-| `POST` | `/api/auth/login` | Authenticate user & issue JWT cookie | No | Public login |
-| `GET` | `/api/auth/me` | Retrieve authenticated user profile | **Yes** | Scoped to caller identity |
-| `POST` | `/api/auth/logout` | Clear authentication cookie | No | Session cleanup |
-| `POST` | `/api/businesses` | Create business profile | **Yes** | Sets `ownerId: req.user.userId` |
-| `GET` | `/api/businesses` | List owned businesses | **Yes** | Scoped to caller's businesses |
-| `GET` | `/api/businesses/:id` | Get business details & staff/services | **Yes** | Requires verified ownership |
-| `PUT` | `/api/businesses/:id` | Update business profile | **Yes** | Requires verified ownership |
-| `DELETE` | `/api/businesses/:id` | Remove business | **Yes** | Requires verified ownership |
-| `POST` | `/api/customers` | Create customer | **Yes** | Caller must own `businessId` |
-| `GET` | `/api/customers` | List owned customers | **Yes** | Scoped to caller's businesses |
-| `GET` | `/api/customers/:id` | Get customer profile & history | **Yes** | Requires verified ownership |
-| `PUT` | `/api/customers/:id` | Update customer details | **Yes** | Requires verified ownership |
-| `DELETE` | `/api/customers/:id` | Remove customer | **Yes** | Requires verified ownership |
-| `POST` | `/api/staff` | Create staff member | **Yes** | Caller must own `businessId` |
-| `GET` | `/api/staff` | List staff (query: `?businessId=...`) | **Yes** | Scoped to caller's businesses |
-| `GET` | `/api/staff/:id` | Get staff details & schedule | **Yes** | Requires verified ownership |
-| `PUT` | `/api/staff/:id` | Update staff profile | **Yes** | Requires verified ownership |
-| `DELETE` | `/api/staff/:id` | Remove staff member | **Yes** | Requires verified ownership |
-| `POST` | `/api/services` | Create service offering | **Yes** | Caller must own `businessId` |
-| `GET` | `/api/services` | List services (query: `?businessId=...`) | **Yes** | Scoped to caller's businesses |
-| `GET` | `/api/services/:id` | Get service details | **Yes** | Requires verified ownership |
-| `PUT` | `/api/services/:id` | Update service offering | **Yes** | Requires verified ownership |
-| `DELETE` | `/api/services/:id` | Remove service offering | **Yes** | Requires verified ownership |
-
----
-
 ## 🗺 Development Phases Roadmap
 
 | Phase | Milestone Name | Focus Area | Status |
@@ -206,6 +182,7 @@ npm --prefix frontend run dev
 | **Phase 3.1** | **Authentication Backend Foundation** | JWT, Bcrypt, HTTP-only Cookies, Register/Login/Me, Roles | **Completed** ✅ |
 | **Phase 3.2** | **Authentication Frontend & Protected Shell** | Login/Register UI, Auth Context, Protected Route Guard | **Completed** ✅ |
 | **Phase 3.2.1**| **Authorization & Business Data Isolation** | Multi-tenant scoping, route protection, cross-tenant isolation | **Completed** ✅ |
+| **Phase 3.3** | **Professional Multi-Tenant Dashboard** | Real-data overview, business selector, stats, responsive UI | **Completed** ✅ |
 | **Phase 4** | **Local AI & Conversation Agent** | Ollama local LLM, prompt orchestration, call transcripts | *Upcoming* ⏳ |
 | **Phase 5** | **RAG Knowledge Assistant & Voice Pipeline** | ChromaDB vector search, Whisper STT, Piper TTS | *Upcoming* ⏳ |
 | **Phase 6** | **Admin Dashboard & Unified Experience** | Full management UI, call analytics, live simulator | *Upcoming* ⏳ |
