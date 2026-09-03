@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { ForbiddenError, NotFoundError } from '../services/ownership.service';
+import { ConflictError, BadRequestError } from '../services/appointment.service';
 
 // 404 Handler for undefined routes
 export const notFoundHandler = (req: Request, res: Response, next: NextFunction): void => {
@@ -12,7 +13,7 @@ export const notFoundHandler = (req: Request, res: Response, next: NextFunction)
 
 // Global Error Handler
 export const errorHandler = (
-  err: Error,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction
@@ -30,6 +31,31 @@ export const errorHandler = (
 
   if (err instanceof NotFoundError) {
     res.status(404).json({
+      success: false,
+      message: err.message,
+    });
+    return;
+  }
+
+  if (err instanceof ConflictError) {
+    res.status(409).json({
+      success: false,
+      message: err.message,
+    });
+    return;
+  }
+
+  if (err instanceof BadRequestError) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+    return;
+  }
+
+  // Handle generic error with statusCode property
+  if (err.statusCode && typeof err.statusCode === 'number') {
+    res.status(err.statusCode).json({
       success: false,
       message: err.message,
     });

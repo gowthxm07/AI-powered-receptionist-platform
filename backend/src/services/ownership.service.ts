@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { UserRole, Business, Staff, Service, Customer } from '@prisma/client';
+import { UserRole, Business, Staff, Service, Customer, Appointment } from '@prisma/client';
 
 export class ForbiddenError extends Error {
   public statusCode: number = 403;
@@ -163,5 +163,33 @@ export class OwnershipService {
     }
 
     return customer;
+  }
+
+  /**
+   * Verifies that the given user owns the business associated with the appointment.
+   */
+  public static async verifyAppointmentOwnership(
+    appointmentId: string,
+    userId: string,
+    role?: UserRole
+  ): Promise<Appointment & { business: Business }> {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { business: true },
+    });
+
+    if (!appointment) {
+      throw new NotFoundError(`Appointment with ID '${appointmentId}' not found`);
+    }
+
+    if (role === UserRole.ADMIN) {
+      return appointment;
+    }
+
+    if (appointment.business.ownerId !== userId) {
+      throw new ForbiddenError('Forbidden: You do not have permission to access or modify this appointment');
+    }
+
+    return appointment;
   }
 }
