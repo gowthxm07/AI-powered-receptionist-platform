@@ -17,6 +17,7 @@ import { runMultiTurnBookingTests } from './multi-turn-booking.test';
 import { runConversationApiTests } from './conversation-api.test';
 import { runSpeechBenchmarkUnitTests } from './speech-benchmark.test';
 import { runSpeechPipelineTests } from './speech-pipeline.test';
+import { runVoiceOrchestratorTests } from './voice-orchestrator.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -41,6 +42,7 @@ async function runAllTestSuites() {
   await runConversationApiTests();
   await runSpeechBenchmarkUnitTests();
   await runSpeechPipelineTests();
+  await runVoiceOrchestratorTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

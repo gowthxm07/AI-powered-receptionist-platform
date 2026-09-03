@@ -60,7 +60,7 @@ export class VoiceConversationOrchestrator {
     // ---------------------------------------------------------
     const inputStageStart = performance.now();
 
-    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+    if (!audioFilePath || audioFilePath.trim().length === 0) {
       const audioInputMs = Number((performance.now() - inputStageStart).toFixed(2));
       const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
       return {
@@ -83,7 +83,7 @@ export class VoiceConversationOrchestrator {
         },
         error: {
           code: 'INVALID_AUDIO_INPUT',
-          message: `Audio input file not found or inaccessible at: ${path.basename(audioFilePath || 'null')}`,
+          message: 'Audio input file path is required.',
         },
       };
     }
