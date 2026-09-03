@@ -107,6 +107,13 @@ export class AIVoiceController {
               }
             : null,
           metrics: pipelineResult.metrics,
+          latency: {
+            audioInputMs: pipelineResult.metrics.audioInputProcessingMs,
+            sttMs: pipelineResult.metrics.sttLatencyMs,
+            conversationMs: pipelineResult.metrics.conversationLatencyMs,
+            ttsMs: pipelineResult.metrics.ttsLatencyMs,
+            totalMs: totalApiMs,
+          },
           metadata: pipelineResult.metadata,
         },
       };
