@@ -21,6 +21,7 @@ import { runVoiceOrchestratorTests } from './voice-orchestrator.test';
 import { runVoiceTransportTests } from './voice-transport.test';
 import { runVoiceClientFoundationTests } from './voice-client-foundation.test';
 import { runMobileVoiceIntegrationTests } from './mobile-voice-integration.test';
+import { runVoiceResponseOptimizationTests } from './voice-response-optimization.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -49,6 +50,7 @@ async function runAllTestSuites() {
   await runVoiceTransportTests();
   await runVoiceClientFoundationTests();
   await runMobileVoiceIntegrationTests();
+  await runVoiceResponseOptimizationTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
