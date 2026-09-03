@@ -16,7 +16,17 @@ import {
   AvailabilityCheckResult,
 } from '../types/dashboard';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const protocol = window.location.protocol || 'http:';
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:5000`;
+  }
+  return 'http://localhost:5000';
+}
 
 export class ApiError extends Error {
   public status: number;
@@ -31,7 +41,8 @@ export class ApiError extends Error {
 }
 
 async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${endpoint}`;
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),

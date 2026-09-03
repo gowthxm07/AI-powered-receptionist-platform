@@ -4,21 +4,26 @@ import {
   CreateVoiceSessionInput,
   VoiceClientChannel,
 } from '../types/voice';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiBaseUrl } from '../lib/api';
 
 export class VoiceTransportClient {
-  private baseUrl: string;
+  private baseUrl?: string;
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor(baseUrl?: string) {
+    if (baseUrl) {
+      this.baseUrl = baseUrl.replace(/\/$/, '');
+    }
+  }
+
+  private getUrl(): string {
+    return (this.baseUrl || getApiBaseUrl()).replace(/\/$/, '');
   }
 
   /**
    * Create a new voice transport session mapped to the selected business.
    */
   public async createSession(input: CreateVoiceSessionInput): Promise<VoiceTransportSession> {
-    const url = `${this.baseUrl}/api/ai/voice/transport/session`;
+    const url = `${this.getUrl()}/api/ai/voice/transport/session`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -45,7 +50,7 @@ export class VoiceTransportClient {
    * Inspect the current status and metadata of an active voice transport session.
    */
   public async getSession(transportSessionId: string): Promise<VoiceTransportSession> {
-    const url = `${this.baseUrl}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
+    const url = `${this.getUrl()}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
     const response = await fetch(url, {
       method: 'GET',
       credentials: 'include',
@@ -64,7 +69,7 @@ export class VoiceTransportClient {
    * Terminate and clean up an active voice transport session.
    */
   public async terminateSession(transportSessionId: string): Promise<void> {
-    const url = `${this.baseUrl}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
+    const url = `${this.getUrl()}/api/ai/voice/transport/session/${encodeURIComponent(transportSessionId)}`;
     const response = await fetch(url, {
       method: 'DELETE',
       credentials: 'include',
@@ -96,7 +101,7 @@ export class VoiceTransportClient {
     if (customerId) formData.append('customerId', customerId);
     formData.append('channel', channel);
 
-    const url = `${this.baseUrl}/api/ai/voice/transport/turn`;
+    const url = `${this.getUrl()}/api/ai/voice/transport/turn`;
     const response = await fetch(url, {
       method: 'POST',
       credentials: 'include',
@@ -116,7 +121,7 @@ export class VoiceTransportClient {
    * Generate an absolute audio playback URL for a synthesized audio response.
    */
   public getAudioStreamUrl(audioId: string): string {
-    return `${this.baseUrl}/api/ai/voice/audio/${encodeURIComponent(audioId)}`;
+    return `${this.getUrl()}/api/ai/voice/audio/${encodeURIComponent(audioId)}`;
   }
 }
 
