@@ -1,4 +1,5 @@
 import { ApiResponse, LoginInput, RegisterInput, User } from '../types/auth';
+import { Business, Customer, Staff, Service } from '../types/dashboard';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -62,6 +63,31 @@ export const api = {
       }),
     me: () => fetcher<User>('/api/auth/me', { method: 'GET' }),
     logout: () => fetcher<void>('/api/auth/logout', { method: 'POST' }),
+  },
+  businesses: {
+    getAll: () => fetcher<Business[]>('/api/businesses', { method: 'GET' }),
+    getById: (id: string) => fetcher<Business>(`/api/businesses/${id}`, { method: 'GET' }),
+  },
+  customers: {
+    getAll: (businessId?: string) =>
+      fetcher<Customer[]>(
+        businessId ? `/api/customers?businessId=${encodeURIComponent(businessId)}` : '/api/customers',
+        { method: 'GET' }
+      ),
+  },
+  staff: {
+    getAll: (businessId?: string) =>
+      fetcher<Staff[]>(
+        businessId ? `/api/staff?businessId=${encodeURIComponent(businessId)}` : '/api/staff',
+        { method: 'GET' }
+      ),
+  },
+  services: {
+    getAll: (businessId?: string) =>
+      fetcher<Service[]>(
+        businessId ? `/api/services?businessId=${encodeURIComponent(businessId)}` : '/api/services',
+        { method: 'GET' }
+      ),
   },
   health: {
     check: () => fetcher<{ status: string; uptimeSeconds: number }>('/api/health', { method: 'GET' }),
