@@ -10,6 +10,8 @@ import { runAiToolsTests } from './ai-tools.test';
 import { runOllamaRuntimeTests } from './ollama-runtime.test';
 import { runModelAbstractionTests } from './model-abstraction.test';
 import { runOllamaAdapterTests } from './ollama-adapter.test';
+import { runIntentRouterTests } from './intent-router.test';
+import { runAiReceptionistTests } from './ai-receptionist.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -27,6 +29,8 @@ async function runAllTestSuites() {
   await runOllamaRuntimeTests();
   await runModelAbstractionTests();
   await runOllamaAdapterTests();
+  await runIntentRouterTests();
+  await runAiReceptionistTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
