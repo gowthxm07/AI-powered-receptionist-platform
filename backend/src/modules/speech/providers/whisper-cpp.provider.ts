@@ -201,6 +201,19 @@ export class WhisperCppProvider implements SpeechToTextProvider {
             return;
           }
 
+          if (stderrData.includes('failed to read audio') || stderrData.includes('failed to read WAV header')) {
+            resolve({
+              success: false,
+              transcript: '',
+              latencyMs,
+              error: {
+                code: 'AUDIO_DECODE_ERROR',
+                message: 'Whisper failed to decode audio file format. File must be 16kHz mono PCM WAV.',
+              },
+            });
+            return;
+          }
+
           // Parse and clean stdout output
           const cleanTranscript = stdoutData
             .split('\n')

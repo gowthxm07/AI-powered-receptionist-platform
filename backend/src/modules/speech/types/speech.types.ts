@@ -47,6 +47,7 @@ export interface TextToSpeechProvider {
 
 export interface VoiceStageMetrics {
   audioInputProcessingMs: number;
+  audioConversionMs?: number;
   sttLatencyMs: number;
   conversationLatencyMs: number;
   ttsLatencyMs: number;
@@ -54,6 +55,7 @@ export interface VoiceStageMetrics {
 }
 
 export interface SpeechPipelineMetrics extends VoiceStageMetrics {
+  audioConversionMs?: number;
   sttMs: number;
   conversationMs: number;
   ttsMs: number;

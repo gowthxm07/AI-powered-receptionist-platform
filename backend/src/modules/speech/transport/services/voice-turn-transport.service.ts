@@ -166,7 +166,7 @@ export class VoiceTurnTransportService {
 
       if (input.audioFilePath) {
         tempAudioPath = input.audioFilePath;
-        shouldCleanupTemp = false;
+        shouldCleanupTemp = true; // Clean up uploaded file after turn processing
       } else if (input.audioBuffer) {
         const uniqueUploadName = `vturn_${Date.now()}_${crypto.randomBytes(8).toString('hex')}.wav`;
         tempAudioPath = path.resolve(speechConfig.storage.uploadDir, uniqueUploadName);
@@ -302,6 +302,7 @@ export class VoiceTurnTransportService {
         metrics: {
           transportOverheadMs,
           audioValidationMs,
+          audioConversionMs: orchestratorResult.metrics.audioConversionMs || 0,
           sttMs: orchestratorResult.metrics.sttLatencyMs,
           conversationMs: orchestratorResult.metrics.conversationLatencyMs,
           ttsMs: orchestratorResult.metrics.ttsLatencyMs,

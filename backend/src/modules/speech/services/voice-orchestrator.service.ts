@@ -7,11 +7,13 @@ import { sessionStore, InMemorySessionStore } from '../../ai/conversation/in-mem
 import { BookingConversationStep } from '../../ai/conversation/conversation-session.types';
 import { WhisperCppProvider } from '../providers/whisper-cpp.provider';
 import { PiperProvider } from '../providers/piper.provider';
+import { audioConverterService, AudioConverterService } from './audio-converter.service';
 import {
   SpeechToTextProvider,
   TextToSpeechProvider,
   SpeechPipelineInput,
   SpeechPipelineResult,
+  SpeechToTextResult,
 } from '../types/speech.types';
 
 export class VoiceConversationOrchestrator {
@@ -72,6 +74,7 @@ export class VoiceConversationOrchestrator {
         audio: null,
         metrics: {
           audioInputProcessingMs: audioInputMs,
+          audioConversionMs: 0,
           sttLatencyMs: 0,
           conversationLatencyMs: 0,
           ttsLatencyMs: 0,
@@ -106,6 +109,7 @@ export class VoiceConversationOrchestrator {
         audio: null,
         metrics: {
           audioInputProcessingMs: audioInputMs,
+          audioConversionMs: 0,
           sttLatencyMs: 0,
           conversationLatencyMs: 0,
           ttsLatencyMs: 0,
@@ -142,6 +146,7 @@ export class VoiceConversationOrchestrator {
           audio: null,
           metrics: {
             audioInputProcessingMs: audioInputMs,
+            audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
             ttsLatencyMs: 0,
@@ -179,6 +184,7 @@ export class VoiceConversationOrchestrator {
           audio: null,
           metrics: {
             audioInputProcessingMs: audioInputMs,
+            audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
             ttsLatencyMs: 0,
@@ -207,6 +213,7 @@ export class VoiceConversationOrchestrator {
           audio: null,
           metrics: {
             audioInputProcessingMs: audioInputMs,
+            audioConversionMs: 0,
             sttLatencyMs: 0,
             conversationLatencyMs: 0,
             ttsLatencyMs: 0,
@@ -249,12 +256,32 @@ export class VoiceConversationOrchestrator {
     const audioInputProcessingMs = Number((performance.now() - inputStageStart).toFixed(2));
 
     // ---------------------------------------------------------
-    // STAGE 2: Speech-to-Text Transcription (Whisper)
+    // STAGE 2: Audio Conversion & Speech-to-Text Transcription
     // ---------------------------------------------------------
     const sttStageStart = performance.now();
-    const sttResult = await this.sttProvider.transcribe(audioFilePath, {
-      timeoutMs: input.options?.sttTimeoutMs,
-    });
+    let audioConversionMs = 0;
+    let convertedAudioPath: string | null = null;
+    let sttResult: SpeechToTextResult;
+
+    try {
+      // 2A: Convert audio to 16kHz mono PCM WAV if required (e.g. WebM, Opus, Ogg, MP4)
+      const convResult = await audioConverterService.convertTo16kMonoWav(audioFilePath);
+      audioConversionMs = convResult.latencyMs;
+      const effectiveAudioPath = convResult.outputPath;
+      if (convResult.converted) {
+        convertedAudioPath = convResult.outputPath;
+      }
+
+      // 2B: Transcribe using Whisper
+      sttResult = await this.sttProvider.transcribe(effectiveAudioPath, {
+        timeoutMs: input.options?.sttTimeoutMs,
+      });
+    } finally {
+      // Clean up converted temporary WAV file
+      if (convertedAudioPath) {
+        AudioConverterService.safeUnlink(convertedAudioPath);
+      }
+    }
     const sttLatencyMs = Number((performance.now() - sttStageStart).toFixed(2));
 
     // Handle STT Failures
@@ -269,6 +296,7 @@ export class VoiceConversationOrchestrator {
         audio: null,
         metrics: {
           audioInputProcessingMs,
+          audioConversionMs,
           sttLatencyMs,
           conversationLatencyMs: 0,
           ttsLatencyMs: 0,
@@ -316,6 +344,7 @@ export class VoiceConversationOrchestrator {
         audio: clarifyAudio,
         metrics: {
           audioInputProcessingMs,
+          audioConversionMs,
           sttLatencyMs,
           conversationLatencyMs: 0,
           ttsLatencyMs,
@@ -383,7 +412,7 @@ export class VoiceConversationOrchestrator {
 
     // Safe Structured Logging
     console.log(
-      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
+      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms convAudioMs=${audioConversionMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
     );
 
     return {
@@ -397,6 +426,7 @@ export class VoiceConversationOrchestrator {
       audio: audioResponse,
       metrics: {
         audioInputProcessingMs,
+        audioConversionMs,
         sttLatencyMs,
         conversationLatencyMs,
         ttsLatencyMs,

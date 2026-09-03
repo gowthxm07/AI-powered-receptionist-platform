@@ -67,6 +67,7 @@ export interface VoiceAudioTurnInput {
 export interface VoiceTransportMetrics {
   transportOverheadMs: number;
   audioValidationMs: number;
+  audioConversionMs?: number;
   sttMs: number;
   conversationMs: number;
   ttsMs: number;
