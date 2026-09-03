@@ -16,6 +16,7 @@ import { runSessionStoreTests } from './session-store.test';
 import { runMultiTurnBookingTests } from './multi-turn-booking.test';
 import { runConversationApiTests } from './conversation-api.test';
 import { runSpeechBenchmarkUnitTests } from './speech-benchmark.test';
+import { runSpeechPipelineTests } from './speech-pipeline.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -39,6 +40,7 @@ async function runAllTestSuites() {
   await runMultiTurnBookingTests();
   await runConversationApiTests();
   await runSpeechBenchmarkUnitTests();
+  await runSpeechPipelineTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
