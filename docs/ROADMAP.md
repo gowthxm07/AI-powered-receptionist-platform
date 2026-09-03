@@ -88,8 +88,18 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 - [x] Sub-second AI latency telemetry section reserved for Whisper, Ollama, and Piper
 - [x] Honest recent activity placeholder reserving space for live AI call events
 - [x] System and database runtime diagnostic indicators
-- [x] Future sub-module placeholder route shells (`/dashboard/customers`, `/dashboard/staff`, `/dashboard/services`, `/dashboard/appointments`, `/dashboard/conversations`, `/dashboard/ai-receptionist`, `/dashboard/settings`)
+- [x] Future sub-module placeholder route shells
 - [x] Complete dashboard architecture documentation (`docs/DASHBOARD.md`)
+
+---
+
+### Phase 3.4: Core Management Frontend (COMPLETED ✅)
+- [x] Real-data Customer Management (`/dashboard/customers`) with search, create modal, edit modal, delete dialog, and validation
+- [x] Real-data Staff Specialist Management (`/dashboard/staff`) with role configuration, active status toggle, search, and delete dialog
+- [x] Real-data Bookable Services Catalog (`/dashboard/services`) with duration minute setting, catalog toggle, search, and delete dialog
+- [x] Reusable modal dialogs (`CustomerModal`, `StaffModal`, `ServiceModal`), confirmations (`ConfirmDialog`), and feedback notifications (`Toast`)
+- [x] Multi-tenant business context integration with stale data clearing and race condition prevention
+- [x] Desktop table views and mobile-optimized card layouts
 
 ---
 
@@ -115,7 +125,6 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 - [ ] Analytics dashboard for receptionist calls, booking rates, and conversation sentiment
 - [ ] Real-time call monitor and interactive chat simulator for testing
 - [ ] Admin controls to update business knowledge docs and AI persona guidelines
-- [ ] Complete CRUD UI for Business, Customer, Staff, and Service management
 - [ ] Responsive mobile layout optimization
 
 ---
