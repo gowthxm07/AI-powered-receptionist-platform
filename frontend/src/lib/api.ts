@@ -210,4 +210,11 @@ export const api = {
   health: {
     check: () => fetcher<{ status: string; uptimeSeconds: number }>('/api/health', { method: 'GET' }),
   },
+  ai: {
+    conversation: (input: import('../types/conversation').ConversationRequestInput) =>
+      fetcher<import('../types/conversation').ConversationResponseData>('/api/ai/conversation', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+  },
 };
