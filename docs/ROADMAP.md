@@ -382,7 +382,29 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 8.2+: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
-- [ ] End-to-end voice and text conversational test suite
-- [ ] Final security review, performance optimizations, and demonstration walkthrough
+### Phase 8.2: End-to-End Voice Pipeline Latency Optimization (COMPLETED ✅)
+- [x] Evidence-driven optimization targeting Phase 8.1 bottlenecks (Piper TTS duration, client VAD silence, and Ollama CPU fallback)
+- [x] Spoken response brevity & natural slot formatting in `VoiceResponseOptimizer` (natural timestamps e.g. "9 AM", stripping redundant specialist clauses, concise 3-item lists)
+- [x] 100% backward-compatible preservation of visual `WEB` channel responses via conditional concise voice flags
+- [x] State machine context preservation: complete structured booking state retained across all 7 turns
+- [x] Client-side adaptive VAD silence detection (`VoiceActivityDetector`): auto-adjusts from 1,500 ms to 1,100 ms for normal speech ($\ge 700$ ms), saving 400 ms dead air per turn
+- [x] Clean stage timing isolation separating audio conversion (`audioConversionMs`) from Whisper STT inference (`sttLatencyMs`)
+- [x] Audio conversion bypass (`is16kMonoPcmWav`) for compliant 16 kHz mono WAV audio (< 0.1 ms) while preserving FFmpeg transcoding for mobile Android Chrome WebM/Opus
+- [x] Deterministic intent guards for `APPOINTMENT_PREPARATION` and `PAYMENT_POLICY`, eliminating the ~22.7-second Ollama CPU fallback for common receptionist inquiries
+- [x] Live comparative hardware benchmark against Phase 8.1 baseline:
+  - Scenario E1 (Prep Guard): **31,932.6 ms $\to$ 3,651.9 ms** (**-28,280.7 ms**, **88.6% faster**)
+  - Scenario C (Services Catalog): **4,596.0 ms $\to$ 3,374.6 ms** (**-1,221.4 ms**, **26.6% faster**)
+  - 7-Turn Booking Pipeline: **27,380.0 ms $\to$ 21,746.6 ms** (**-5,633.4 ms**, **20.6% faster**)
+  - Total Conversational Latency Savings: **8.43 seconds** saved across complete booking flow (5.63s backend + 2.80s client VAD dead air)
+- [x] Privacy verification: zero raw audio blobs or transcripts stored in telemetry or PostgreSQL
+- [x] 29 automated master test suites passing with 100% success rate (10 comprehensive new Phase 8.2 optimization tests)
+- [x] Comprehensive technical report and architectural analysis published in `docs/VOICE_LATENCY_OPTIMIZATION.md`
+
+---
+
+### Phase 8.3: Voice Resilience, Error Recovery & Edge-Case Hardening (Upcoming ⏳)
+- [ ] Network interruption & audio packet drop recovery
+- [ ] Mobile audio permission rejection and device backgrounding lifecycle handlers
+- [ ] Final security audit, demonstration rehearsal, and capstone presentation walkthrough
+
 

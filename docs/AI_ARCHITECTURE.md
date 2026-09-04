@@ -342,4 +342,30 @@ Phase 7.4.2 established an auditable, privacy-preserving monitoring and analytic
 - **Multi-Tenant REST Gateway & Dashboard UI:** Dedicated `/api/analytics/voice/*` endpoints secured by JWT authentication and tenant ownership validation (`OwnershipService`), feeding a rich administrative dashboard (`/dashboard/voice-analytics`) with KPI cards, latency histograms, live active calls with pulsing indicators, and searchable session logs.
 - Complete technical documentation: [`docs/VOICE_ANALYTICS.md`](docs/VOICE_ANALYTICS.md).
 
+---
+
+## 18. End-to-End Voice Pipeline Performance Benchmarking (Phase 8.1)
+
+Phase 8.1 established a rigorous empirical performance baseline on consumer hardware (Intel Core i5-1235U, 8 GB RAM, Windows 11):
+
+- **Scientific Benchmarking Architecture:** High-resolution stage timing (`VoicePerformanceTracker`) capturing STT, Router, DB, TTS, and LLM latencies across Scenarios A through E (Cold vs. 5 Warm runs, full 7-turn booking dialogue).
+- **Subsystem Bottleneck Identification:** Confirmed that Piper Neural TTS (52.7%) and Whisper STT (47.2%) dominate deterministic turnaround, while deterministic routing and database execution account for $< 0.5\%$.
+- **Privacy Guarantees:** Strict omission of audio data and persistent transcripts from benchmark metrics.
+- Complete technical report: [`docs/VOICE_PIPELINE_BENCHMARK.md`](docs/VOICE_PIPELINE_BENCHMARK.md).
+
+---
+
+## 19. End-to-End Voice Pipeline Latency Optimization (Phase 8.2)
+
+Phase 8.2 implemented targeted, evidence-driven optimizations addressing the confirmed Phase 8.1 bottlenecks:
+
+- **Spoken Response Brevity & Slot Normalization:** Natural conversational time formats ("9 AM"), omission of redundant specialist clauses, and concise 3-item service listings directly reduced Piper Neural TTS synthesis time by **20–50%**.
+- **Client-Side Adaptive Silence Detection:** Dynamic VAD in `VoiceActivityDetector` reduces post-speech silence timeout from 1,500 ms down to **1,100 ms** for sustained speech, saving 400 ms of dead air per turn (2,800 ms across a 7-turn booking).
+- **Stage Timing Isolation & Format Bypass:** Separated audio conversion from Whisper STT transcription and bypassed FFmpeg for compliant 16 kHz mono WAV input (< 0.1 ms), while preserving FFmpeg transcoding for mobile WebM/Opus.
+- **Fast Deterministic LLM Fallback Guards:** Added high-priority regex rules for `APPOINTMENT_PREPARATION` and `PAYMENT_POLICY` in `FastIntentRouter`, dropping appointment preparation inquiry turnaround from **31,932.6 ms to 3,651.9 ms** (**-28,280.7 ms**, **88.6% faster**).
+- **7-Turn Booking Turnaround:** Reduced backend pipeline latency across all 7 turns from **27,380.0 ms to 21,746.6 ms** (**-5,633.4 ms**, **20.6% faster**).
+- **Total User-Perceived Latency Savings:** Combining backend synthesis brevity (-5.63s) and client silence reduction (-2.80s) saves **8.43 seconds** across a full appointment booking flow.
+- Complete technical documentation: [`docs/VOICE_LATENCY_OPTIMIZATION.md`](docs/VOICE_LATENCY_OPTIMIZATION.md).
+
+
 
