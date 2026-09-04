@@ -40,6 +40,26 @@ export interface VoiceTransportSession {
   expiresAt: string;
 }
 
+export interface VoiceRecordingMetrics {
+  recordingDurationMs: number;
+  audioBlobSizeBytes: number;
+  speechDetected: boolean;
+  speechActivityDurationMs: number;
+  trailingSilenceMs: number;
+  uploadDispatchMs?: number;
+  autoStopTriggered: boolean;
+  vadOverheadMs?: number;
+}
+
+export interface VoiceActivityConfig {
+  speechThresholdRms: number;
+  minSpeechDurationMs: number;
+  silenceThresholdMs: number;
+  minRecordingDurationMs: number;
+  minBlobSizeBytes: number;
+  autoStopEnabled: boolean;
+}
+
 export interface VoiceTurnMetrics {
   transportOverheadMs: number;
   audioValidationMs: number;
@@ -49,6 +69,14 @@ export interface VoiceTurnMetrics {
   responseOptimizationMs?: number;
   ttsMs: number;
   totalMs: number;
+  recordingDurationMs?: number;
+  audioBlobSizeBytes?: number;
+  speechDetected?: boolean;
+  speechActivityDurationMs?: number;
+  trailingSilenceMs?: number;
+  uploadDispatchMs?: number;
+  autoStopTriggered?: boolean;
+  vadOverheadMs?: number;
 }
 
 export interface VoiceAudioResponseRef {

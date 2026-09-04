@@ -73,6 +73,14 @@ export interface VoiceTransportMetrics {
   responseOptimizationMs?: number;
   ttsMs: number;
   totalMs: number;
+  recordingDurationMs?: number;
+  audioBlobSizeBytes?: number;
+  speechDetected?: boolean;
+  speechActivityDurationMs?: number;
+  trailingSilenceMs?: number;
+  uploadDispatchMs?: number;
+  autoStopTriggered?: boolean;
+  vadOverheadMs?: number;
 }
 
 export interface VoiceAudioResponseRef {
