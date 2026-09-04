@@ -73,40 +73,63 @@ export class VoiceResponseOptimizer {
       .replace(/\n+/g, ' ')                  // collapse newlines
       .replace(/\s{2,}/g, ' ');               // collapse multiple spaces
 
-    // 3. Spoken Conciseness Replacements (reduces spoken word count & TTS latency)
+    // 3. Spoken Conciseness Replacements (Voice Response Policy: short, natural, receptionist-style)
     clean = clean
-      // Boilerplate intros & pleasantries
+      // Boilerplate intros, lengthy polite padding & pleasantries
+      .replace(/Certainly! I would be more than happy to assist you with booking an appointment\.\s*/gi, 'Sure! ')
+      .replace(/Certainly!?\s*I would be (?:delighted|happy|pleased) to assist you(?:\s+with booking an appointment)?\.\s*/gi, 'Sure! ')
+      .replace(/Thank you very much for providing that information\.\s*I have successfully identified the requested service and would now like to ask you whether you have a particular staff member that you would prefer\.\s*/gi, 'Got it. Do you have a preferred specialist? ')
       .replace(/Thank you for providing that information\.\s*/gi, '')
+      .replace(/Thank you very much for providing that information\.\s*/gi, '')
       .replace(/Got it,\s*/gi, 'Got it. ')
       .replace(/Sounds good\.\s*/gi, 'Sounds good. ')
       .replace(/Great,\s*/gi, 'Great. ')
       .replace(/I understand that you would like to book an appointment with one of our specialists\.\s*/gi, '')
       // Service collection phrases
-      .replace(/Could you please tell me which service you (?:are interested in|would like to book(?: an appointment for)?)\?/gi, 'Which service would you like?')
+      .replace(/Could you please tell me which service you (?:are interested in[^?]*|would like to book[^?]*)\?/gi, 'Which service would you like?')
       .replace(/I couldn't identify that service\.\s*We currently offer:\s*/gi, "I couldn't find that service. We offer: ")
       // Staff collection phrases
       .replace(/Do you have a preferred specialist(?: that you would like to see for this appointment)?, or (?:would any(?: available)? specialist be acceptable|would anyone be fine)\?/gi, 'Do you have a preferred specialist, or is anyone okay?')
+      .replace(/Do you have a preferred specialist, or would anyone be fine\?/gi, 'Do you have a preferred specialist, or is anyone okay?')
       .replace(/I couldn't find that specialist\.\s*Our team includes:\s*/gi, "I couldn't find that specialist. Our team has: ")
+      // Date collection phrases
+      .replace(/What date would you prefer for your appointment\?/gi, 'What date would you prefer?')
       // Slot & Time collection phrases
       .replace(/Which one would you prefer\?/gi, 'Which time works best?')
       .replace(/Please select one of the available times:\s*/gi, 'Available times are: ')
       // Customer & Phone collection phrases
       .replace(/Could you please provide your phone number(?: so that we can locate your customer profile and| to)? complete (?:the|your) (?:appointment )?booking\?/gi, 'Please provide your phone number.')
       .replace(/Please provide your phone number to complete the booking\./gi, 'Please provide your phone number.')
+      .replace(/Could you please provide your phone number to complete the booking\?/gi, 'Please provide your phone number.')
       // Confirmation phrases
       .replace(/Please confirm your appointment:\s*/gi, 'Please confirm: ')
       .replace(/Would you like me to book it\?/gi, 'Should I book it?')
-      // Success completion phrases
+      // Success completion phrases (prompt examples: "Your appointment is confirmed. See you then!")
+      .replace(/has been successfully booked! We look forward to seeing you on the scheduled date\./gi, 'is confirmed. See you then!')
       .replace(/has been successfully booked! We look forward to seeing you\./gi, 'is confirmed! Thank you.')
-      .replace(/has been successfully booked!/gi, 'is confirmed!')
+      .replace(/has been successfully booked!/gi, 'is confirmed.')
       // Cancellation phrases
       .replace(/I have cancelled your booking request\.\s*Is there anything else I can help you with\?/gi, "I've cancelled that booking. How else can I help?")
       .replace(/No problem, I have cancelled this booking\.\s*How else may I assist you today\?/gi, "I've cancelled this booking. How else can I help?")
+      .replace(/I can assist you with canceling your appointment\.\s*Could you please provide your appointment date and time or your phone number\?/gi, "I can help cancel that. What is your appointment date or phone number?")
+      // Reschedule phrases
+      .replace(/I can help you reschedule your visit\.\s*What is your current appointment date, and what new time would you prefer\?/gi, "I can help reschedule. What is your current appointment date?")
       // Clarification & Fallback phrases
       .replace(/I'm sorry, I didn't catch that\.\s*Could you please repeat what you said\?/gi, "I didn't catch that. Could you repeat that, please?")
       .replace(/I didn't catch that\.\s*How can I help you today\?/gi, "I didn't catch that. How can I help you?");
 
-    // 4. Final normalization
+    // 4. Single-Question Constraint (Voice conversations must not ask multiple questions simultaneously)
+    const questionMarks = (clean.match(/\?/g) || []).length;
+    if (questionMarks > 1) {
+      // Split into sentences and keep at most the last/primary question
+      const sentences = clean.split(/(?<=[.!?])\s+/);
+      const nonQuestions = sentences.filter((s) => !s.endsWith('?'));
+      const questions = sentences.filter((s) => s.endsWith('?'));
+      // Keep introductory statement (if any) + the final actionable question
+      clean = [...nonQuestions.slice(0, 1), questions[questions.length - 1]].join(' ');
+    }
+
+    // 5. Final normalization
     clean = clean.replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1').trim();
 
     const charCountOptimized = clean.length;
@@ -189,6 +212,53 @@ export class VoiceResponseOptimizer {
         this.turnCache.delete(key);
       }
     }
+  }
+
+  /**
+   * Evaluate compliance of a response against the Voice Response Policy:
+   * 1. Concise character count (< 220 characters recommended for mobile voice).
+   * 2. Single-question constraint (at most 1 question asked per turn).
+   * 3. Markdown-free (no un-spoken symbols or formatting tags).
+   */
+  public evaluateVoiceResponsePolicy(text: string): {
+    compliant: boolean;
+    issues: string[];
+    sentenceCount: number;
+    charCount: number;
+  } {
+    const issues: string[] = [];
+    const trimmed = (text || '').trim();
+    const charCount = trimmed.length;
+
+    // Check markdown remnants
+    if (/(\*\*|\*|_|`|\[.*?\]\(.*?\)|#+)/.test(trimmed)) {
+      issues.push('Contains markdown formatting tags');
+    }
+
+    // Check question count
+    const questionMarks = (trimmed.match(/\?/g) || []).length;
+    if (questionMarks > 1) {
+      issues.push(`Multiple questions asked (${questionMarks} questions)`);
+    }
+
+    // Check sentence count
+    const sentences = trimmed.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const sentenceCount = sentences.length;
+    if (sentenceCount > 3) {
+      issues.push(`Too many sentences for voice turn (${sentenceCount} sentences)`);
+    }
+
+    // Check char count
+    if (charCount > 250) {
+      issues.push(`Response length exceeds voice ceiling (${charCount} > 250 chars)`);
+    }
+
+    return {
+      compliant: issues.length === 0,
+      issues,
+      sentenceCount,
+      charCount,
+    };
   }
 
   /**

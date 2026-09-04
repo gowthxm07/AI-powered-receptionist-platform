@@ -7,6 +7,7 @@ import {
   CreateTransportSessionInput,
   VoiceTransportState,
 } from '../types/voice-transport.types';
+import { voiceWarmupService } from '../../services/voice-warmup.service';
 
 export const DEFAULT_TRANSPORT_SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -136,6 +137,9 @@ export class VoiceTransportSessionManager {
     };
 
     this.transportSessions.set(transportSessionId, session);
+
+    // Non-blocking pipeline warmup on session creation (primes DB connection and Piper runtime)
+    voiceWarmupService.warmup().catch(() => {});
 
     return {
       success: true,
