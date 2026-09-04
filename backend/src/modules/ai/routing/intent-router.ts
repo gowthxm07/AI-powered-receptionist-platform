@@ -87,7 +87,23 @@ export class FastIntentRouter {
       };
     }
 
-    // 8. View / Check Existing Appointments
+    // 8. Appointment Preparation / Instructions / What to Bring
+    if (/\b(prepare|preparation|what should i bring|what to bring|need to bring|photo id|insurance card|arrive early|before my visit|before the appointment|dress code|fasting|empty stomach)\b/i.test(normalized)) {
+      return {
+        intent: AIIntent.APPOINTMENT_PREPARATION,
+        confidence: 0.94,
+      };
+    }
+
+    // 9. Payment & Insurance Inquiries
+    if (/\b(insurance|payment|pay|credit card|cash|coverage|accept medicare|accept medicaid|payment options|payment methods)\b/i.test(normalized)) {
+      return {
+        intent: AIIntent.PAYMENT_POLICY,
+        confidence: 0.93,
+      };
+    }
+
+    // 10. View / Check Existing Appointments
     if (/\b(my appointment|my appointments|check my appointment|when is my appointment|existing appointment)\b/i.test(normalized)) {
       return {
         intent: AIIntent.VIEW_APPOINTMENTS,
@@ -133,7 +149,7 @@ export class FastIntentRouter {
     }
 
     // 13. Business Information (Location, Hours, Phone, Address)
-    if (/\b(location|address|where are you|where is|operating hours|opening hours|closing hours|business hours|open hours|phone number|contact number|directions|website)\b/i.test(normalized)) {
+    if (/\b(location|address|where are you|where is|operating hours|opening hours|closing hours|business hours|open hours|phone number|contact number|directions|website|are you open|open today|when do you open|when do you close|what time do you close|parking|where to park)\b/i.test(normalized)) {
       return {
         intent: AIIntent.BUSINESS_INFORMATION,
         confidence: 0.92,

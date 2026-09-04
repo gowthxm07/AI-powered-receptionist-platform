@@ -212,11 +212,11 @@ export class AIReceptionistService {
 
         let naturalText: string;
         if (toolRes.success && Array.isArray(toolRes.data) && toolRes.data.length > 0) {
-          const list = toolRes.data
-            .slice(0, 4)
-            .map((s: any) => `${s.name} (${s.durationMinutes} mins)`)
-            .join(', ');
-          naturalText = `We offer ${list}. Would you like to schedule an appointment for one of these?`;
+          const serviceNames = toolRes.data.slice(0, 4).map((s: any) => s.name);
+          const list = serviceNames.length > 1
+            ? `${serviceNames.slice(0, -1).join(', ')}, and ${serviceNames[serviceNames.length - 1]}`
+            : serviceNames[0];
+          naturalText = `We offer ${list}. Which one would you like?`;
         } else {
           naturalText = 'I can help with our services, but currently no active services are cataloged.';
         }
@@ -404,6 +404,36 @@ export class AIReceptionistService {
           source: 'tool',
           toolUsed: 'get_appointments',
           data: toolRes.data,
+          latencyMs: performance.now() - startTime,
+        };
+      }
+
+      // ----------------------------------------------------
+      // DETERMINISTIC PATH 7: APPOINTMENT PREPARATION
+      // ----------------------------------------------------
+      case AIIntent.APPOINTMENT_PREPARATION: {
+        return {
+          success: true,
+          response: 'Please arrive 10 minutes early with a valid photo ID and your insurance card or payment method.',
+          action: AIAction.NONE,
+          intent: AIIntent.APPOINTMENT_PREPARATION,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        };
+      }
+
+      // ----------------------------------------------------
+      // DETERMINISTIC PATH 8: PAYMENT & INSURANCE POLICY
+      // ----------------------------------------------------
+      case AIIntent.PAYMENT_POLICY: {
+        return {
+          success: true,
+          response: 'We accept most major dental insurance plans, credit cards, debit cards, and cash. Please bring your card to your visit.',
+          action: AIAction.NONE,
+          intent: AIIntent.PAYMENT_POLICY,
+          sessionId,
+          source: 'deterministic',
           latencyMs: performance.now() - startTime,
         };
       }
