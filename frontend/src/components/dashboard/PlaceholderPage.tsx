@@ -7,7 +7,7 @@ import { ArrowLeft, Clock, Sparkles } from 'lucide-react';
 interface PlaceholderPageProps {
   title: string;
   subtitle: string;
-  phase: string;
+  status?: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
   upcomingFeatures: string[];
@@ -16,7 +16,7 @@ interface PlaceholderPageProps {
 export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({
   title,
   subtitle,
-  phase,
+  status = 'Platform Module',
   icon: Icon,
   description,
   upcomingFeatures,
@@ -44,7 +44,7 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({
             <div className="space-y-1.5">
               <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
                 <Clock className="w-3 h-3" />
-                <span>Scheduled for {phase}</span>
+                <span>{status}</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{title}</h2>
               <p className="text-slate-300 text-xs sm:text-sm max-w-xl">{subtitle}</p>
@@ -58,7 +58,7 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({
         <div className="md:col-span-2 rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4">
           <div className="flex items-center space-x-2 text-indigo-400 font-semibold text-xs tracking-wider uppercase">
             <Sparkles className="w-4 h-4" />
-            <span>Architecture & Roadmap Status</span>
+            <span>Module Capabilities</span>
           </div>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">{description}</p>
 

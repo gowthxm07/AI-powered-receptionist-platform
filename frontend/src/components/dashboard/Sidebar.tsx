@@ -9,10 +9,8 @@ import {
   UserCheck,
   Briefcase,
   Calendar,
-  MessageSquare,
   Bot,
   Mic,
-  Activity,
   Settings,
   X,
   Sparkles,
@@ -42,31 +40,25 @@ const navItems: NavItem[] = [
     name: 'Customers',
     href: '/dashboard/customers',
     icon: Users,
-    badge: 'Phase 6',
+    isReady: true,
   },
   {
     name: 'Staff Roster',
     href: '/dashboard/staff',
     icon: UserCheck,
-    badge: 'Phase 6',
+    isReady: true,
   },
   {
-    name: 'Services Catalog',
+    name: 'Services',
     href: '/dashboard/services',
     icon: Briefcase,
-    badge: 'Phase 6',
+    isReady: true,
   },
   {
     name: 'Appointments',
     href: '/dashboard/appointments',
     icon: Calendar,
-    badge: 'Phase 4',
-  },
-  {
-    name: 'Conversations',
-    href: '/dashboard/conversations',
-    icon: MessageSquare,
-    badge: 'Phase 4',
+    isReady: true,
   },
   {
     name: 'AI Receptionist',
@@ -75,24 +67,16 @@ const navItems: NavItem[] = [
     isReady: true,
   },
   {
-    name: 'Voice Receptionist',
+    name: 'Voice Reception',
     href: '/voice',
     icon: Mic,
-    badge: 'Real-Time',
-    isReady: true,
-  },
-  {
-    name: 'Voice Analytics',
-    href: '/dashboard/voice-analytics',
-    icon: Activity,
-    badge: 'Live',
     isReady: true,
   },
   {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
-    badge: 'Phase 6',
+    isReady: true,
   },
 ];
 
@@ -183,8 +167,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-medium text-slate-200 truncate">PostgreSQL Engine</p>
-            <p className="text-[10px] text-emerald-400 truncate">Isolated & Synchronized</p>
+            <p className="text-[11px] font-medium text-slate-200 truncate">System Status</p>
+            <p className="text-[10px] text-emerald-400 truncate">All Systems Operational</p>
           </div>
         </div>
       </div>
