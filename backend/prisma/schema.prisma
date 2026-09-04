@@ -44,6 +44,15 @@ enum MessageRole {
   SYSTEM
 }
 
+enum VoiceSessionStatus {
+  CREATED
+  ACTIVE
+  COMPLETED
+  ENDED_BY_USER
+  ERROR
+  EXPIRED
+}
+
 // --------------------------------------------------
 // 0. USER ENTITY (Authentication & Role Authorization)
 // --------------------------------------------------
@@ -78,12 +87,13 @@ model Business {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  owner         User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  owner         User?                   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   customers     Customer[]
   staff         Staff[]
   services      Service[]
   appointments  Appointment[]
   conversations Conversation[]
+  voiceSessions VoiceSessionAnalytics[]
 
   @@index([ownerId])
   @@map("businesses")
@@ -102,9 +112,10 @@ model Customer {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  business      Business?      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business      Business?               @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointments  Appointment[]
   conversations Conversation[]
+  voiceSessions VoiceSessionAnalytics[]
 
   @@index([businessId])
   @@map("customers")
@@ -170,10 +181,11 @@ model Appointment {
   updatedAt  DateTime          @updatedAt
 
   // Relations
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  staff    Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  business      Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer      Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staff         Staff?                  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  service       Service                 @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  voiceSessions VoiceSessionAnalytics[]
 
   @@index([businessId])
   @@index([businessId, startTime])
@@ -227,3 +239,45 @@ model ConversationMessage {
   @@index([conversationId])
   @@map("conversation_messages")
 }
+
+// --------------------------------------------------
+// 8. VOICE SESSION ANALYTICS ENTITY
+// --------------------------------------------------
+model VoiceSessionAnalytics {
+  id                           String             @id @default(uuid())
+  businessId                   String
+  transportSessionId           String             @unique
+  conversationSessionId        String
+  customerId                   String?
+  channel                      String             @default("MOBILE_WEB")
+  status                       VoiceSessionStatus @default(CREATED)
+  startedAt                    DateTime           @default(now())
+  endedAt                      DateTime?
+  durationMs                   Int?
+  turnCount                    Int                @default(0)
+  successfulTranscriptionCount Int                @default(0)
+  failedTranscriptionCount     Int                @default(0)
+  appointmentBooked            Boolean            @default(false)
+  appointmentId                String?
+  averageSttLatencyMs          Float?
+  averageConversationLatencyMs Float?
+  averageTtsLatencyMs          Float?
+  totalLatencyMs               Float?
+  createdAt                    DateTime           @default(now())
+  updatedAt                    DateTime           @updatedAt
+
+  // Relations
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, createdAt])
+  @@index([transportSessionId])
+  @@index([conversationSessionId])
+  @@index([customerId])
+  @@index([appointmentId])
+  @@map("voice_session_analytics")
+}
+
