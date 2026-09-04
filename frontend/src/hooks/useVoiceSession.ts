@@ -4,6 +4,7 @@ import {
   VoiceTransportSession,
   VoiceDialogueTurn,
   VoiceTurnMetrics,
+  VoiceRecordingMetrics,
 } from '../types/voice';
 import { voiceTransportClient } from '../services/voice-transport.client';
 import { useMediaRecorder } from './useMediaRecorder';
@@ -20,102 +21,116 @@ export function useVoiceSession() {
   const sessionRef = useRef<VoiceTransportSession | null>(null);
   sessionRef.current = session;
 
-  // Handler when recorded audio Blob is ready from useMediaRecorder
-  const handleAudioReady = useCallback(async (blob: Blob) => {
-    const currentSession = sessionRef.current;
-    if (!currentSession) {
-      setError('Voice session not found. Please restart the call.');
-      setUiState('ERROR');
-      return;
-    }
-
-    setUiState('PROCESSING');
-    setError(null);
-
-    try {
-      const turnResult = await voiceTransportClient.submitAudioTurn({
-        transportSessionId: currentSession.transportSessionId,
-        businessId: currentSession.businessId,
-        customerId: currentSession.customerId || undefined,
-        audioBlob: blob,
-        channel: 'MOBILE_WEB',
-      });
-
-      // Append user turn
-      if (turnResult.transcript) {
-        setDialogueTurns((prev) => [
-          ...prev,
-          {
-            id: `usr_${Date.now()}`,
-            speaker: 'user',
-            text: turnResult.transcript,
-            timestamp: new Date(),
-          },
-        ]);
+  // Handler when recorded audio Blob and metrics are ready from useMediaRecorder
+  const handleAudioReady = useCallback(
+    async (blob: Blob, mimeType: string, recordingMetrics?: VoiceRecordingMetrics) => {
+      const currentSession = sessionRef.current;
+      if (!currentSession) {
+        setError('Voice session not found. Please restart the call.');
+        setUiState('ERROR');
+        return;
       }
 
-      // Append assistant turn
-      if (turnResult.responseText) {
-        const audioUrl = turnResult.audio?.url
-          ? voiceTransportClient.getAudioStreamUrl(turnResult.audio.audioId)
-          : undefined;
+      // Safe structured client recording telemetry logging (NO audio data, NO PII)
+      if (recordingMetrics) {
+        console.log(
+          `[Voice Recording] duration=${recordingMetrics.recordingDurationMs}ms size=${recordingMetrics.audioBlobSizeBytes}bytes speechDetected=${recordingMetrics.speechDetected} trailingSilence=${recordingMetrics.trailingSilenceMs}ms autoStop=${recordingMetrics.autoStopTriggered} uploadDispatch=${recordingMetrics.uploadDispatchMs}ms`
+        );
+      }
 
-        setDialogueTurns((prev) => [
-          ...prev,
-          {
-            id: `ast_${Date.now()}`,
-            speaker: 'assistant',
-            text: turnResult.responseText,
-            audioUrl,
-            timestamp: new Date(),
-            source: turnResult.source,
-            metrics: turnResult.metrics,
-          },
-        ]);
+      setUiState('PROCESSING');
+      setError(null);
 
-        if (turnResult.metadata?.conversationStep) {
-          setActiveStep(turnResult.metadata.conversationStep);
+      try {
+        const turnResult = await voiceTransportClient.submitAudioTurn({
+          transportSessionId: currentSession.transportSessionId,
+          businessId: currentSession.businessId,
+          customerId: currentSession.customerId || undefined,
+          audioBlob: blob,
+          channel: 'MOBILE_WEB',
+        });
+
+        // Merge backend transport metrics with client recording telemetry
+        const mergedMetrics: VoiceTurnMetrics = {
+          ...turnResult.metrics,
+          ...(recordingMetrics || {}),
+        };
+
+        // Append user turn
+        if (turnResult.transcript) {
+          setDialogueTurns((prev) => [
+            ...prev,
+            {
+              id: `usr_${Date.now()}`,
+              speaker: 'user',
+              text: turnResult.transcript,
+              timestamp: new Date(),
+            },
+          ]);
         }
 
-        if (turnResult.metrics) {
-          setLastMetrics(turnResult.metrics);
-        }
+        // Append assistant turn
+        if (turnResult.responseText) {
+          const audioUrl = turnResult.audio?.url
+            ? voiceTransportClient.getAudioStreamUrl(turnResult.audio.audioId)
+            : undefined;
 
-        // Play audio response if available
-        if (audioUrl) {
-          setUiState('PLAYING');
-          if (audioPlayerRef.current) {
-            audioPlayerRef.current.pause();
+          setDialogueTurns((prev) => [
+            ...prev,
+            {
+              id: `ast_${Date.now()}`,
+              speaker: 'assistant',
+              text: turnResult.responseText,
+              audioUrl,
+              timestamp: new Date(),
+              source: turnResult.source,
+              metrics: mergedMetrics,
+            },
+          ]);
+
+          if (turnResult.metadata?.conversationStep) {
+            setActiveStep(turnResult.metadata.conversationStep);
           }
 
-          const player = new Audio(audioUrl);
-          audioPlayerRef.current = player;
+          setLastMetrics(mergedMetrics);
 
-          player.onended = () => {
-            setUiState('READY');
-          };
-          player.onerror = () => {
-            setUiState('READY');
-          };
+          // Play audio response if available
+          if (audioUrl) {
+            setUiState('PLAYING');
+            if (audioPlayerRef.current) {
+              audioPlayerRef.current.pause();
+            }
 
-          await player.play().catch(() => {
-            // Browser autoplay policy might require manual interaction
+            const player = new Audio(audioUrl);
+            audioPlayerRef.current = player;
+
+            player.onended = () => {
+              setUiState('READY');
+            };
+            player.onerror = () => {
+              setUiState('READY');
+            };
+
+            await player.play().catch(() => {
+              // Browser autoplay policy might require manual interaction
+              setUiState('READY');
+            });
+          } else {
             setUiState('READY');
-          });
+          }
         } else {
           setUiState('READY');
         }
-      } else {
+
+        // Refresh session turn count
+        setSession((prev) => (prev ? { ...prev, turnCount: prev.turnCount + 1 } : null));
+      } catch (err: any) {
+        setError(err.message || 'Failed to process voice turn.');
         setUiState('READY');
       }
-
-      // Refresh session turn count
-      setSession((prev) => (prev ? { ...prev, turnCount: prev.turnCount + 1 } : null));
-    } catch (err: any) {
-      setError(err.message || 'Failed to process voice turn.');
-      setUiState('READY');
-    }
-  }, []);
+    },
+    []
+  );
 
   const {
     isRecording,
@@ -125,6 +140,14 @@ export function useVoiceSession() {
     isSecureContext,
     diagnostics,
     errorMessage: recorderError,
+    speechDetected,
+    volumeLevel,
+    autoStopTriggered,
+    autoStopEnabled,
+    setAutoStopEnabled,
+    silenceThresholdMs,
+    setSilenceThresholdMs,
+    lastRecordingMetrics,
     requestPermission,
     startRecording,
     stopRecording,
@@ -214,7 +237,7 @@ export function useVoiceSession() {
   }, [uiState, startRecording]);
 
   /**
-   * Stop speaking / recording and submit turn.
+   * Stop speaking / recording and submit turn (Push-to-Talk manual stop).
    */
   const stopTalking = useCallback(() => {
     if (uiState !== 'RECORDING') return;
@@ -272,6 +295,14 @@ export function useVoiceSession() {
     isSupported,
     isSecureContext,
     diagnostics,
+    speechDetected,
+    volumeLevel,
+    autoStopTriggered,
+    autoStopEnabled,
+    setAutoStopEnabled,
+    silenceThresholdMs,
+    setSilenceThresholdMs,
+    lastRecordingMetrics,
     startSession,
     startTalking,
     stopTalking,

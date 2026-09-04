@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { MicrophonePermissionState, MicrophoneDiagnostics } from '../types/voice';
+import {
+  MicrophonePermissionState,
+  MicrophoneDiagnostics,
+  VoiceActivityConfig,
+  VoiceRecordingMetrics,
+} from '../types/voice';
 import { getApiBaseUrl } from '../lib/api';
+import { VoiceActivityDetector, DEFAULT_VAD_CONFIG } from '../lib/voice-activity-detector';
 
 /**
  * Determine the best browser-supported audio MIME type for MediaRecorder.
@@ -49,7 +55,11 @@ export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
     };
   }
 
-  const isSecure = typeof window.isSecureContext === 'boolean' ? window.isSecureContext : window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isSecure = typeof window.isSecureContext === 'boolean'
+    ? window.isSecureContext
+    : window.location.protocol === 'https:' ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
   const hasMediaDev = !!(typeof navigator !== 'undefined' && navigator.mediaDevices);
   const hasGUM = !!(hasMediaDev && typeof navigator.mediaDevices.getUserMedia === 'function');
   const hasMR = typeof MediaRecorder !== 'undefined';
@@ -71,12 +81,14 @@ export function getMicrophoneDiagnostics(): MicrophoneDiagnostics {
 }
 
 export interface UseMediaRecorderOptions {
-  onAudioReady?: (blob: Blob, mimeType: string) => void;
+  onAudioReady?: (blob: Blob, mimeType: string, metrics?: VoiceRecordingMetrics) => void;
   onError?: (err: Error) => void;
+  vadConfig?: Partial<VoiceActivityConfig>;
+  initialAutoStopEnabled?: boolean;
 }
 
 export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
-  const { onAudioReady, onError } = options;
+  const { onAudioReady, onError, vadConfig, initialAutoStopEnabled = true } = options;
 
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingDurationSec, setRecordingDurationSec] = useState<number>(0);
@@ -86,11 +98,25 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<MicrophoneDiagnostics | null>(null);
 
+  // VAD and silence handling reactive states
+  const [speechDetected, setSpeechDetected] = useState<boolean>(false);
+  const [volumeLevel, setVolumeLevel] = useState<number>(0);
+  const [autoStopTriggered, setAutoStopTriggered] = useState<boolean>(false);
+  const [autoStopEnabled, setAutoStopEnabled] = useState<boolean>(initialAutoStopEnabled);
+  const [silenceThresholdMs, setSilenceThresholdMs] = useState<number>(
+    vadConfig?.silenceThresholdMs || DEFAULT_VAD_CONFIG.silenceThresholdMs
+  );
+  const [lastRecordingMetrics, setLastRecordingMetrics] = useState<VoiceRecordingMetrics | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mimeTypeRef = useRef<string>('audio/webm');
+  const vadRef = useRef<VoiceActivityDetector | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
+  const stopTriggerTimeRef = useRef<number>(0);
+  const pendingVadMetricsRef = useRef<VoiceRecordingMetrics | null>(null);
 
   // Check browser API compatibility and security context
   useEffect(() => {
@@ -129,6 +155,7 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (vadRef.current) vadRef.current.cleanup();
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
@@ -196,10 +223,46 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
   }, [onError]);
 
   /**
-   * Start recording audio turn.
+   * Forward reference to stopRecording for auto-stop callback.
+   */
+  const stopRecordingRef = useRef<() => void>(() => {});
+
+  /**
+   * Stop recording audio turn.
+   */
+  const stopRecording = useCallback((): void => {
+    stopTriggerTimeRef.current = performance.now();
+
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    // Stop VAD analysis loop and snapshot metrics
+    if (vadRef.current) {
+      pendingVadMetricsRef.current = vadRef.current.stop();
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+
+    setIsRecording(false);
+    setVolumeLevel(0);
+  }, []);
+
+  stopRecordingRef.current = stopRecording;
+
+  /**
+   * Start recording audio turn with VAD and auto-stop monitoring.
    */
   const startRecording = useCallback(async (): Promise<boolean> => {
     setErrorMessage(null);
+    setSpeechDetected(false);
+    setAutoStopTriggered(false);
+    setVolumeLevel(0);
 
     // Acquire or verify stream
     if (!mediaStreamRef.current || !mediaStreamRef.current.active) {
@@ -224,17 +287,81 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
       recorder.onstop = () => {
         const finalMime = mimeTypeRef.current || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: finalMime });
-        if (onAudioReady && audioBlob.size > 0) {
-          onAudioReady(audioBlob, finalMime);
+        const durationMs = Number((performance.now() - recordingStartTimeRef.current).toFixed(1));
+        const vadMetrics = pendingVadMetricsRef.current;
+        const uploadDispatchMs = Number((performance.now() - stopTriggerTimeRef.current).toFixed(2));
+
+        const hasSpoken = vadMetrics?.speechDetected ?? speechDetected;
+
+        // -------------------------------------------------------------
+        // PRE-UPLOAD AUDIO QUALITY VALIDATION
+        // -------------------------------------------------------------
+        // 1. Accidental short tap (< 300 ms)
+        if (durationMs < (vadConfig?.minRecordingDurationMs || DEFAULT_VAD_CONFIG.minRecordingDurationMs)) {
+          setErrorMessage('Recording was too short. Please tap to speak and hold.');
+          return;
+        }
+
+        // 2. Empty audio blob (< 500 bytes)
+        if (audioBlob.size < (vadConfig?.minBlobSizeBytes || DEFAULT_VAD_CONFIG.minBlobSizeBytes)) {
+          setErrorMessage('Audio was not recorded properly. Please try speaking again.');
+          return;
+        }
+
+        // 3. Complete silence (1+ seconds without any speech activity)
+        if (!hasSpoken && durationMs >= 1000) {
+          setErrorMessage("I couldn't hear anything. Please try speaking again.");
+          return;
+        }
+
+        // -------------------------------------------------------------
+        // VALID AUDIO TURN DISPATCH
+        // -------------------------------------------------------------
+        const finalMetrics: VoiceRecordingMetrics = {
+          recordingDurationMs: durationMs,
+          audioBlobSizeBytes: audioBlob.size,
+          speechDetected: hasSpoken,
+          speechActivityDurationMs: vadMetrics?.speechActivityDurationMs || (hasSpoken ? durationMs : 0),
+          trailingSilenceMs: vadMetrics?.trailingSilenceMs || 0,
+          uploadDispatchMs,
+          autoStopTriggered: vadMetrics?.autoStopTriggered || false,
+          vadOverheadMs: vadMetrics?.vadOverheadMs || 0.02,
+        };
+
+        setLastRecordingMetrics(finalMetrics);
+
+        if (onAudioReady) {
+          onAudioReady(audioBlob, finalMime, finalMetrics);
         }
       };
 
-      recorder.start(100); // 100ms timeslice
+      // Initialize and start Voice Activity Detector
+      vadRef.current = new VoiceActivityDetector(
+        {
+          onVolumeChange: (vol) => setVolumeLevel(vol),
+          onSpeechStart: () => setSpeechDetected(true),
+          onAutoStop: (metrics) => {
+            setAutoStopTriggered(true);
+            pendingVadMetricsRef.current = metrics;
+            stopRecordingRef.current();
+          },
+        },
+        {
+          ...DEFAULT_VAD_CONFIG,
+          ...vadConfig,
+          autoStopEnabled,
+          silenceThresholdMs,
+        }
+      );
+      vadRef.current.start(mediaStreamRef.current);
+
+      recordingStartTimeRef.current = performance.now();
+      recorder.start(100); // 100ms timeslices for fast blob creation
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       setRecordingDurationSec(0);
 
-      // Start duration timer
+      // Start duration display timer
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = setInterval(() => {
         setRecordingDurationSec((prev) => prev + 1);
@@ -247,36 +374,23 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
       onError?.(err);
       return false;
     }
-  }, [requestPermission, onAudioReady, onError]);
-
-  /**
-   * Stop recording audio turn.
-   */
-  const stopRecording = useCallback((): void => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {}
-    }
-
-    setIsRecording(false);
-  }, []);
+  }, [requestPermission, onAudioReady, onError, vadConfig, autoStopEnabled, silenceThresholdMs, speechDetected]);
 
   /**
    * Stop all media tracks and release microphone.
    */
   const releaseMicrophone = useCallback((): void => {
     stopRecording();
+    if (vadRef.current) {
+      vadRef.current.cleanup();
+      vadRef.current = null;
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
     setRecordingDurationSec(0);
+    setVolumeLevel(0);
   }, [stopRecording]);
 
   return {
@@ -287,6 +401,14 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
     isSecureContext,
     errorMessage,
     diagnostics,
+    speechDetected,
+    volumeLevel,
+    autoStopTriggered,
+    autoStopEnabled,
+    setAutoStopEnabled,
+    silenceThresholdMs,
+    setSilenceThresholdMs,
+    lastRecordingMetrics,
     requestPermission,
     startRecording,
     stopRecording,

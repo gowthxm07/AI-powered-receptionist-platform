@@ -6,6 +6,8 @@ import { RecordingTimer } from './RecordingTimer';
 interface VoiceControlButtonProps {
   state: VoiceUIState;
   recordingDurationSec: number;
+  autoStopEnabled?: boolean;
+  speechDetected?: boolean;
   onStartSession: () => void;
   onStartTalking: () => void;
   onStopTalking: () => void;
@@ -15,6 +17,8 @@ interface VoiceControlButtonProps {
 export const VoiceControlButton: React.FC<VoiceControlButtonProps> = ({
   state,
   recordingDurationSec,
+  autoStopEnabled = true,
+  speechDetected = false,
   onStartSession,
   onStartTalking,
   onStopTalking,
@@ -62,7 +66,14 @@ export const VoiceControlButton: React.FC<VoiceControlButtonProps> = ({
           <Square className="w-5 h-5 fill-current" />
           <div className="flex flex-col items-start leading-tight">
             <span>Tap to Stop & Send</span>
-            <RecordingTimer durationSec={recordingDurationSec} />
+            <div className="flex items-center gap-2 text-xs text-rose-200">
+              <RecordingTimer durationSec={recordingDurationSec} />
+              {autoStopEnabled && (
+                <span className="text-[10px] bg-rose-700/80 px-1.5 py-0.5 rounded font-mono">
+                  {speechDetected ? 'Auto-stop on pause' : 'Auto-stop: On'}
+                </span>
+              )}
+            </div>
           </div>
         </button>
       ) : state === 'PROCESSING' ? (

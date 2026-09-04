@@ -4,16 +4,35 @@ import { Bot, Mic, Sparkles, Volume2 } from 'lucide-react';
 
 interface VoiceActivityIndicatorProps {
   state: VoiceUIState;
+  volumeLevel?: number;
+  speechDetected?: boolean;
 }
 
-export const VoiceActivityIndicator: React.FC<VoiceActivityIndicatorProps> = ({ state }) => {
+export const VoiceActivityIndicator: React.FC<VoiceActivityIndicatorProps> = ({
+  state,
+  volumeLevel = 0,
+  speechDetected = false,
+}) => {
+  // Scale factor calculated from live mic volume (1.0 to 1.25)
+  const dynamicScale = state === 'RECORDING' ? 1.0 + (volumeLevel / 100) * 0.25 : 1.0;
+
   return (
     <div className="relative flex items-center justify-center w-36 h-36 mx-auto">
       {/* Outer ambient glow rings */}
       {state === 'RECORDING' && (
         <>
-          <div className="absolute inset-0 rounded-full bg-rose-500/20 animate-ping" />
-          <div className="absolute -inset-2 rounded-full bg-rose-500/10 animate-pulse" />
+          <div
+            className={`absolute inset-0 rounded-full transition-transform duration-75 ${
+              speechDetected ? 'bg-emerald-500/25 animate-ping' : 'bg-rose-500/20 animate-pulse'
+            }`}
+            style={{ transform: `scale(${dynamicScale})` }}
+          />
+          <div
+            className={`absolute -inset-3 rounded-full transition-all duration-75 ${
+              speechDetected ? 'bg-emerald-500/15 animate-pulse' : 'bg-rose-500/10'
+            }`}
+            style={{ transform: `scale(${1 + (dynamicScale - 1) * 1.5})` }}
+          />
         </>
       )}
 

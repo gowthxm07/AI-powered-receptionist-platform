@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { VoiceTransportSession, VoiceTurnMetrics } from '../../types/voice';
-import { ChevronDown, ChevronUp, Cpu, Gauge, Layers, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronUp, Cpu, Gauge, Layers, ShieldCheck, Mic } from 'lucide-react';
 
 interface VoiceSessionInfoProps {
   session: VoiceTransportSession | null;
@@ -23,56 +23,104 @@ export const VoiceSessionInfo: React.FC<VoiceSessionInfoProps> = ({
   };
 
   return (
-    <div className="w-full max-w-sm mx-auto rounded-2xl bg-slate-900/80 border border-slate-800 text-slate-300 text-xs shadow-md overflow-hidden transition-all">
-      {/* Header Accordion Toggle */}
+    <div className="w-full rounded-2xl bg-slate-900/90 border border-slate-800 text-xs overflow-hidden shadow-md">
+      {/* Accordion Header */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-slate-800/50 transition-colors text-left"
+        className="w-full px-4 py-3 flex items-center justify-between text-slate-300 hover:text-white transition-colors"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 font-medium">
           <Layers className="w-4 h-4 text-indigo-400" />
-          <span className="font-semibold text-slate-200">Session & Telemetry</span>
-          {metrics && (
-            <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-medium">
-              ~{(metrics.totalMs / 1000).toFixed(2)}s
-            </span>
-          )}
+          <span>Active Session Telemetry</span>
         </div>
-        {isOpen ? (
-          <ChevronUp className="w-4 h-4 text-slate-400" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-slate-400" />
-        )}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono text-slate-400">
+            Turns: {session.turnCount}
+          </span>
+          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </div>
       </button>
 
-      {/* Expanded Content */}
+      {/* Accordion Content */}
       {isOpen && (
-        <div className="p-4 border-t border-slate-800/80 space-y-3 bg-slate-950/60">
-          {/* Session IDs */}
-          <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
-            <div>
-              <span className="text-slate-500 block text-[10px]">Transport Session</span>
-              <span className="text-indigo-300">{maskId(session.transportSessionId)}</span>
+        <div className="px-4 pb-4 space-y-3 pt-1 border-t border-slate-800/80">
+          {/* Tenant & Session Mapping */}
+          <div className="space-y-1 text-slate-400">
+            <div className="flex justify-between">
+              <span>Transport Session:</span>
+              <span className="font-mono text-slate-200">{maskId(session.transportSessionId)}</span>
             </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Conversation ID</span>
-              <span className="text-indigo-300">{maskId(session.conversationSessionId)}</span>
+            <div className="flex justify-between">
+              <span>Conversation Session:</span>
+              <span className="font-mono text-slate-200">{maskId(session.conversationSessionId)}</span>
             </div>
+            <div className="flex justify-between">
+              <span>Channel:</span>
+              <span className="text-emerald-400 font-semibold">{session.channel}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tenant Business:</span>
+              <span className="font-mono text-slate-300">{maskId(session.businessId)}</span>
+            </div>
+            {activeStep && (
+              <div className="flex justify-between">
+                <span>Active Dialogue Step:</span>
+                <span className="text-indigo-300 font-mono font-semibold">{activeStep}</span>
+              </div>
+            )}
           </div>
 
-          {/* Conversation State */}
-          <div className="flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Step:</span>
+          {/* Client Voice Turn Detection Telemetry */}
+          {metrics && metrics.recordingDurationMs !== undefined && (
+            <div className="pt-2 border-t border-slate-800 space-y-1 text-[11px] font-mono">
+              <div className="flex items-center gap-1 text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-1">
+                <Mic className="w-3 h-3" />
+                <span>Turn Audio Detection</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Recording Duration:</span>
+                <span className="text-slate-300">{metrics.recordingDurationMs.toFixed(1)} ms</span>
+              </div>
+              {metrics.audioBlobSizeBytes !== undefined && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Audio Payload Size:</span>
+                  <span className="text-slate-300">{(metrics.audioBlobSizeBytes / 1024).toFixed(1)} KB ({metrics.audioBlobSizeBytes} B)</span>
+                </div>
+              )}
+              <div className="flex justify-between text-slate-400">
+                <span>Speech Detected:</span>
+                <span className={metrics.speechDetected ? 'text-emerald-400' : 'text-amber-400'}>
+                  {metrics.speechDetected ? 'Yes' : 'No'}
+                </span>
+              </div>
+              {metrics.trailingSilenceMs !== undefined && metrics.trailingSilenceMs > 0 && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Trailing Silence:</span>
+                  <span className="text-slate-300">{metrics.trailingSilenceMs.toFixed(1)} ms</span>
+                </div>
+              )}
+              {metrics.autoStopTriggered !== undefined && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Auto-Stop Triggered:</span>
+                  <span className={metrics.autoStopTriggered ? 'text-teal-300 font-semibold' : 'text-slate-500'}>
+                    {metrics.autoStopTriggered ? 'Yes (Silence)' : 'No (Manual)'}
+                  </span>
+                </div>
+              )}
+              {metrics.uploadDispatchMs !== undefined && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Upload Dispatch Delay:</span>
+                  <span className="text-indigo-300">{metrics.uploadDispatchMs.toFixed(1)} ms</span>
+                </div>
+              )}
+              {metrics.vadOverheadMs !== undefined && (
+                <div className="flex justify-between text-slate-400">
+                  <span>VAD Overhead / cycle:</span>
+                  <span className="text-slate-300">{metrics.vadOverheadMs.toFixed(2)} ms</span>
+                </div>
+              )}
             </div>
-            <span className="font-mono text-emerald-400 font-semibold">{activeStep || 'IDLE'}</span>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-slate-400">Turn Counter:</span>
-            <span className="font-mono text-slate-200">{session.turnCount} turns</span>
-          </div>
+          )}
 
           {/* Real Measured Latency Breakdown */}
           {metrics && (

@@ -4,9 +4,10 @@ import { Wifi, Mic, Sparkles, Volume2, AlertCircle, PhoneOff } from 'lucide-reac
 
 interface VoiceStatusProps {
   state: VoiceUIState;
+  speechDetected?: boolean;
 }
 
-export const VoiceStatus: React.FC<VoiceStatusProps> = ({ state }) => {
+export const VoiceStatus: React.FC<VoiceStatusProps> = ({ state, speechDetected }) => {
   switch (state) {
     case 'CONNECTING':
       return (
@@ -29,9 +30,15 @@ export const VoiceStatus: React.FC<VoiceStatusProps> = ({ state }) => {
 
     case 'RECORDING':
       return (
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium animate-pulse">
-          <Mic className="w-3.5 h-3.5 text-rose-400" />
-          <span>Listening to your voice...</span>
+        <div
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+            speechDetected
+              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 animate-pulse'
+              : 'bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse'
+          }`}
+        >
+          <Mic className={`w-3.5 h-3.5 ${speechDetected ? 'text-emerald-400' : 'text-rose-400'}`} />
+          <span>{speechDetected ? 'Speech detected • Speaking...' : 'Listening... Speak now'}</span>
         </div>
       );
 

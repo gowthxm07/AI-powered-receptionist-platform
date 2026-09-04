@@ -42,6 +42,13 @@ export const VoiceReceptionist: React.FC = () => {
     isSecureContext,
     permissionState,
     diagnostics,
+    speechDetected,
+    volumeLevel,
+    autoStopTriggered,
+    autoStopEnabled,
+    setAutoStopEnabled,
+    silenceThresholdMs,
+    setSilenceThresholdMs,
     startSession,
     startTalking,
     stopTalking,
@@ -127,7 +134,7 @@ export const VoiceReceptionist: React.FC = () => {
           <span className="text-[10px] text-indigo-400 font-medium">Mobile Voice AI</span>
         </div>
 
-        <VoiceStatus state={uiState} />
+        <VoiceStatus state={uiState} speechDetected={speechDetected} />
       </header>
 
       {/* Main Interactive Body */}
@@ -136,56 +143,48 @@ export const VoiceReceptionist: React.FC = () => {
         {!isSecureContext && (
           <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-2.5 animate-fadeIn">
             <div className="flex items-center gap-2 font-semibold text-amber-300">
-              <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span>HTTPS Connection Required for Microphone</span>
+              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+              <span>Insecure HTTP Context Detected</span>
             </div>
-            <p className="text-amber-200/90 leading-relaxed text-[11px]">
-              Android Chrome and iOS Safari require a secure context (HTTPS) to grant microphone permissions when accessing over a local Wi-Fi IP.
+            <p className="leading-relaxed text-slate-300">
+              Mobile browsers restrict microphone access to HTTPS origins or localhost. When testing over the local network, please navigate to:
             </p>
-            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-amber-500/20 text-[11px] font-mono space-y-1">
-              <div className="text-slate-400 font-sans font-medium text-[10px] uppercase tracking-wider">Recommended Access URL:</div>
-              <div className="text-emerald-400 select-all font-semibold">
-                https://{typeof window !== 'undefined' ? window.location.host : '11.12.18.229:3000'}/voice
-              </div>
+            <div className="p-2 rounded-xl bg-slate-950/80 border border-amber-500/20 font-mono text-[11px] text-amber-400 break-all select-all">
+              https://{diagnostics?.host || '11.12.18.229:3000'}/voice
             </div>
-            <p className="text-slate-400 text-[10px] leading-relaxed">
-              When loading via HTTPS on your phone, tap <span className="text-slate-300 font-medium">Advanced &rarr; Proceed to site</span> to accept the local dev certificate.
-            </p>
           </div>
         )}
 
-        {/* Business & Caller Context Selector (Visible before call starts) */}
-        {uiState === 'IDLE' || uiState === 'ENDED' || uiState === 'ERROR' ? (
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800/80 p-4 space-y-3">
+        {/* Business and Customer Selectors */}
+        {!session ? (
+          <div className="space-y-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-sm">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-              <Building2 className="w-4 h-4 text-indigo-400" />
-              <span>Select Tenant Business</span>
+              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Select Business Tenant:</span>
             </div>
-
             <select
               value={selectedBusinessId}
               onChange={(e) => setSelectedBusinessId(e.target.value)}
               disabled={isLoadingBusinesses}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
             >
-              {businesses.map((biz) => (
-                <option key={biz.id} value={biz.id}>
-                  {biz.name}
+              {businesses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
                 </option>
               ))}
             </select>
 
-            <div className="pt-2 border-t border-slate-800/60 flex items-center gap-2 text-xs font-semibold text-slate-300">
-              <User className="w-4 h-4 text-emerald-400" />
-              <span>Caller Profile</span>
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 pt-1">
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Caller Profile (Optional):</span>
             </div>
-
             <select
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
             >
-              <option value="">Guest Caller (Anonymous)</option>
+              <option value="">Guest Caller (New Customer)</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.phone || 'No phone'})
@@ -197,7 +196,11 @@ export const VoiceReceptionist: React.FC = () => {
 
         {/* Center Animated Activity Visualizer */}
         <div className="flex flex-col items-center justify-center my-auto py-2">
-          <VoiceActivityIndicator state={uiState} />
+          <VoiceActivityIndicator
+            state={uiState}
+            volumeLevel={volumeLevel}
+            speechDetected={speechDetected}
+          />
 
           {/* Current Spoken Speech Bubble */}
           <div className="mt-6 w-full text-center px-2 min-h-[72px] flex items-center justify-center">
@@ -242,9 +245,39 @@ export const VoiceReceptionist: React.FC = () => {
 
         {/* Action Controls */}
         <div className="space-y-4">
+          {/* Silence Auto-Stop Feature Toggle */}
+          {session && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+              <div className="flex flex-col">
+                <span className="text-slate-200 font-medium">Auto-Stop on Silence</span>
+                <span className="text-[10px] text-slate-400">
+                  {autoStopEnabled ? `Stops after ${(silenceThresholdMs / 1000).toFixed(1)}s pause` : 'Manual push-to-talk only'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoStopEnabled(!autoStopEnabled)}
+                className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  autoStopEnabled ? 'bg-teal-500' : 'bg-slate-700'
+                }`}
+                role="switch"
+                aria-checked={autoStopEnabled}
+                aria-label="Toggle auto-stop on silence"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    autoStopEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+
           <VoiceControlButton
             state={uiState}
             recordingDurationSec={recordingDurationSec}
+            autoStopEnabled={autoStopEnabled}
+            speechDetected={speechDetected}
             onStartSession={() => startSession(selectedBusinessId, selectedCustomerId || undefined)}
             onStartTalking={startTalking}
             onStopTalking={stopTalking}
