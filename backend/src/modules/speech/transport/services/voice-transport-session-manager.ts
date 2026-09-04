@@ -143,17 +143,19 @@ export class VoiceTransportSessionManager {
     // Non-blocking pipeline warmup on session creation (primes DB connection and Piper runtime)
     voiceWarmupService.warmup().catch(() => {});
 
-    // Non-blocking persistent analytics session initialization
-    voiceAnalyticsService
-      .createSession({
+    // Persistent analytics session initialization
+    try {
+      await voiceAnalyticsService.createSession({
         businessId,
         transportSessionId,
         conversationSessionId: convSessionId,
         customerId: customerRecord?.id || null,
         channel,
         startedAt: now,
-      })
-      .catch(() => {});
+      });
+    } catch {
+      // Non-blocking fallback
+    }
 
     return {
       success: true,
@@ -240,9 +242,11 @@ export class VoiceTransportSessionManager {
     this.transportSessions.delete(transportSessionId);
 
     // Complete session in persistent analytics
-    voiceAnalyticsService
-      .completeSession(transportSessionId, 'ENDED_BY_USER')
-      .catch(() => {});
+    try {
+      await voiceAnalyticsService.completeSession(transportSessionId, 'ENDED_BY_USER');
+    } catch {
+      // Non-blocking analytics logging
+    }
 
     return true;
   }
