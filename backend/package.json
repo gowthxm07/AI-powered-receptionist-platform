@@ -23,6 +23,7 @@
     "demo:voice": "tsx src/scripts/demo-voice-pipeline.ts",
     "demo:voice-conversation": "tsx src/scripts/demo-voice-conversation.ts",
     "demo:voice-transport": "tsx src/scripts/demo-voice-transport.ts",
+    "demo:health": "tsx src/scripts/demo-health-check.ts",
     "ai:warmup": "tsx src/scripts/warmup-ollama.ts",
     "ai:smoke": "tsx src/scripts/smoke-test-ai.ts",
     "ai:orchestrate": "tsx src/scripts/demo-orchestrator.ts",
