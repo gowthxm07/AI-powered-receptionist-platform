@@ -55,13 +55,13 @@ export const ArchitecturePreview: React.FC = () => {
               <Bot className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">Local AI Engine</span>
             </div>
-            <h4 className="text-base font-semibold text-white mb-1">Ollama & Whisper</h4>
+            <h4 className="text-base font-semibold text-white mb-1">Whisper & Speech AI</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
-              On-device speech recognition, local LLM inference, function calling, and zero API costs.
+              On-device speech recognition, local dialogue engine, function calling, and zero API costs.
             </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-slate-500">
-            Future Phase
+          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-emerald-400">
+            Port: 11434 (Active)
           </div>
         </div>
 
@@ -70,15 +70,15 @@ export const ArchitecturePreview: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2 text-emerald-400 mb-3">
               <Database className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">Data & RAG Storage</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Database Layer</span>
             </div>
-            <h4 className="text-base font-semibold text-white mb-1">Relational + Vector</h4>
+            <h4 className="text-base font-semibold text-white mb-1">PostgreSQL & Prisma</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Appointments, contact logs, and ChromaDB vector store for contextual knowledge retrieval.
+              Customer directories, staff rosters, and conflict-free calendar appointments with multi-tenant isolation.
             </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-slate-500">
-            Future Phase
+          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-emerald-400">
+            Port: 5433 (Active)
           </div>
         </div>
       </div>

@@ -18,9 +18,6 @@ export const Header: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-bold text-lg text-white tracking-tight">Smart Receptionist</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Phase 3: Auth
-              </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">AI-Powered Platform</p>
           </div>
@@ -28,7 +25,7 @@ export const Header: React.FC = () => {
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
           <Link href="/voice" className="hover:text-indigo-400 transition-colors flex items-center space-x-1 text-emerald-400 font-semibold">
-            <span>🎙️ Voice Call</span>
+            <span>Voice Reception</span>
           </Link>
           <a href="/#features" className="hover:text-indigo-400 transition-colors">
             Features

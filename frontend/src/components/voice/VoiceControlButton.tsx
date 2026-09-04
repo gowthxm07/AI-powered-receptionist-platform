@@ -33,7 +33,7 @@ export const VoiceControlButton: React.FC<VoiceControlButtonProps> = ({
           className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-base shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
         >
           <Phone className="w-5 h-5" />
-          <span>Start Voice Call</span>
+          <span>Start Voice Reception</span>
         </button>
       </div>
     );

@@ -14,14 +14,14 @@ export const Footer: React.FC = () => {
               AI-Powered Smart Receptionist Platform
             </div>
             <div className="text-xs text-slate-400">
-              Full Stack Development Capstone Course Project
+              Enterprise Front-Desk Automation Platform
             </div>
           </div>
         </div>
 
         <div className="text-xs text-slate-400 text-center sm:text-right">
-          <div>Current Milestone: <span className="text-blue-400 font-semibold">Phase 1 (Foundation)</span></div>
-          <div className="mt-1">Built with Next.js, Express, TypeScript & Tailwind CSS</div>
+          <div>Status: <span className="text-emerald-400 font-semibold">Production Ready</span></div>
+          <div className="mt-1">Built with Next.js, Express, PostgreSQL & Local AI</div>
         </div>
       </div>
     </footer>

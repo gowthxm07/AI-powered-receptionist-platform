@@ -131,7 +131,7 @@ export const VoiceReceptionist: React.FC = () => {
           <span className="text-xs font-bold text-slate-200 tracking-tight">
             {selectedBusiness?.name || 'Smart Receptionist'}
           </span>
-          <span className="text-[10px] text-indigo-400 font-medium">Mobile Voice AI</span>
+          <span className="text-[10px] text-indigo-400 font-medium">Voice Reception</span>
         </div>
 
         <VoiceStatus state={uiState} speechDetected={speechDetected} />
@@ -147,7 +147,7 @@ export const VoiceReceptionist: React.FC = () => {
               <span>Insecure HTTP Context Detected</span>
             </div>
             <p className="leading-relaxed text-slate-300">
-              Mobile browsers restrict microphone access to HTTPS origins or localhost. When testing over the local network, please navigate to:
+              Mobile browsers restrict microphone access to HTTPS origins or localhost. To connect over the local network, please navigate to:
             </p>
             <div className="p-2 rounded-xl bg-slate-950/80 border border-amber-500/20 font-mono text-[11px] text-amber-400 break-all select-all">
               https://{diagnostics?.host || '11.12.18.229:3000'}/voice
@@ -225,7 +225,7 @@ export const VoiceReceptionist: React.FC = () => {
                 {uiState === 'READY'
                   ? 'Tap the microphone and speak naturally.'
                   : isSecureContext
-                  ? 'Press Start Voice Call to connect.'
+                  ? 'Press Start Voice Reception to connect.'
                   : 'HTTPS connection required to start.'}
               </p>
             )}
@@ -364,7 +364,7 @@ export const VoiceReceptionist: React.FC = () => {
 
       {/* Footer Branding */}
       <footer className="py-2 text-center text-[10px] text-slate-600 border-t border-slate-900">
-        AI-Powered Smart Receptionist Platform • Local Offline Voice Transport
+        AI-Powered Smart Receptionist Platform • Voice Reception
       </footer>
     </div>
   );

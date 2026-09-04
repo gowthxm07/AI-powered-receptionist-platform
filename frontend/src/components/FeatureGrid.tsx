@@ -3,19 +3,15 @@ import {
   Bot, 
   Calendar, 
   Users, 
-  BookOpen, 
-  MessageSquareText, 
-  Sparkles,
-  Lock,
   Mic,
-  Cpu
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface FeatureCard {
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  phase: string;
   highlights: string[];
   gradient: string;
 }
@@ -24,43 +20,31 @@ export const FeatureGrid: React.FC = () => {
   const features: FeatureCard[] = [
     {
       title: 'AI Receptionist',
-      description: 'Autonomous conversational assistant handling incoming caller queries with natural voice understanding and human-like dialogue.',
+      description: 'Automatically handle incoming customer inquiries with natural conversational understanding and human-like dialogue.',
       icon: Bot,
-      phase: 'Phase 3 & 4',
-      highlights: ['Local LLM (Ollama)', 'Speech-to-Text (Whisper)', 'Natural Voice Output (Piper)'],
+      highlights: ['Natural Dialogue', 'Intent Understanding', 'Knowledge Retrieval'],
       gradient: 'from-blue-500/20 to-indigo-500/5',
     },
     {
       title: 'Smart Appointments',
-      description: 'Intelligent scheduling assistant with automatic calendar slot matching, conflict resolution, and booking confirmation.',
+      description: 'Help customers discover available slots, resolve scheduling conflicts, and confirm calendar bookings automatically.',
       icon: Calendar,
-      phase: 'Phase 2',
       highlights: ['Slot Discovery', 'Conflict Prevention', 'Automated Rescheduling'],
       gradient: 'from-purple-500/20 to-pink-500/5',
     },
     {
       title: 'Customer Management',
-      description: 'Comprehensive directory of caller identities, past interaction logs, preferences, and contextual relationship notes.',
+      description: 'Maintain an organized directory of caller identities, past interaction logs, preferences, and appointment records.',
       icon: Users,
-      phase: 'Phase 2',
-      highlights: ['Caller Profiling', 'Interaction Timeline', 'Preference Tracking'],
+      highlights: ['Caller Profiling', 'Appointment History', 'Enterprise Scoping'],
       gradient: 'from-emerald-500/20 to-teal-500/5',
     },
     {
-      title: 'Knowledge Assistant',
-      description: 'Context-aware RAG engine that searches business documents, FAQs, and service guidelines to provide exact answers.',
-      icon: BookOpen,
-      phase: 'Phase 4',
-      highlights: ['Vector Search (ChromaDB)', 'Semantic Embeddings', 'Document Ingestion'],
-      gradient: 'from-amber-500/20 to-yellow-500/5',
-    },
-    {
-      title: 'Conversation History',
-      description: 'Detailed searchable archive of all past customer interactions with AI-generated key summaries and sentiment insights.',
-      icon: MessageSquareText,
-      phase: 'Phase 3',
-      highlights: ['Full Audio Transcripts', 'Key Takeaways Extraction', 'Structured Audit Trail'],
-      gradient: 'from-cyan-500/20 to-blue-500/5',
+      title: 'Voice Reception',
+      description: 'Enable customers to interact with your AI receptionist through real-time, browser-based voice conversations on mobile or desktop.',
+      icon: Mic,
+      highlights: ['Voice Activity Detection', 'Low-Latency Response', 'Mobile Responsive'],
+      gradient: 'from-indigo-500/20 to-blue-500/5',
     },
   ];
 
@@ -69,19 +53,18 @@ export const FeatureGrid: React.FC = () => {
       <div className="text-center max-w-3xl mx-auto mb-14">
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-blue-400 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Platform Capabilities Preview</span>
+          <span>Platform Capabilities</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Planned Future Features
+          Core Platform Features
         </h2>
         <p className="mt-3 text-slate-400 text-sm sm:text-base">
-          These core capabilities will be incrementally implemented in upcoming project phases.
-          All designed to operate locally without external paid subscriptions.
+          Everything your business needs to automate front-desk operations and streamline caller appointments.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {features.map((feature, idx) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {features.map((feature) => {
           const Icon = feature.icon;
           return (
             <div
@@ -93,9 +76,9 @@ export const FeatureGrid: React.FC = () => {
                   <div className="w-12 h-12 rounded-xl bg-slate-800/90 border border-slate-700/60 flex items-center justify-center text-blue-400 group-hover:text-blue-300 group-hover:scale-105 transition-all shadow-inner">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60">
-                    <Lock className="w-3 h-3 mr-1 text-slate-400" />
-                    {feature.phase}
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Available
                   </span>
                 </div>
 
@@ -108,9 +91,6 @@ export const FeatureGrid: React.FC = () => {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Key Planned Elements
-                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {feature.highlights.map((highlight) => (
                     <span
@@ -125,34 +105,6 @@ export const FeatureGrid: React.FC = () => {
             </div>
           );
         })}
-
-        {/* Local AI Architecture Teaser Card */}
-        <div className="relative group p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-900/40 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-900/30 border border-indigo-800/50 flex items-center justify-center text-indigo-400">
-                <Cpu className="w-6 h-6" />
-              </div>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-indigo-950/60 text-indigo-300 border border-indigo-800/50">
-                Free & Open Stack
-              </span>
-            </div>
-
-            <h3 className="text-lg font-bold text-white mb-2">
-              Zero-Cost Local Architecture
-            </h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Unlike traditional setups relying on costly proprietary APIs (OpenAI, Twilio, ElevenLabs), our system will leverage self-hosted open-source AI.
-            </p>
-          </div>
-
-          <div className="pt-4 border-t border-indigo-900/40">
-            <div className="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
-              <Mic className="w-4 h-4" />
-              <span>Ollama • Whisper • ChromaDB • Piper</span>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );
