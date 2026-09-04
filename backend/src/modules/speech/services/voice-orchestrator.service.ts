@@ -258,10 +258,10 @@ export class VoiceConversationOrchestrator {
     // ---------------------------------------------------------
     // STAGE 2: Audio Conversion & Speech-to-Text Transcription
     // ---------------------------------------------------------
-    const sttStageStart = performance.now();
     let audioConversionMs = 0;
     let convertedAudioPath: string | null = null;
     let sttResult: SpeechToTextResult;
+    let sttLatencyMs = 0;
 
     try {
       // 2A: Convert audio to 16kHz mono PCM WAV if required (e.g. WebM, Opus, Ogg, MP4)
@@ -273,16 +273,17 @@ export class VoiceConversationOrchestrator {
       }
 
       // 2B: Transcribe using Whisper
+      const transcribeStart = performance.now();
       sttResult = await this.sttProvider.transcribe(effectiveAudioPath, {
         timeoutMs: input.options?.sttTimeoutMs,
       });
+      sttLatencyMs = Number((performance.now() - transcribeStart).toFixed(2));
     } finally {
       // Clean up converted temporary WAV file
       if (convertedAudioPath) {
         AudioConverterService.safeUnlink(convertedAudioPath);
       }
     }
-    const sttLatencyMs = Number((performance.now() - sttStageStart).toFixed(2));
 
     // Handle STT Failures
     if (!sttResult.success) {
@@ -318,7 +319,7 @@ export class VoiceConversationOrchestrator {
     if (!sttResult.transcript || sttResult.transcript.trim().length === 0) {
       const optClarify = voiceResponseOptimizer.optimizeForVoice(
         "I'm sorry, I didn't catch that. Could you please repeat what you said?",
-        { channel, enableConciseFormatting: input.options?.enableConciseVoiceFormatting }
+        { channel, enableConciseFormatting: input.options?.enableConciseVoiceFormatting ?? true }
       );
       const clarifyResponse = optClarify.text;
       const turnKey = input.metadata?.transportSessionId
@@ -420,7 +421,7 @@ export class VoiceConversationOrchestrator {
       engineResult.response,
       {
         channel,
-        enableConciseFormatting: input.options?.enableConciseVoiceFormatting,
+        enableConciseFormatting: input.options?.enableConciseVoiceFormatting ?? true,
       }
     );
     const responseOptimizationMs = optRes.latencyMs;
