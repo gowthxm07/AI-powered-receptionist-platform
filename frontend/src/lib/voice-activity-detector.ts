@@ -7,6 +7,8 @@ export const DEFAULT_VAD_CONFIG: VoiceActivityConfig = {
   minRecordingDurationMs: 300,    // Recordings < 300ms are accidental taps
   minBlobSizeBytes: 500,          // Valid WebM/WAV header + frame requires > 500 bytes
   autoStopEnabled: true,          // Active by default for optimal perceived latency
+  adaptiveSilenceEnabled: true,   // Dynamically scale post-speech silence window
+  adaptiveSilenceThresholdMs: 1100, // 1.1 seconds after sustained speech (> 700ms)
 };
 
 export interface VoiceActivityDetectorCallbacks {
@@ -151,11 +153,24 @@ export class VoiceActivityDetector {
             }
             this.trailingSilenceMs = now - this.silenceStartTime;
 
+            // Determine effective silence threshold based on speech duration & energy
+            let effectiveSilenceThreshold = this.config.silenceThresholdMs;
+            if (this.config.adaptiveSilenceEnabled !== false) {
+              const adaptiveTarget = this.config.adaptiveSilenceThresholdMs || 1100;
+              // If user has spoken with sustained speech energy (> 700ms) and room has dropped to quiet level
+              if (this.speechActivityDurationMs >= 700 && rms < 0.035) {
+                effectiveSilenceThreshold = adaptiveTarget;
+              } else if (this.speechActivityDurationMs >= 400 && rms < 0.025) {
+                // Short but definitive completion
+                effectiveSilenceThreshold = Math.max(adaptiveTarget, 1250);
+              }
+            }
+
             // Trigger auto-stop on sustained silence
             if (
               this.config.autoStopEnabled &&
               !this.autoStopTriggered &&
-              this.trailingSilenceMs >= this.config.silenceThresholdMs
+              this.trailingSilenceMs >= effectiveSilenceThreshold
             ) {
               this.autoStopTriggered = true;
               const metrics = this.getMetrics();

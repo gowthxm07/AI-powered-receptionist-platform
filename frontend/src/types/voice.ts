@@ -62,6 +62,8 @@ export interface VoiceActivityConfig {
   minRecordingDurationMs: number;
   minBlobSizeBytes: number;
   autoStopEnabled: boolean;
+  adaptiveSilenceEnabled?: boolean;
+  adaptiveSilenceThresholdMs?: number;
 }
 
 export interface VoiceStageBreakdown {
