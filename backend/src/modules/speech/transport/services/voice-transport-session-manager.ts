@@ -8,6 +8,8 @@ import {
   VoiceTransportState,
 } from '../types/voice-transport.types';
 import { voiceWarmupService } from '../../services/voice-warmup.service';
+import { voiceAnalyticsService } from '../../analytics';
+import { ActiveVoiceSessionInfo } from '../../analytics/types/voice-analytics.types';
 
 export const DEFAULT_TRANSPORT_SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -141,6 +143,18 @@ export class VoiceTransportSessionManager {
     // Non-blocking pipeline warmup on session creation (primes DB connection and Piper runtime)
     voiceWarmupService.warmup().catch(() => {});
 
+    // Non-blocking persistent analytics session initialization
+    voiceAnalyticsService
+      .createSession({
+        businessId,
+        transportSessionId,
+        conversationSessionId: convSessionId,
+        customerId: customerRecord?.id || null,
+        channel,
+        startedAt: now,
+      })
+      .catch(() => {});
+
     return {
       success: true,
       session,
@@ -224,7 +238,45 @@ export class VoiceTransportSessionManager {
 
     session.state = 'TERMINATED';
     this.transportSessions.delete(transportSessionId);
+
+    // Complete session in persistent analytics
+    voiceAnalyticsService
+      .completeSession(transportSessionId, 'ENDED_BY_USER')
+      .catch(() => {});
+
     return true;
+  }
+
+  /**
+   * Get all active (non-expired) in-memory sessions for a specific business tenant.
+   */
+  public getActiveSessionsForBusiness(businessId: string): ActiveVoiceSessionInfo[] {
+    const now = new Date();
+    const active: ActiveVoiceSessionInfo[] = [];
+
+    for (const [id, session] of this.transportSessions.entries()) {
+      if (session.expiresAt && now > session.expiresAt) {
+        this.transportSessions.delete(id);
+        continue;
+      }
+
+      if (session.businessId === businessId && session.state !== 'TERMINATED') {
+        active.push({
+          transportSessionId: session.transportSessionId,
+          conversationSessionId: session.conversationSessionId,
+          businessId: session.businessId,
+          customerName: session.customerName || null,
+          customerPhone: session.customerPhone || null,
+          channel: session.channel,
+          state: session.state,
+          turnCount: session.turnCount,
+          startedAt: session.createdAt.toISOString(),
+          lastTurnAt: session.lastTurnAt ? session.lastTurnAt.toISOString() : null,
+        });
+      }
+    }
+
+    return active;
   }
 
   /**

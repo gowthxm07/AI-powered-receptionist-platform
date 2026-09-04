@@ -16,6 +16,7 @@ import {
 } from '../../services/voice-orchestrator.service';
 import { AudioStorageService } from '../../services/audio-storage.service';
 import { speechConfig } from '../../speech.config';
+import { voiceAnalyticsService } from '../../analytics';
 
 export const SUPPORTED_AUDIO_MIME_TYPES = [
   'audio/wav',
@@ -272,6 +273,24 @@ export class VoiceTurnTransportService {
             orchestratorResult.metrics.ttsLatencyMs
         ).toFixed(2)
       );
+
+      // Record Turn Analytics
+      const sttSuccess = Boolean(orchestratorResult.success && orchestratorResult.transcript && orchestratorResult.transcript.trim().length > 0);
+      const appointmentBooked = Boolean(orchestratorResult.action === 'CREATE_APPOINTMENT' || orchestratorResult.metadata?.appointmentId);
+      const appointmentId = (orchestratorResult.metadata?.appointmentId as string) || null;
+
+      voiceAnalyticsService
+        .recordTurn({
+          transportSessionId: session.transportSessionId,
+          sttSuccess,
+          sttLatencyMs: orchestratorResult.metrics.sttLatencyMs,
+          conversationLatencyMs: orchestratorResult.metrics.conversationLatencyMs,
+          ttsLatencyMs: orchestratorResult.metrics.ttsLatencyMs,
+          totalLatencyMs: totalPipelineMs,
+          appointmentBooked,
+          appointmentId,
+        })
+        .catch(() => {});
 
       const responseAudioRef = orchestratorResult.audio
         ? {
