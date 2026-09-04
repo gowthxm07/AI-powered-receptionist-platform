@@ -140,7 +140,7 @@ export class AppointmentStateMachine {
         return {
           response: {
             success: true,
-            response: `Got it, ${s.name} (${s.durationMinutes} mins). Do you have a preferred specialist, or would anyone be fine?`,
+            response: `Got it, ${s.name}. Do you have a preferred specialist, or is anyone okay?`,
             action: AIAction.GET_STAFF,
             intent: AIIntent.BOOK_APPOINTMENT,
             sessionId,
@@ -204,7 +204,7 @@ export class AppointmentStateMachine {
         return {
           response: {
             success: true,
-            response: 'Sounds good. What date would you prefer for your appointment?',
+            response: 'Sounds good. What date would you prefer?',
             action: AIAction.CHECK_AVAILABILITY,
             intent: AIIntent.BOOK_APPOINTMENT,
             sessionId,
@@ -392,7 +392,7 @@ export class AppointmentStateMachine {
       return {
         response: {
           success: true,
-          response: `Got it for ${slot.timeLabel}! Could you please provide your phone number to complete the booking?`,
+          response: `Got it for ${slot.timeLabel}! Please provide your phone number to complete the booking.`,
           action: AIAction.SEARCH_CUSTOMER,
           intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
@@ -444,7 +444,10 @@ export class AppointmentStateMachine {
 
       const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
       const timeLabel = timeSlot?.timeLabel || 'your selected time';
-      const staffClause = session.selectedStaffName ? ` with ${session.selectedStaffName}` : '';
+      const staffClause =
+        session.selectedStaffId && session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
+          ? ` with ${session.selectedStaffName}`
+          : '';
 
       return {
         response: {

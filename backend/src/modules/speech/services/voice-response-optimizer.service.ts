@@ -88,15 +88,19 @@ export class VoiceResponseOptimizer {
       // Service collection phrases
       .replace(/Could you please tell me which service you (?:are interested in[^?]*|would like to book[^?]*)\?/gi, 'Which service would you like?')
       .replace(/I couldn't identify that service\.\s*We currently offer:\s*/gi, "I couldn't find that service. We offer: ")
+      .replace(/Would you like to book one of these services\?/gi, 'Which one would you like?')
       // Staff collection phrases
       .replace(/Do you have a preferred specialist(?: that you would like to see for this appointment)?, or (?:would any(?: available)? specialist be acceptable|would anyone be fine)\?/gi, 'Do you have a preferred specialist, or is anyone okay?')
       .replace(/Do you have a preferred specialist, or would anyone be fine\?/gi, 'Do you have a preferred specialist, or is anyone okay?')
+      .replace(/Do you have a preferred specialist, or is anyone fine\?/gi, 'Do you have a preferred specialist, or is anyone okay?')
       .replace(/I couldn't find that specialist\.\s*Our team includes:\s*/gi, "I couldn't find that specialist. Our team has: ")
+      .replace(/Would you like to check availability with one of our specialists\?/gi, 'Which specialist would you prefer?')
+      .replace(/\s*with Any Available Specialist\b/gi, '')
       // Date collection phrases
       .replace(/What date would you prefer for your appointment\?/gi, 'What date would you prefer?')
-      // Slot & Time collection phrases
+      // Slot & Time collection phrases & templates
       .replace(/Which one would you prefer\?/gi, 'Which time works best?')
-      .replace(/Please select one of the available times:\s*/gi, 'Available times are: ')
+      .replace(/Please select one of the available times:\s*/gi, 'Available times: ')
       // Customer & Phone collection phrases
       .replace(/Could you please provide your phone number(?: so that we can locate your customer profile and| to)? complete (?:the|your) (?:appointment )?booking\?/gi, 'Please provide your phone number.')
       .replace(/Please provide your phone number to complete the booking\./gi, 'Please provide your phone number.')
@@ -104,9 +108,9 @@ export class VoiceResponseOptimizer {
       // Confirmation phrases
       .replace(/Please confirm your appointment:\s*/gi, 'Please confirm: ')
       .replace(/Would you like me to book it\?/gi, 'Should I book it?')
-      // Success completion phrases (prompt examples: "Your appointment is confirmed. See you then!")
-      .replace(/has been successfully booked! We look forward to seeing you on the scheduled date\./gi, 'is confirmed. See you then!')
-      .replace(/has been successfully booked! We look forward to seeing you\./gi, 'is confirmed! Thank you.')
+      // Success completion phrases
+      .replace(/has been successfully booked! We look forward to seeing you(?:\s+on the scheduled date)?\./gi, options?.enableConciseFormatting ? 'is confirmed! See you then.' : 'is confirmed! Thank you.')
+      .replace(/has been successfully booked! We look forward to seeing you\./gi, options?.enableConciseFormatting ? 'is confirmed! See you then.' : 'is confirmed! Thank you.')
       .replace(/has been successfully booked!/gi, 'is confirmed.')
       // Cancellation phrases
       .replace(/I have cancelled your booking request\.\s*Is there anything else I can help you with\?/gi, "I've cancelled that booking. How else can I help?")
@@ -117,6 +121,20 @@ export class VoiceResponseOptimizer {
       // Clarification & Fallback phrases
       .replace(/I'm sorry, I didn't catch that\.\s*Could you please repeat what you said\?/gi, "I didn't catch that. Could you repeat that, please?")
       .replace(/I didn't catch that\.\s*How can I help you today\?/gi, "I didn't catch that. How can I help you?");
+
+    // 3B. Phase 8.2 Ultra-Concise Time & Slot Optimization (Active when enableConciseFormatting is true)
+    if (options?.enableConciseFormatting) {
+      clean = clean
+        .replace(/\s*with Any Available Specialist\b/gi, '')
+        .replace(/Available times on [^.]+? are (.*?)\.\s*(?:Which one would you prefer\?|Which time works best\?)/gi, 'I have $1 available. Which time works best?')
+        .replace(/\b0?([1-9]|1[0-2]):00\s*(AM|PM)\b/gi, '$1 $2')
+        .replace(/\b0?([1-9]|1[0-2]):([1-5][0-9])\s*(AM|PM)\b/gi, '$1:$2 $3');
+
+      if (clean.includes('available. Which time works best?')) {
+        clean = clean.replace(/, and\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))/gi, ', or $1');
+        clean = clean.replace(/,\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s+available/gi, ', or $1 available');
+      }
+    }
 
     // 4. Single-Question Constraint (Voice conversations must not ask multiple questions simultaneously)
     const questionMarks = (clean.match(/\?/g) || []).length;
