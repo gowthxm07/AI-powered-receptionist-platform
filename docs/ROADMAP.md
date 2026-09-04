@@ -366,6 +366,23 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 8: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
+### Phase 8.1: End-to-End Voice Pipeline Performance Benchmarking (COMPLETED ✅)
+- [x] Trace and document complete voice execution architecture from mobile audio upload to speech synthesis
+- [x] High-resolution performance metric models (`VoiceStageLatencies`, `VoiceTurnPerformanceMetric`, `ScenarioStatisticalSummary`)
+- [x] In-memory performance tracker utility (`VoicePerformanceTracker`) using `performance.now()` with zero double-counting
+- [x] Zero-audio / zero-transcript privacy guarantees: strictly metadata and timing persistence
+- [x] Dedicated benchmark script (`npm run benchmark:voice`) executing real components (Whisper, Piper, Ollama, PostgreSQL)
+- [x] Reproducible benchmark audio fixtures generated on-the-fly via local Piper synthesis
+- [x] Cold vs. Warm run analysis across Scenarios A through E (5 warm runs per scenario, calculating Avg, Min, Max, Median)
+- [x] Full 7-turn multi-turn booking conversation execution with automatic PostgreSQL test record cleanup
+- [x] Subsystem bottleneck identification (Piper Neural TTS: 52.7%, Whisper STT: 47.2%, Deterministic AI/DB: 0.1%)
+- [x] Hardware suitability validation for 12th Gen Intel Core i5-1235U, 8 GB RAM, Windows 11 host
+- [x] 28 automated master test suites passing with 100% success rate (7 comprehensive new Phase 8.1 performance tests)
+- [x] Comprehensive technical performance report published in `docs/VOICE_PIPELINE_BENCHMARK.md`
+
+---
+
+### Phase 8.2+: Testing, Hardening & Capstone Presentation (Upcoming ⏳)
 - [ ] End-to-end voice and text conversational test suite
 - [ ] Final security review, performance optimizations, and demonstration walkthrough
+
