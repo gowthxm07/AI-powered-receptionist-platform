@@ -292,5 +292,26 @@ Phase 7.2.2 verified the complete live end-to-end mobile voice integration acros
   - **Ollama LLM Fallback (`llama3.2:3b`):** **~14.09 s** total roundtrip (STT: 1112.6ms, LLM CPU: 10,521.4ms, TTS: 2455.0ms, Overhead: 3.6ms)
 - Complete testing guide and firewall documentation: [`docs/MOBILE_VOICE_TESTING.md`](docs/MOBILE_VOICE_TESTING.md).
 
+---
 
+## 14. Conversation Response Optimization & Spoken Conciseness
 
+Phase 7.3.1 introduced channel-aware response formatting and voice conciseness:
+
+- **VoiceResponseOptimizer:** Lightweight formatting engine that preserves full markdown and explanations for `WEB`, while producing concise spoken responses for `VOICE` and `PHONE`.
+- **Character Count Reduction:** Reduces spoken text length by up to **65%**, cutting Piper neural TTS synthesis latency in half (~500ms vs. ~1400ms).
+- **TTS Suppression & Duplicate Protection:** Blocks TTS for empty/whitespace/punctuation tokens and caches audio to prevent duplicate synthesis within the same turn.
+- Complete documentation: [`docs/CONVERSATION_RESPONSE_OPTIMIZATION.md`](docs/CONVERSATION_RESPONSE_OPTIMIZATION.md).
+
+---
+
+## 15. Voice Turn Detection, Silence Handling & Perceived Latency Optimization
+
+Phase 7.3.2 introduced native browser-side voice activity detection and silence handling:
+
+- **Native Web Audio API VAD:** `VoiceActivityDetector` monitors microphone energy using `AudioContext` and `AnalyserNode` with **0.003 ms** CPU overhead per cycle.
+- **Conversational Pause Tolerance:** Differentiates short conversational pauses (e.g. 400ms) from terminal silence.
+- **Automatic Silence-Aware Turn Auto-Stop:** Automatically terminates and uploads the recording after 1500ms of sustained post-speech silence, cutting perceived user wait time by over **50%**.
+- **Push-to-Talk Preservation:** Users retain full manual tap-to-stop control at any time, with an in-UI toggle switch for Auto-Stop.
+- **Pre-Upload Quality Validation:** Discards accidental short taps (<300ms) and empty silence before reaching the network or Whisper.
+- Complete documentation: [`docs/VOICE_TURN_DETECTION.md`](docs/VOICE_TURN_DETECTION.md).
