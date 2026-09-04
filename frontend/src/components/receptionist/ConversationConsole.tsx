@@ -188,14 +188,14 @@ export const ConversationConsole: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-tight">AI Receptionist Console</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
-                  <Zap className="w-2.5 h-2.5 text-indigo-400" />
-                  Live Engine
+                <h3 className="text-sm font-bold text-white tracking-tight">AI Receptionist</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Online
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                {selectedBusiness ? selectedBusiness.name : 'Select a business to begin'}
+                Interact with your AI receptionist and test how it handles customer inquiries.
               </p>
             </div>
           </div>

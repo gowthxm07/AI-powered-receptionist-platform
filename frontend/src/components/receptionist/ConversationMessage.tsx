@@ -1,6 +1,6 @@
 import React from 'react';
-import { Bot, User, Zap, Wrench, Sparkles, ShieldAlert, Clock } from 'lucide-react';
-import { ChatMessage, ResponseSource } from '../../types/conversation';
+import { Bot, User } from 'lucide-react';
+import { ChatMessage } from '../../types/conversation';
 
 interface ConversationMessageProps {
   message: ChatMessage;
@@ -8,49 +8,6 @@ interface ConversationMessageProps {
 
 export const ConversationMessage: React.FC<ConversationMessageProps> = ({ message }) => {
   const isUser = message.sender === 'user';
-
-  const getSourceBadge = (source?: ResponseSource) => {
-    switch (source) {
-      case 'deterministic':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-            <Zap className="w-2.5 h-2.5" />
-            Deterministic
-          </span>
-        );
-      case 'tool':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30">
-            <Wrench className="w-2.5 h-2.5" />
-            DB Tool {message.action ? `(${message.action.toLowerCase()})` : ''}
-          </span>
-        );
-      case 'llm':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
-            <Sparkles className="w-2.5 h-2.5" />
-            Local LLM (llama3.2:3b)
-          </span>
-        );
-      case 'fallback':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            <ShieldAlert className="w-2.5 h-2.5" />
-            Safe Fallback
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const formatLatency = (ms?: number) => {
-    if (ms === undefined || ms === null) return null;
-    if (ms < 1000) {
-      return `${ms.toFixed(1)}ms`;
-    }
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
 
   return (
     <div
@@ -77,26 +34,12 @@ export const ConversationMessage: React.FC<ConversationMessageProps> = ({ messag
             : 'bg-slate-900/90 border border-slate-800 text-slate-100 rounded-tl-sm shadow-black/20'
         }`}
       >
-        {/* Header Badges for AI Responses */}
+        {/* Header for AI Responses */}
         {!isUser && (
-          <div className="flex flex-wrap items-center gap-2 mb-2 pb-2 border-b border-slate-800/80">
-            <span className="text-xs font-semibold text-slate-300 tracking-tight flex items-center gap-1">
+          <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-slate-800/80">
+            <span className="text-xs font-semibold text-slate-300 tracking-tight">
               AI Receptionist
             </span>
-
-            {getSourceBadge(message.source)}
-
-            {message.latencyMs !== undefined && (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-400 bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-800"
-                title={`Engine Latency: ${formatLatency(message.latencyMs)}${
-                  message.totalLatencyMs ? ` | Total API Latency: ${formatLatency(message.totalLatencyMs)}` : ''
-                }`}
-              >
-                <Clock className="w-2.5 h-2.5 text-slate-500" />
-                {formatLatency(message.latencyMs)}
-              </span>
-            )}
           </div>
         )}
 

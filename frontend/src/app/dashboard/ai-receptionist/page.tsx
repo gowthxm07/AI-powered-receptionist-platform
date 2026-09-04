@@ -6,7 +6,7 @@ import { ConversationConsole } from '../../../components/receptionist';
 
 export default function AIReceptionistPage() {
   return (
-    <DashboardLayout title="AI Receptionist Console">
+    <DashboardLayout title="AI Receptionist">
       <ConversationConsole />
     </DashboardLayout>
   );
