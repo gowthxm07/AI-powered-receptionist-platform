@@ -122,44 +122,116 @@ export const VoiceSessionInfo: React.FC<VoiceSessionInfoProps> = ({
             </div>
           )}
 
-          {/* Real Measured Latency Breakdown */}
+          {/* 8-Stage Real-Time Pipeline Latency Breakdown */}
           {metrics && (
             <div className="pt-2 border-t border-slate-800 space-y-1 text-[11px] font-mono">
-              <div className="flex items-center gap-1 text-[10px] text-indigo-400 uppercase font-bold tracking-wider mb-1">
-                <Gauge className="w-3 h-3" />
-                <span>Last Turn Latency</span>
+              <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider mb-1">
+                <div className="flex items-center gap-1 text-indigo-400">
+                  <Gauge className="w-3 h-3" />
+                  <span>8-Stage Voice Latency Breakdown</span>
+                </div>
+                {metrics.endToEndVoiceLatencyMs !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      metrics.endToEndVoiceLatencyMs < 2000
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : metrics.endToEndVoiceLatencyMs < 3500
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}
+                  >
+                    Total: {metrics.endToEndVoiceLatencyMs.toFixed(0)} ms
+                  </span>
+                )}
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Transport Overhead:</span>
-                <span className="text-slate-300">{metrics.transportOverheadMs.toFixed(1)} ms</span>
-              </div>
-              {metrics.audioConversionMs !== undefined && metrics.audioConversionMs > 0 && (
-                <div className="flex justify-between text-slate-400">
-                  <span>Audio Conversion (FFmpeg):</span>
-                  <span className="text-indigo-300">{metrics.audioConversionMs.toFixed(1)} ms</span>
+
+              {metrics.stageBreakdown ? (
+                <>
+                  <div className="flex justify-between text-slate-400">
+                    <span>1. Audio Finalization:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage1FinalizeMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>2. Audio Upload & Net:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage2UploadMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>3. Whisper STT:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage3SttMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>4. AI Conversation Engine:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage4AiConvMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>5. Database / Tool Execution:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage5DbMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>6. Piper Neural TTS:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage6TtsMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>7. Response Delivery:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage7DeliveryMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>8. Mobile Playback Start:</span>
+                    <span className="text-slate-300">{metrics.stageBreakdown.stage8PlaybackMs.toFixed(1)} ms</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Transport Overhead:</span>
+                    <span className="text-slate-300">{metrics.transportOverheadMs.toFixed(1)} ms</span>
+                  </div>
+                  {metrics.audioConversionMs !== undefined && metrics.audioConversionMs > 0 && (
+                    <div className="flex justify-between text-slate-400">
+                      <span>Audio Conversion (FFmpeg):</span>
+                      <span className="text-indigo-300">{metrics.audioConversionMs.toFixed(1)} ms</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-400">
+                    <span>Speech-to-Text (Whisper):</span>
+                    <span className="text-slate-300">{metrics.sttMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Conversation Engine:</span>
+                    <span className="text-slate-300">{metrics.conversationMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Neural Voice (Piper):</span>
+                    <span className="text-slate-300">{metrics.ttsMs.toFixed(1)} ms</span>
+                  </div>
+                </>
+              )}
+
+              {/* Composite Latencies */}
+              {metrics.speechToTranscriptionMs !== undefined && (
+                <div className="pt-1 border-t border-slate-800/40 text-[10px] text-slate-400 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span>Speech → Transcription:</span>
+                    <span className="text-slate-300">{metrics.speechToTranscriptionMs.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Transcription → Response:</span>
+                    <span className="text-slate-300">{metrics.transcriptionToResponseMs?.toFixed(1)} ms</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Response → Playback:</span>
+                    <span className="text-slate-300">{metrics.responseToPlaybackMs?.toFixed(1)} ms</span>
+                  </div>
                 </div>
               )}
-              <div className="flex justify-between text-slate-400">
-                <span>Speech-to-Text (Whisper):</span>
-                <span className="text-slate-300">{metrics.sttMs.toFixed(1)} ms</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Conversation Engine:</span>
-                <span className="text-slate-300">{metrics.conversationMs.toFixed(1)} ms</span>
-              </div>
-              {metrics.responseOptimizationMs !== undefined && metrics.responseOptimizationMs > 0 && (
-                <div className="flex justify-between text-slate-400">
-                  <span>Voice Optimizer:</span>
-                  <span className="text-indigo-300">{metrics.responseOptimizationMs.toFixed(1)} ms</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-400">
-                <span>Neural Voice (Piper):</span>
-                <span className="text-slate-300">{metrics.ttsMs.toFixed(1)} ms</span>
-              </div>
+
               <div className="flex justify-between text-emerald-400 font-bold pt-1 border-t border-slate-800/60">
-                <span>Total Response Roundtrip:</span>
-                <span>{metrics.totalMs.toFixed(1)} ms (~{(metrics.totalMs / 1000).toFixed(2)}s)</span>
+                <span>Total Response Latency:</span>
+                <span>
+                  {metrics.endToEndVoiceLatencyMs !== undefined
+                    ? `${metrics.endToEndVoiceLatencyMs.toFixed(1)} ms (~${(metrics.endToEndVoiceLatencyMs / 1000).toFixed(2)}s)`
+                    : `${metrics.totalMs.toFixed(1)} ms (~${(metrics.totalMs / 1000).toFixed(2)}s)`}
+                </span>
               </div>
             </div>
           )}

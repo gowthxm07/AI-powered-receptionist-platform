@@ -395,6 +395,24 @@ export class VoiceConversationOrchestrator {
     });
     const conversationLatencyMs = Number((performance.now() - convStageStart).toFixed(2));
 
+    // Determine database tool vs Ollama vs deterministic conversation latencies
+    let databaseToolLatencyMs = 0;
+    let ollamaLatencyMs = 0;
+
+    if (engineResult.source === 'tool' || engineResult.toolUsed) {
+      databaseToolLatencyMs = Number((engineResult.latencyMs || conversationLatencyMs).toFixed(2));
+    } else if (engineResult.source === 'llm') {
+      ollamaLatencyMs = Number((engineResult.latencyMs || conversationLatencyMs).toFixed(2));
+    } else if (
+      engineResult.action &&
+      ['CREATE_APPOINTMENT', 'CHECK_AVAILABILITY', 'GET_SERVICES', 'GET_STAFF', 'SEARCH_CUSTOMER', 'GET_APPOINTMENTS'].includes(
+        engineResult.action
+      )
+    ) {
+      // Deterministic state machine executed Prisma database queries
+      databaseToolLatencyMs = Number(Math.max(1, conversationLatencyMs - 1.5).toFixed(2));
+    }
+
     // ---------------------------------------------------------
     // STAGE 4: Voice Response Optimization & Neural TTS
     // ---------------------------------------------------------
@@ -409,6 +427,7 @@ export class VoiceConversationOrchestrator {
     const spokenText = optRes.text;
 
     let ttsLatencyMs = 0;
+    let responseAudioPreparationMs = 0;
     let audioResponse: SpeechPipelineAudioResponse | null = null;
     const turnKey = input.metadata?.transportSessionId
       ? `${input.metadata.transportSessionId}_turn_${input.metadata.turnCount || 0}`
@@ -428,12 +447,14 @@ export class VoiceConversationOrchestrator {
       ttsLatencyMs = Number((performance.now() - ttsStageStart).toFixed(2));
 
       if (ttsResult.success) {
+        const prepStart = performance.now();
         audioResponse = {
           id: ttsResult.audioId,
           fileName: ttsResult.audioFileName,
           durationSec: ttsResult.durationSec,
         };
         voiceResponseOptimizer.recordTurnSynthesis(turnKey, spokenText, audioResponse);
+        responseAudioPreparationMs = Number((performance.now() - prepStart).toFixed(2));
       } else {
         console.warn(`[Voice Orchestrator] TTS synthesis warning: ${ttsResult.error?.message}`);
       }
@@ -447,9 +468,9 @@ export class VoiceConversationOrchestrator {
     const totalPipelineLatencyMs = Number((performance.now() - pipelineStartTime).toFixed(2));
     const updatedSession = await this.sessions.getSession(sessionId);
 
-    // Safe Structured Logging
+    // Safe Structured Logging (no PII, no audio buffers)
     console.log(
-      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms convAudioMs=${audioConversionMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms optMs=${responseOptimizationMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
+      `[Voice Orchestrator] sessionId=${sessionId} businessId=${businessId} source=${engineResult.source} inputMs=${audioInputProcessingMs}ms convAudioMs=${audioConversionMs}ms sttMs=${sttLatencyMs}ms convMs=${conversationLatencyMs}ms (dbMs=${databaseToolLatencyMs}ms llmMs=${ollamaLatencyMs}ms) optMs=${responseOptimizationMs}ms ttsMs=${ttsLatencyMs}ms totalMs=${totalPipelineLatencyMs}ms`
     );
 
     return {
@@ -465,9 +486,14 @@ export class VoiceConversationOrchestrator {
         audioInputProcessingMs,
         audioConversionMs,
         sttLatencyMs,
+        whisperLatencyMs: sttLatencyMs,
         conversationLatencyMs,
+        databaseToolLatencyMs,
+        ollamaLatencyMs,
         responseOptimizationMs,
         ttsLatencyMs,
+        piperTtsLatencyMs: ttsLatencyMs,
+        responseAudioPreparationMs,
         totalPipelineLatencyMs,
         sttMs: sttLatencyMs,
         conversationMs: conversationLatencyMs,

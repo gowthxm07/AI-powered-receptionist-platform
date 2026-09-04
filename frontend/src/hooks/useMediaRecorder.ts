@@ -285,11 +285,18 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
       };
 
       recorder.onstop = () => {
+        const onStopStart = performance.now();
         const finalMime = mimeTypeRef.current || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: finalMime });
+        const audioBlobReadyMs = Number((performance.now() - onStopStart).toFixed(2));
         const durationMs = Number((performance.now() - recordingStartTimeRef.current).toFixed(1));
         const vadMetrics = pendingVadMetricsRef.current;
-        const uploadDispatchMs = Number((performance.now() - stopTriggerTimeRef.current).toFixed(2));
+        const mediaRecorderFinalizeMs = Number(
+          Math.max(0, onStopStart - (stopTriggerTimeRef.current || onStopStart)).toFixed(2)
+        );
+        const uploadDispatchMs = Number((performance.now() - (stopTriggerTimeRef.current || onStopStart)).toFixed(2));
+        const recordingStopTimestamp = Date.now();
+        const stopTriggerTime = stopTriggerTimeRef.current || onStopStart;
 
         const hasSpoken = vadMetrics?.speechDetected ?? speechDetected;
 
@@ -326,6 +333,10 @@ export function useMediaRecorder(options: UseMediaRecorderOptions = {}) {
           uploadDispatchMs,
           autoStopTriggered: vadMetrics?.autoStopTriggered || false,
           vadOverheadMs: vadMetrics?.vadOverheadMs || 0.02,
+          recordingStopTimestamp,
+          mediaRecorderFinalizeMs,
+          audioBlobReadyMs,
+          stopTriggerTime,
         };
 
         setLastRecordingMetrics(finalMetrics);
