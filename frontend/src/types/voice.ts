@@ -49,6 +49,10 @@ export interface VoiceRecordingMetrics {
   uploadDispatchMs?: number;
   autoStopTriggered: boolean;
   vadOverheadMs?: number;
+  recordingStopTimestamp?: number;
+  mediaRecorderFinalizeMs?: number;
+  audioBlobReadyMs?: number;
+  stopTriggerTime?: number;
 }
 
 export interface VoiceActivityConfig {
@@ -60,14 +64,31 @@ export interface VoiceActivityConfig {
   autoStopEnabled: boolean;
 }
 
+export interface VoiceStageBreakdown {
+  stage1FinalizeMs: number;
+  stage2UploadMs: number;
+  stage3SttMs: number;
+  stage4AiConvMs: number;
+  stage5DbMs: number;
+  stage6TtsMs: number;
+  stage7DeliveryMs: number;
+  stage8PlaybackMs: number;
+}
+
 export interface VoiceTurnMetrics {
   transportOverheadMs: number;
   audioValidationMs: number;
   audioConversionMs?: number;
   sttMs: number;
+  whisperLatencyMs?: number;
   conversationMs: number;
+  databaseToolLatencyMs?: number;
+  ollamaLatencyMs?: number;
   responseOptimizationMs?: number;
   ttsMs: number;
+  piperTtsLatencyMs?: number;
+  responseAudioPreparationMs?: number;
+  totalBackendLatencyMs?: number;
   totalMs: number;
   recordingDurationMs?: number;
   audioBlobSizeBytes?: number;
@@ -77,6 +98,20 @@ export interface VoiceTurnMetrics {
   uploadDispatchMs?: number;
   autoStopTriggered?: boolean;
   vadOverheadMs?: number;
+  // Detailed client-side timing marks
+  recordingStopTimestamp?: number;
+  mediaRecorderFinalizeMs?: number;
+  audioBlobReadyMs?: number;
+  uploadNetworkMs?: number;
+  audioPlaybackPrepMs?: number;
+  audioPlaybackStartMs?: number;
+  // Composite end-to-end latencies
+  endToEndVoiceLatencyMs?: number;
+  speechToTranscriptionMs?: number;
+  transcriptionToResponseMs?: number;
+  responseToPlaybackMs?: number;
+  // Stage-by-stage 8-stage breakdown
+  stageBreakdown?: VoiceStageBreakdown;
 }
 
 export interface VoiceAudioResponseRef {

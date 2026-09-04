@@ -69,9 +69,15 @@ export interface VoiceTransportMetrics {
   audioValidationMs: number;
   audioConversionMs?: number;
   sttMs: number;
+  whisperLatencyMs?: number;
   conversationMs: number;
+  databaseToolLatencyMs?: number;
+  ollamaLatencyMs?: number;
   responseOptimizationMs?: number;
   ttsMs: number;
+  piperTtsLatencyMs?: number;
+  responseAudioPreparationMs?: number;
+  totalBackendLatencyMs?: number;
   totalMs: number;
   recordingDurationMs?: number;
   audioBlobSizeBytes?: number;
@@ -81,6 +87,11 @@ export interface VoiceTransportMetrics {
   uploadDispatchMs?: number;
   autoStopTriggered?: boolean;
   vadOverheadMs?: number;
+  // Timing marks for composite latency calculation
+  requestReceivedTimestamp?: number;
+  speechToTranscriptionMs?: number;
+  transcriptionToResponseMs?: number;
+  responseToPlaybackMs?: number;
 }
 
 export interface VoiceAudioResponseRef {

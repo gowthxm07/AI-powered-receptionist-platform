@@ -49,9 +49,14 @@ export interface VoiceStageMetrics {
   audioInputProcessingMs: number;
   audioConversionMs?: number;
   sttLatencyMs: number;
+  whisperLatencyMs?: number;
   conversationLatencyMs: number;
+  databaseToolLatencyMs?: number;
+  ollamaLatencyMs?: number;
   responseOptimizationMs?: number;
   ttsLatencyMs: number;
+  piperTtsLatencyMs?: number;
+  responseAudioPreparationMs?: number;
   totalPipelineLatencyMs: number;
 }
 
