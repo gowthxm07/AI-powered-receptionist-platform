@@ -13,7 +13,7 @@
     "benchmark:stt": "tsx src/scripts/benchmark-stt.ts",
     "benchmark:tts": "tsx src/scripts/benchmark-tts.ts",
     "benchmark:speech": "tsx src/scripts/benchmark-speech.ts",
-    "benchmark:voice": "tsx src/scripts/benchmark-voice-latency.ts",
+    "benchmark:voice": "tsx src/scripts/benchmark-voice-pipeline.ts",
     "benchmark:voice-transport": "tsx src/scripts/benchmark-voice-transport.ts",
     "benchmark:response-latency": "tsx src/scripts/benchmark-voice-response-latency.ts",
     "network:info": "tsx src/scripts/network-info.ts",
