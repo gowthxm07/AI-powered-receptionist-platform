@@ -15,6 +15,11 @@ import {
   UpdateAppointmentInput,
   AvailabilityCheckResult,
 } from '../types/dashboard';
+import {
+  VoiceAnalyticsSummary,
+  VoiceSessionRecord,
+  ActiveVoiceSession,
+} from '../types/analytics';
 
 /**
  * Resolves the base URL for API requests.
@@ -218,6 +223,29 @@ export const api = {
         body: JSON.stringify(input),
       }),
   },
+  analytics: {
+    getVoiceSummary: (businessId: string) =>
+      fetcher<VoiceAnalyticsSummary>(`/api/analytics/voice?businessId=${encodeURIComponent(businessId)}`, {
+        method: 'GET',
+      }),
+    getVoiceSessions: (businessId: string, params?: { page?: number; limit?: number; status?: string }) => {
+      const query = new URLSearchParams({ businessId });
+      if (params?.page) query.append('page', params.page.toString());
+      if (params?.limit) query.append('limit', params.limit.toString());
+      if (params?.status) query.append('status', params.status);
+      return fetcher<VoiceSessionRecord[]>(`/api/analytics/voice/sessions?${query.toString()}`, {
+        method: 'GET',
+      });
+    },
+    getActiveSessions: (businessId: string) =>
+      fetcher<ActiveVoiceSession[]>(`/api/analytics/voice/active?businessId=${encodeURIComponent(businessId)}`, {
+        method: 'GET',
+      }),
+    getSessionById: (id: string, businessId: string) =>
+      fetcher<VoiceSessionRecord>(`/api/analytics/voice/sessions/${id}?businessId=${encodeURIComponent(businessId)}`, {
+        method: 'GET',
+      }),
+  },
   health: {
     check: () =>
       fetcher<{ status: string; uptimeSeconds: number; timestamp: string; environment: string; version: string }>(
@@ -226,3 +254,4 @@ export const api = {
       ),
   },
 };
+

@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Bot,
   Mic,
+  Activity,
   Settings,
   X,
   Sparkles,
@@ -81,12 +82,20 @@ const navItems: NavItem[] = [
     isReady: true,
   },
   {
+    name: 'Voice Analytics',
+    href: '/dashboard/voice-analytics',
+    icon: Activity,
+    badge: 'Live',
+    isReady: true,
+  },
+  {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
     badge: 'Phase 6',
   },
 ];
+
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
