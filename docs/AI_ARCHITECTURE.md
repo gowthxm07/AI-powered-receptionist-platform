@@ -329,3 +329,17 @@ Phase 7.3.3 minimized end-to-end response latency from user end-of-speech to mob
 - **Immediate Audio Playback Preparation:** HTML5 audio preloading (`preload = 'auto'`) initiated concurrently with JSON parsing on the mobile client.
 - Complete documentation: [`docs/VOICE_RESPONSE_LATENCY_OPTIMIZATION.md`](docs/VOICE_RESPONSE_LATENCY_OPTIMIZATION.md).
 
+---
+
+## 17. Voice Session Monitoring & Analytics Foundation
+
+Phase 7.4.2 established an auditable, privacy-preserving monitoring and analytics foundation that transforms ephemeral voice interactions into structured operational metrics:
+
+- **Relational Data Model (`VoiceSessionAnalytics`):** Version-controlled schema migration tracking session lifecycle status (`CREATED`, `ACTIVE`, `COMPLETED`, `ENDED_BY_USER`, `ERROR`, `EXPIRED`), turn counts, STT transcription reliability, subsystem latencies, and conversion links to verified `Appointment` and `Customer` records.
+- **Zero-Audio Privacy Architecture:** Complete exclusion of raw audio buffers, audio files, and user speech transcripts from analytics persistence. Analytics records only store timing metadata, turn counts, and deterministic operational indicators.
+- **Non-Blocking Lifecycle Instrumentation:** Decoupled event logging embedded directly in `VoiceTransportSessionManager` and `VoiceTurnTransportService` executing asynchronously without adding latency to the voice transport loop.
+- **Live In-Memory & Historical Session Monitoring:** Active sessions tracked in real time via memory stores, while finalized sessions are aggregated in PostgreSQL for conversion rate calculations (`appointmentsBooked / completedSessions * 100`) and subsystem latency profiling.
+- **Multi-Tenant REST Gateway & Dashboard UI:** Dedicated `/api/analytics/voice/*` endpoints secured by JWT authentication and tenant ownership validation (`OwnershipService`), feeding a rich administrative dashboard (`/dashboard/voice-analytics`) with KPI cards, latency histograms, live active calls with pulsing indicators, and searchable session logs.
+- Complete technical documentation: [`docs/VOICE_ANALYTICS.md`](docs/VOICE_ANALYTICS.md).
+
+

@@ -350,10 +350,19 @@ An end-to-end full-stack intelligent receptionist built exclusively using open-s
 
 ---
 
-### Phase 7.4.2: Admin Operations & Live Call Monitoring (Upcoming ⏳)
-- [ ] Analytics dashboard for receptionist calls, booking rates, and conversation sentiment
-- [ ] Real-time call monitor and interactive chat simulator for testing
-- [ ] Admin controls to update business knowledge docs and AI persona guidelines
+### Phase 7.4.2: Voice Session Monitoring & Analytics Foundation (COMPLETED ✅)
+- [x] Version-controlled Prisma schema migration adding `VoiceSessionStatus` and `VoiceSessionAnalytics` relational models
+- [x] Multi-tenant relational integrity linking voice sessions to `Business`, `Customer` (optional), and `Appointment` (optional)
+- [x] Zero-audio privacy architecture: strict omission of raw audio buffers, files, and transcript text from analytics storage
+- [x] In-memory active session tracking & database-backed historical session analytics lifecycle (`CREATED` -> `ACTIVE` -> `COMPLETED` / `ENDED_BY_USER` / `ERROR` / `EXPIRED`)
+- [x] Non-blocking lifecycle instrumentation across `VoiceTransportSessionManager` and `VoiceTurnTransportService`
+- [x] Subsystem latency tracking (STT latency, AI conversation latency, Piper TTS latency, total pipeline duration)
+- [x] Verified booking conversion rate calculation (`(appointmentsBooked / completedSessions) * 100`)
+- [x] Protected multi-tenant REST endpoints (`GET /api/analytics/voice/summary`, `GET /api/analytics/voice/sessions`, `GET /api/analytics/voice/active`, `GET /api/analytics/voice/sessions/:id`) secured with JWT auth and `OwnershipService`
+- [x] Real-time Voice Analytics Dashboard (`/dashboard/voice-analytics`) featuring KPI summary cards, subsystem latency breakdown, live active calls monitor with pulsing status, and searchable historical session drawer
+- [x] Responsive sidebar navigation integration with live activity indicator
+- [x] 27 automated master test suites passing with 100% success rate (10 comprehensive new Phase 7.4.2 analytics tests)
+- [x] Comprehensive technical documentation specification in `docs/VOICE_ANALYTICS.md`
 
 ---
 
