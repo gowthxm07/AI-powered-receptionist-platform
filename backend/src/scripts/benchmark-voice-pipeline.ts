@@ -336,9 +336,33 @@ export async function runVoicePipelineBenchmark(): Promise<void> {
     }
 
     // =========================================================================
-    // PART 6: SCENARIO E — Ollama Fallback (Open-Ended AI Question)
+    // PART 6: SCENARIO E — Deterministic Fallback Guard & Ollama CPU
     // =========================================================================
-    console.log('\n▶ [6/6] SCENARIO E: Ollama Fallback (Open-Ended AI Question)...');
+    console.log('\n▶ [6/7] SCENARIO E1: Deterministic Guard ("Can you explain how I should prepare for my appointment?")...');
+    const e1Turns: VoiceTurnPerformanceMetric[] = [];
+    for (let i = 0; i < 3; i++) {
+      process.stdout.write(`   Iteration ${i + 1}/3... `);
+      const prepTurn = await executeTurnBenchmark({
+        text: 'Can you explain how I should prepare for my appointment?',
+        businessId: business.id,
+        turnNumber: 1,
+        tempAudioPath,
+      });
+      e1Turns.push(prepTurn.metric);
+      console.log(
+        `Source=${prepTurn.metric.source} | STT=${prepTurn.metric.sttMs}ms | AI=${prepTurn.metric.aiMs}ms | TTS=${prepTurn.metric.ttsMs}ms | Total=${prepTurn.metric.totalBackendPipelineMs}ms`
+      );
+    }
+    scenarioSummaries.push(
+      VoicePerformanceTracker.summarizeScenario(
+        'Scenario E1: Appointment Prep Guard',
+        'deterministic',
+        'Warm',
+        e1Turns
+      )
+    );
+
+    console.log('\n▶ [7/7] SCENARIO E2: Ollama Fallback (Open-Ended AI Question)...');
     let ollamaMetric: VoiceTurnPerformanceMetric | null = null;
     try {
       console.log('   Sending open-ended inquiry: "What is your clinic philosophy on patient comfort and care?"...');
@@ -354,7 +378,7 @@ export async function runVoicePipelineBenchmark(): Promise<void> {
       );
       scenarioSummaries.push(
         VoicePerformanceTracker.summarizeScenario(
-          'Scenario E: Ollama CPU Fallback',
+          'Scenario E2: Ollama CPU Fallback',
           'llm',
           'Warm',
           [ollamaMetric]
@@ -426,6 +450,77 @@ export async function runVoicePipelineBenchmark(): Promise<void> {
         `${r.metric.ttsMs.toFixed(1)}ms`.padEnd(11) +
         `${r.metric.totalBackendPipelineMs.toFixed(1)} ms (~${(r.metric.totalBackendPipelineMs / 1000).toFixed(2)}s)`
       );
+    }
+    console.log('========================================================================================================\n');
+
+    // =========================================================================
+    // PART 8: PHASE 8.1 vs PHASE 8.2 LATENCY COMPARISON TABLE
+    // =========================================================================
+    console.log('========================================================================================================');
+    console.log('🚀 PHASE 8.1 BASELINE vs. PHASE 8.2 OPTIMIZED COMPARISON');
+    console.log('========================================================================================================');
+    console.log(
+      'Scenario / Turn'.padEnd(36) +
+      'Phase 8.1'.padEnd(14) +
+      'Phase 8.2'.padEnd(14) +
+      'Delta (ms)'.padEnd(14) +
+      'Improvement (%)'.padEnd(18) +
+      'TTS Impact'
+    );
+    console.log('-'.repeat(104));
+
+    const baselineMap: Record<string, { baselineTotal: number; baselineTts: number }> = {
+      'Scenario A: Greeting ("Hello")': { baselineTotal: 2377.9, baselineTts: 1003.4 },
+      'Scenario B: Booking Intent': { baselineTotal: 2528.2, baselineTts: 985.6 },
+      'Scenario C: Services Catalog Tool': { baselineTotal: 4596.0, baselineTts: 2911.5 },
+      'Scenario E1: Appointment Prep Guard': { baselineTotal: 31932.6, baselineTts: 7604.8 },
+    };
+
+    for (const [name, base] of Object.entries(baselineMap)) {
+      const current = scenarioSummaries.find((s) => s.scenarioName.includes(name.split(':')[0]));
+      if (current) {
+        const delta = Number((current.totalPipeline.avg - base.baselineTotal).toFixed(1));
+        const pct = Number((((base.baselineTotal - current.totalPipeline.avg) / base.baselineTotal) * 100).toFixed(1));
+        const ttsDelta = Number((current.tts.avg - base.baselineTts).toFixed(1));
+        console.log(
+          name.padEnd(36) +
+          `${base.baselineTotal.toFixed(1)}ms`.padEnd(14) +
+          `${current.totalPipeline.avg.toFixed(1)}ms`.padEnd(14) +
+          `${delta > 0 ? '+' : ''}${delta}ms`.padEnd(14) +
+          `${pct > 0 ? '+' : ''}${pct}%`.padEnd(18) +
+          `TTS ${ttsDelta > 0 ? '+' : ''}${ttsDelta}ms`
+        );
+      }
+    }
+
+    console.log('-'.repeat(104));
+    console.log('Multi-Turn Booking Turns:');
+    const multiTurnBaselines = [
+      { step: 'Turn 1 (Intent)', baseTotal: 2793.4, baseTts: 1191.9 },
+      { step: 'Turn 2 (Service)', baseTotal: 4218.1, baseTts: 1926.6 },
+      { step: 'Turn 3 (Staff)', baseTotal: 2801.5, baseTts: 1128.8 },
+      { step: 'Turn 4 (Date/Slots)', baseTotal: 5294.6, baseTts: 3432.8 },
+      { step: 'Turn 5 (Time)', baseTotal: 3520.8, baseTts: 1673.3 },
+      { step: 'Turn 6 (Identity)', baseTotal: 4740.9, baseTts: 2196.1 },
+      { step: 'Turn 7 (Confirm)', baseTotal: 4010.7, baseTts: 2391.6 },
+    ];
+
+    for (let i = 0; i < multiTurnResults.length; i++) {
+      const r = multiTurnResults[i];
+      const base = multiTurnBaselines[i];
+      if (base) {
+        const delta = Number((r.metric.totalBackendPipelineMs - base.baseTotal).toFixed(1));
+        const pct = Number((((base.baseTotal - r.metric.totalBackendPipelineMs) / base.baseTotal) * 100).toFixed(1));
+        const ttsDelta = Number((r.metric.ttsMs - base.baseTts).toFixed(1));
+        console.log(
+          base.step.padEnd(36) +
+          `${base.baseTotal.toFixed(1)}ms`.padEnd(14) +
+          `${r.metric.totalBackendPipelineMs.toFixed(1)}ms`.padEnd(14) +
+          `${delta > 0 ? '+' : ''}${delta}ms`.padEnd(14) +
+          `${pct > 0 ? '+' : ''}${pct}%`.padEnd(18) +
+          `TTS ${ttsDelta > 0 ? '+' : ''}${ttsDelta}ms`
+        );
+      }
     }
     console.log('========================================================================================================\n');
 
