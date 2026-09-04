@@ -6,9 +6,8 @@ import { useBusiness } from '../../context/BusinessContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { StatsCard } from './StatsCard';
 import { QuickActions } from './QuickActions';
-import { RecentActivity } from './RecentActivity';
 import { AIReceptionistCard } from './AIReceptionistCard';
-import { AIPerformanceCard } from './AIPerformanceCard';
+import { RecentAppointments } from './RecentAppointments';
 import { SystemStatus } from './SystemStatus';
 import {
   Users,
@@ -165,7 +164,7 @@ export const DashboardOverview: React.FC = () => {
           </div>
           <h3 className="text-sm font-semibold text-slate-200">No Domain Records for this Business</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            This business currently has 0 customers, 0 staff, and 0 services. Full CRUD interfaces to add records will launch in Phase 6.
+            This business currently has no customers, staff, or services configured. Use the Quick Operations below to add your first records.
           </p>
         </div>
       )}
@@ -175,16 +174,15 @@ export const DashboardOverview: React.FC = () => {
 
       {/* 2-Column Main Dashboard Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: AI Receptionist Card & Latency Telemetry */}
+        {/* Left Column: AI Receptionist Card & System Health */}
         <div className="space-y-6">
           <AIReceptionistCard />
-          <AIPerformanceCard />
+          <SystemStatus />
         </div>
 
-        {/* Right Column: Recent Activity & System Health */}
+        {/* Right Column: Recent Live Appointments Table */}
         <div className="space-y-6">
-          <RecentActivity />
-          <SystemStatus />
+          <RecentAppointments businessId={selectedBusiness?.id || ''} />
         </div>
       </div>
     </div>

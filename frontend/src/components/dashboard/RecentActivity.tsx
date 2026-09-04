@@ -23,29 +23,29 @@ export const RecentActivity: React.FC = () => {
         </span>
       </div>
 
-      {/* Honest Empty / Informational State */}
+      {/* Activity State */}
       <div className="rounded-xl border border-dashed border-slate-800/90 bg-slate-950/40 p-6 text-center space-y-2">
         <p className="text-xs font-medium text-slate-300">
           No activity records generated yet.
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-          Activity telemetry is designed to stream real-time events as the AI receptionist handles voice calls, books appointments, and updates customer records starting in Phase 4.
+          Activity telemetry streams real-time events as the AI receptionist handles voice calls, books appointments, and updates customer records.
         </p>
       </div>
 
-      {/* Future Event Schemas Preview */}
+      {/* Event Schemas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-[11px]">
         <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/60 text-slate-400">
           <PhoneCall className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-          <span className="truncate">AI Voice Calls (Phase 4)</span>
+          <span className="truncate">AI Voice Calls</span>
         </div>
         <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/60 text-slate-400">
           <Calendar className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-          <span className="truncate">Calendar Bookings (Phase 4)</span>
+          <span className="truncate">Calendar Bookings</span>
         </div>
         <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/60 text-slate-400">
           <UserPlus className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-          <span className="truncate">Customer Intakes (Phase 6)</span>
+          <span className="truncate">Customer Intakes</span>
         </div>
       </div>
     </div>

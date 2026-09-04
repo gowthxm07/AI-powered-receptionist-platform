@@ -9,7 +9,6 @@ interface QuickActionItem {
   description: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  phase: string;
   colorScheme: 'indigo' | 'emerald' | 'blue' | 'purple';
 }
 
@@ -19,7 +18,6 @@ const actions: QuickActionItem[] = [
     description: 'Add a new caller record to this business directory.',
     href: '/dashboard/customers',
     icon: UserPlus,
-    phase: 'Phase 6',
     colorScheme: 'emerald',
   },
   {
@@ -27,7 +25,6 @@ const actions: QuickActionItem[] = [
     description: 'Add a specialist to your active service roster.',
     href: '/dashboard/staff',
     icon: UserCheck,
-    phase: 'Phase 6',
     colorScheme: 'blue',
   },
   {
@@ -35,7 +32,6 @@ const actions: QuickActionItem[] = [
     description: 'Configure a new bookable appointment offering.',
     href: '/dashboard/services',
     icon: PlusSquare,
-    phase: 'Phase 6',
     colorScheme: 'purple',
   },
   {
@@ -43,7 +39,6 @@ const actions: QuickActionItem[] = [
     description: 'Schedule a manual or AI-assisted calendar slot.',
     href: '/dashboard/appointments',
     icon: CalendarPlus,
-    phase: 'Phase 4',
     colorScheme: 'indigo',
   },
 ];
@@ -99,12 +94,7 @@ export const QuickActions: React.FC = () => {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                <div className="flex items-center space-x-1">
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700/60">
-                    {act.phase}
-                  </span>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors" />
-                </div>
+                <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
               </div>
 
               <div className="mt-3">

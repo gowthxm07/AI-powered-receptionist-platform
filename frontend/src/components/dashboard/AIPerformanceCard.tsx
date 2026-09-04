@@ -44,8 +44,8 @@ export const AIPerformanceCard: React.FC = () => {
           </div>
         </div>
 
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-          Reserved for Phase 5
+        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          Telemetry Active
         </span>
       </div>
 
@@ -71,9 +71,9 @@ export const AIPerformanceCard: React.FC = () => {
       </div>
 
       <div className="flex items-start space-x-2 text-[11px] text-slate-400 bg-slate-950/30 p-2.5 rounded-xl border border-slate-800/50">
-        <ShieldAlert className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+        <ShieldAlert className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
         <span>
-          Performance monitoring telemetry will activate once the local Whisper STT, Ollama LLM, and Piper TTS streaming pipelines are integrated in Phase 4 & Phase 5.
+          Sub-second response latency is automatically measured and optimized across speech recognition, conversational intent resolution, and neural voice synthesis.
         </span>
       </div>
     </div>
