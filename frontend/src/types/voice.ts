@@ -29,6 +29,7 @@ export interface VoiceTransportSession {
   transportSessionId: string;
   conversationSessionId: string;
   businessId: string;
+  businessName?: string | null;
   customerId?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;

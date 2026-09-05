@@ -7,6 +7,7 @@ import staffRoutes from './staff.routes';
 import serviceRoutes from './service.routes';
 import appointmentRoutes from './appointment.routes';
 import aiRoutes from './ai.routes';
+import publicRoutes from './public.routes';
 import voiceAnalyticsRoutes from './voice-analytics.routes';
 
 const router = Router();
@@ -14,6 +15,7 @@ const router = Router();
 // Mount Core API routes
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
+router.use('/public', publicRoutes);
 router.use('/businesses', businessRoutes);
 router.use('/customers', customerRoutes);
 router.use('/staff', staffRoutes);

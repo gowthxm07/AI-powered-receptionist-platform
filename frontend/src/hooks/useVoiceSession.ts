@@ -264,12 +264,16 @@ export function useVoiceSession() {
 
         setSession(newSession);
 
-        // 3. Initial welcome assistant greeting
+        // 3. Initial welcome assistant greeting tailored to selected business
+        const welcomeText = newSession.businessName
+          ? `Hello! Welcome to ${newSession.businessName}. How can I help you today?`
+          : 'Hello! Welcome to our receptionist. How can I help you today?';
+
         setDialogueTurns([
           {
             id: `ast_init_${Date.now()}`,
             speaker: 'assistant',
-            text: 'Hello! Welcome to our receptionist. How can I help you today?',
+            text: welcomeText,
             timestamp: new Date(),
             source: 'deterministic',
           },

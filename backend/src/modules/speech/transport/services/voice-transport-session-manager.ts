@@ -126,6 +126,7 @@ export class VoiceTransportSessionManager {
       transportSessionId,
       conversationSessionId: convSessionId,
       businessId,
+      businessName: business.name,
       customerId: customerRecord?.id || null,
       customerName: customerRecord?.name || null,
       customerPhone: customerRecord?.phone || null,

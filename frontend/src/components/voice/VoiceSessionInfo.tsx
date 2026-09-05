@@ -59,8 +59,10 @@ export const VoiceSessionInfo: React.FC<VoiceSessionInfoProps> = ({
               <span className="text-emerald-400 font-semibold">{session.channel}</span>
             </div>
             <div className="flex justify-between">
-              <span>Tenant Business:</span>
-              <span className="font-mono text-slate-300">{maskId(session.businessId)}</span>
+              <span>Business:</span>
+              <span className="font-mono text-slate-300">
+                {session.businessName ? `${session.businessName} (${maskId(session.businessId)})` : maskId(session.businessId)}
+              </span>
             </div>
             {activeStep && (
               <div className="flex justify-between">

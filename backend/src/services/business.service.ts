@@ -18,6 +18,20 @@ export class BusinessService {
     });
   }
 
+  public static async getPublicBusinesses() {
+    return prisma.business.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        description: true,
+        timezone: true,
+      },
+    });
+  }
+
   public static async getAllBusinesses(userId: string, role?: UserRole) {
     const isRestricted = role !== UserRole.ADMIN;
 

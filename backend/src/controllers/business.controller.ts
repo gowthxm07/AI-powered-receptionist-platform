@@ -16,6 +16,20 @@ export class BusinessController {
     }
   }
 
+  public static async getPublic(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const businesses = await BusinessService.getPublicBusinesses();
+      res.status(200).json({
+        success: true,
+        message: 'Eligible businesses retrieved successfully',
+        data: businesses,
+        businesses,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.userId;

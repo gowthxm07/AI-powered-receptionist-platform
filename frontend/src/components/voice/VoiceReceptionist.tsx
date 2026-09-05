@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useVoiceSession } from '../../hooks/useVoiceSession';
 import { VoiceStatus } from './VoiceStatus';
@@ -18,6 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 
 export const VoiceReceptionist: React.FC = () => {
@@ -26,6 +28,7 @@ export const VoiceReceptionist: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [isLoadingBusinesses, setIsLoadingBusinesses] = useState<boolean>(true);
+  const [businessesError, setBusinessesError] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
 
   const dialogueContainerRef = useRef<HTMLDivElement | null>(null);
@@ -55,41 +58,41 @@ export const VoiceReceptionist: React.FC = () => {
     endSession,
   } = useVoiceSession();
 
-  // Fetch businesses for multi-tenant selection
-  useEffect(() => {
-    async function loadBusinesses() {
-      try {
-        setIsLoadingBusinesses(true);
-        const res = await api.businesses.getAll();
-        if (res.success && res.data && res.data.length > 0) {
-          setBusinesses(res.data);
-          setSelectedBusinessId(res.data[0].id);
-        }
-      } catch {
-        // Fallback demo business
-        setBusinesses([
-          {
-            id: 'b0000001-0000-0000-0000-000000000001',
-            name: 'Lumina Dental Care',
-            phone: '+1-555-0100',
-            email: 'info@luminadental.com',
-            timezone: 'America/New_York',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ]);
-        setSelectedBusinessId('b0000001-0000-0000-0000-000000000001');
-      } finally {
-        setIsLoadingBusinesses(false);
+  // Fetch public businesses for multi-tenant customer selection
+  const loadBusinesses = useCallback(async () => {
+    try {
+      setIsLoadingBusinesses(true);
+      setBusinessesError(null);
+      const res = await api.businesses.getPublic();
+      if (res.success && res.data && res.data.length > 0) {
+        setBusinesses(res.data);
+      } else {
+        setBusinesses([]);
       }
+    } catch (err: any) {
+      setBusinesses([]);
+      setBusinessesError(err.message || 'Unable to load available businesses.');
+    } finally {
+      setIsLoadingBusinesses(false);
     }
-
-    loadBusinesses();
   }, []);
 
-  // Fetch customers when business changes
   useEffect(() => {
-    if (!selectedBusinessId) return;
+    loadBusinesses();
+  }, [loadBusinesses]);
+
+  const handleBusinessChange = (bizId: string) => {
+    setSelectedBusinessId(bizId);
+    setSelectedCustomerId('');
+    setCustomers([]);
+  };
+
+  // Fetch customers when business changes (if authenticated)
+  useEffect(() => {
+    if (!selectedBusinessId) {
+      setCustomers([]);
+      return;
+    }
 
     async function loadCustomers() {
       try {
@@ -160,20 +163,47 @@ export const VoiceReceptionist: React.FC = () => {
           <div className="space-y-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-sm">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
               <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Select Business Tenant:</span>
+              <span>Which business would you like to contact?</span>
             </div>
-            <select
-              value={selectedBusinessId}
-              onChange={(e) => setSelectedBusinessId(e.target.value)}
-              disabled={isLoadingBusinesses}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
-            >
-              {businesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+
+            {isLoadingBusinesses ? (
+              <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-400 bg-slate-950/60 rounded-xl border border-slate-800">
+                <Sparkles className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                <span>Loading available businesses...</span>
+              </div>
+            ) : businessesError ? (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                  <span>{businessesError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadBusinesses()}
+                  className="px-2.5 py-1 text-[11px] font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Retry</span>
+                </button>
+              </div>
+            ) : businesses.length === 0 ? (
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 text-center">
+                No businesses are currently available for Voice Reception.
+              </div>
+            ) : (
+              <select
+                value={selectedBusinessId}
+                onChange={(e) => handleBusinessChange(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">Select a Business</option>
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 pt-1">
               <User className="w-3.5 h-3.5 text-emerald-400" />
@@ -182,9 +212,10 @@ export const VoiceReceptionist: React.FC = () => {
             <select
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500"
+              disabled={!selectedBusinessId}
+              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
             >
-              <option value="">Guest Caller (New Customer)</option>
+              <option value="">Continue as Guest</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.phone || 'No phone'})
@@ -224,8 +255,10 @@ export const VoiceReceptionist: React.FC = () => {
               <p className="text-slate-400 text-xs">
                 {uiState === 'READY'
                   ? 'Tap the microphone and speak naturally.'
+                  : !selectedBusinessId
+                  ? 'Select a business to begin.'
                   : isSecureContext
-                  ? 'Press Start Voice Reception to connect.'
+                  ? `Ready to connect with ${selectedBusiness?.name}.`
                   : 'HTTPS connection required to start.'}
               </p>
             )}
@@ -278,6 +311,7 @@ export const VoiceReceptionist: React.FC = () => {
             recordingDurationSec={recordingDurationSec}
             autoStopEnabled={autoStopEnabled}
             speechDetected={speechDetected}
+            disabled={!selectedBusinessId || isLoadingBusinesses}
             onStartSession={() => startSession(selectedBusinessId, selectedCustomerId || undefined)}
             onStartTalking={startTalking}
             onStopTalking={stopTalking}

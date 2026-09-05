@@ -8,6 +8,7 @@ interface VoiceControlButtonProps {
   recordingDurationSec: number;
   autoStopEnabled?: boolean;
   speechDetected?: boolean;
+  disabled?: boolean;
   onStartSession: () => void;
   onStartTalking: () => void;
   onStopTalking: () => void;
@@ -19,6 +20,7 @@ export const VoiceControlButton: React.FC<VoiceControlButtonProps> = ({
   recordingDurationSec,
   autoStopEnabled = true,
   speechDetected = false,
+  disabled = false,
   onStartSession,
   onStartTalking,
   onStopTalking,
@@ -30,7 +32,12 @@ export const VoiceControlButton: React.FC<VoiceControlButtonProps> = ({
       <div className="w-full max-w-xs mx-auto flex flex-col gap-3">
         <button
           onClick={onStartSession}
-          className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-base shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+          disabled={disabled}
+          className={`w-full h-14 rounded-2xl font-semibold text-base flex items-center justify-center gap-3 transition-all ${
+            disabled
+              ? 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed shadow-none'
+              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 active:scale-[0.98]'
+          }`}
         >
           <Phone className="w-5 h-5" />
           <span>Start Voice Reception</span>

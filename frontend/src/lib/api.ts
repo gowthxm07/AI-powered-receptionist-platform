@@ -114,6 +114,7 @@ export const api = {
     logout: () => fetcher<void>('/api/auth/logout', { method: 'POST' }),
   },
   businesses: {
+    getPublic: () => fetcher<Business[]>('/api/public/businesses', { method: 'GET' }),
     getAll: () => fetcher<Business[]>('/api/businesses', { method: 'GET' }),
     getById: (id: string) => fetcher<Business>(`/api/businesses/${id}`, { method: 'GET' }),
   },

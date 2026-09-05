@@ -28,6 +28,7 @@ import { runVoiceAnalyticsTests } from './voice-analytics.test';
 import { runVoicePipelinePerformanceTests } from './voice-pipeline-performance.test';
 import { runVoiceLatencyOptimizationTests } from './voice-latency-optimization.test';
 import { runEndToEndSystemValidationTests } from './end-to-end-system-validation.test';
+import { runPublicBusinessDiscoveryTests } from './public-business-discovery.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -63,6 +64,7 @@ async function runAllTestSuites() {
   await runVoicePipelinePerformanceTests();
   await runVoiceLatencyOptimizationTests();
   await runEndToEndSystemValidationTests();
+  await runPublicBusinessDiscoveryTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

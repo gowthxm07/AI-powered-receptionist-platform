@@ -6,7 +6,10 @@ import { createBusinessSchema, updateBusinessSchema } from '../validation/busine
 
 const router = Router();
 
-// All business routes require valid user authentication
+// Public business discovery route for customer voice reception (unauthenticated)
+router.get('/public', BusinessController.getPublic);
+
+// All subsequent business routes require valid user authentication
 router.use(authenticate);
 
 router.post('/', validateRequest(createBusinessSchema), BusinessController.create);
