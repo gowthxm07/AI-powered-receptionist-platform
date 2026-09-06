@@ -74,7 +74,7 @@ export async function runMobileVoiceIntegrationTests(): Promise<void> {
     { speech: 'Anyone is fine', expectedStep: 'BOOKING_COLLECT_DATE' },
     { speech: 'Tomorrow', expectedStep: 'BOOKING_SELECT_SLOT' },
     { speech: '10 AM', expectedStep: 'BOOKING_CONFIRM' },
-    { speech: 'Yes confirm', expectedStep: 'IDLE' },
+    { speech: 'Yes confirm', expectedStep: 'BOOKING_COMPLETE' },
   ];
 
   let knownAppointmentId: string | null = null;
@@ -134,9 +134,11 @@ export async function runMobileVoiceIntegrationTests(): Promise<void> {
     { speech: 'Anyone is fine', expectedStep: 'BOOKING_COLLECT_DATE' },
     { speech: 'Tomorrow', expectedStep: 'BOOKING_SELECT_SLOT' },
     { speech: '10 AM', expectedStep: 'BOOKING_COLLECT_CUSTOMER_NAME' },
-    { speech: `My name is ${guestName}`, expectedStep: 'BOOKING_COLLECT_CUSTOMER_PHONE' },
-    { speech: guestPhone, expectedStep: 'BOOKING_CONFIRM' },
-    { speech: 'Yes confirm', expectedStep: 'IDLE' },
+    { speech: `My name is ${guestName}`, expectedStep: 'BOOKING_CONFIRM_CUSTOMER_NAME' },
+    { speech: 'Yes, that is my name', expectedStep: 'BOOKING_COLLECT_CUSTOMER_PHONE' },
+    { speech: guestPhone, expectedStep: 'BOOKING_CONFIRM_CUSTOMER_PHONE' },
+    { speech: 'Yes, that is my number', expectedStep: 'BOOKING_CONFIRM' },
+    { speech: 'Yes confirm', expectedStep: 'BOOKING_COMPLETE' },
   ];
 
   let guestAppointmentId: string | null = null;

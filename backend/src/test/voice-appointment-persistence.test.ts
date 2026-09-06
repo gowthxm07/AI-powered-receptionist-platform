@@ -165,31 +165,54 @@ export async function runVoiceAppointmentPersistenceTests(): Promise<void> {
     assert(s5?.selectedStaffId, 'Specialist must be assigned from the available slot');
     console.log(`  ✓ Turn 5 -> Slot chosen, assigned specialist '${s5.selectedStaffName}', asked for caller full name.`);
 
-    // Turn 6: Name Collection -> MUST transition to BOOKING_COLLECT_CUSTOMER_PHONE
+    // Turn 6: Name Collection -> MUST transition to BOOKING_CONFIRM_CUSTOMER_NAME
     const t6 = await receptionist.processMessage({
       message: `My name is ${testName}`,
       context,
     });
     assert.strictEqual(t6.success, true);
-    assert(t6.response.includes('phone number') || t6.response.includes('mobile number'));
+    assert(t6.response.includes('your name is') && t6.response.includes(testName));
     const s6 = await sessionStore.getSession(testSessionId);
-    assert.strictEqual(s6?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE);
+    assert.strictEqual(s6?.step, BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME);
     assert.strictEqual(s6?.customerName, testName);
-    console.log(`  ✓ Turn 6 -> Captured caller name '${testName}', asked for phone number.`);
+    console.log(`  ✓ Turn 6 -> Captured caller name '${testName}', asked for explicit name confirmation.`);
 
-    // Turn 7: Phone Collection -> MUST resolve customer and prompt confirmation
+    // Turn 6b: Name Confirmation -> MUST transition to BOOKING_COLLECT_CUSTOMER_PHONE
+    const t6b = await receptionist.processMessage({
+      message: 'Yes, that is correct',
+      context,
+    });
+    assert.strictEqual(t6b.success, true);
+    assert(t6b.response.includes('phone number') || t6b.response.includes('provide your phone'));
+    const s6b = await sessionStore.getSession(testSessionId);
+    assert.strictEqual(s6b?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE);
+    assert.strictEqual(s6b?.customerName, testName);
+    console.log(`  ✓ Turn 6b -> Confirmed caller name '${testName}', advanced to phone number collection.`);
+
+    // Turn 7: Phone Collection -> MUST transition to BOOKING_CONFIRM_CUSTOMER_PHONE
     const t7 = await receptionist.processMessage({
       message: testPhone,
       context,
     });
     assert.strictEqual(t7.success, true);
-    assert(t7.response.includes('Please confirm') || t7.response.includes('Should I confirm'));
-    assert(t7.response.includes(testName));
+    assert(t7.response.includes('heard your phone number') || t7.response.includes('Is that correct'));
     const s7 = await sessionStore.getSession(testSessionId);
-    assert.strictEqual(s7?.step, BookingConversationStep.BOOKING_CONFIRM);
-    assert(s7?.customerId, 'Customer record must be resolved or created');
-    createdCustomerId = s7.customerId;
-    console.log(`  ✓ Turn 7 -> Created customer in PostgreSQL (${createdCustomerId}), prompted confirmation.`);
+    assert.strictEqual(s7?.step, BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE);
+    console.log(`  ✓ Turn 7 -> Captured phone number, asked for explicit phone confirmation.`);
+
+    // Turn 7b: Phone Confirmation -> MUST resolve customer and prompt confirmation
+    const t7b = await receptionist.processMessage({
+      message: 'Yes, correct',
+      context,
+    });
+    assert.strictEqual(t7b.success, true);
+    assert(t7b.response.includes('Please confirm') || t7b.response.includes('Should I confirm'));
+    assert(t7b.response.includes(testName));
+    const s7b = await sessionStore.getSession(testSessionId);
+    assert.strictEqual(s7b?.step, BookingConversationStep.BOOKING_CONFIRM);
+    assert(s7b?.customerId, 'Customer record must be resolved or created');
+    createdCustomerId = s7b.customerId;
+    console.log(`  ✓ Turn 7b -> Confirmed phone number, resolved customer in PostgreSQL (${createdCustomerId}), prompted booking confirmation.`);
 
     // Turn 8: Confirmation -> MUST create appointment in PostgreSQL
     const t8 = await receptionist.processMessage({
@@ -323,7 +346,7 @@ export async function runVoiceAppointmentPersistenceTests(): Promise<void> {
   assert.strictEqual(afterSlotSession?.selectedStaffName, 'Dr. Emily Watson');
   console.log('  ✓ Verified slot selection assigned specialist "Dr. Emily Watson" and advanced to customer name collection.');
 
-  // B. Name Collection -> Collect Phone
+  // B. Name Collection -> Explicit Name Confirmation
   const nameTurn = await unitStateMachine.handleTurn(
     'My name is Sophia Loren',
     afterSlotSession!,
@@ -332,12 +355,79 @@ export async function runVoiceAppointmentPersistenceTests(): Promise<void> {
   );
 
   assert.strictEqual(nameTurn.response.success, true);
-  assert(nameTurn.response.response.includes('phone number') || nameTurn.response.response.includes('mobile number'));
-  assert(nameTurn.response.response.includes('Sophia Loren'));
+  assert(nameTurn.response.response.includes('your name is') && nameTurn.response.response.includes('Sophia Loren'));
   const afterNameSession = await unitStore.getSession(slotSessionId);
-  assert.strictEqual(afterNameSession?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE);
+  assert.strictEqual(afterNameSession?.step, BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME);
   assert.strictEqual(afterNameSession?.customerName, 'Sophia Loren');
-  console.log('  ✓ Verified name collection captured "Sophia Loren" and advanced to customer phone collection.');
+  console.log('  ✓ Verified name collection captured "Sophia Loren" and advanced to explicit name confirmation.');
+
+  // B-2. Name Rejection & Discard: "No, you got it wrong" -> returns to name collection with discarded name
+  const nameRejectTurn = await unitStateMachine.handleTurn(
+    'No, you got it wrong',
+    afterNameSession!,
+    { businessId: 'biz-001', sessionId: slotSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(nameRejectTurn.response.success, true);
+  assert(nameRejectTurn.response.response.includes('repeat your first and last name'));
+  const afterNameRejectSession = await unitStore.getSession(slotSessionId);
+  assert.strictEqual(afterNameRejectSession?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME);
+  assert.strictEqual(afterNameRejectSession?.customerName, undefined, 'Previous name must be discarded on rejection');
+  console.log('  ✓ Name Rejection & Discard: Discarded misheard name and returned to name collection.');
+
+  // B-3. Name Inline Correction: "No, my name is Sophia Loren"
+  const nameInlineTurn = await unitStateMachine.handleTurn(
+    'No, my name is Sophia Loren',
+    afterNameRejectSession!,
+    { businessId: 'biz-001', sessionId: slotSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(nameInlineTurn.response.success, true);
+  const afterInlineSession = await unitStore.getSession(slotSessionId);
+  assert.strictEqual(afterInlineSession?.step, BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME);
+  assert.strictEqual(afterInlineSession?.customerName, 'Sophia Loren');
+  console.log('  ✓ Name Inline Correction: Corrected name captured and stayed in name confirmation.');
+
+  // B-4. Confirm Name -> Advances to Phone Collection
+  const nameConfirmTurn = await unitStateMachine.handleTurn(
+    'Yes, that is correct',
+    afterInlineSession!,
+    { businessId: 'biz-001', sessionId: slotSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(nameConfirmTurn.response.success, true);
+  assert(nameConfirmTurn.response.response.includes('phone number'));
+  const afterConfirmNameSession = await unitStore.getSession(slotSessionId);
+  assert.strictEqual(afterConfirmNameSession?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE);
+  console.log('  ✓ Name Confirmation: Confirmed name and advanced to phone collection.');
+
+  // B-5. Phone Collection -> Explicit Phone Confirmation
+  const phoneTurn = await unitStateMachine.handleTurn(
+    '555 123 4567',
+    afterConfirmNameSession!,
+    { businessId: 'biz-001', sessionId: slotSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(phoneTurn.response.success, true);
+  assert(phoneTurn.response.response.includes('555-123-4567') && phoneTurn.response.response.includes('correct'));
+  const afterPhoneSession = await unitStore.getSession(slotSessionId);
+  assert.strictEqual(afterPhoneSession?.step, BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE);
+  assert.strictEqual(afterPhoneSession?.customerPhone, '555-123-4567');
+  console.log('  ✓ Phone Collection: Formatted phone number and advanced to explicit phone confirmation.');
+
+  // B-6. Phone Rejection & Discard: "No, that's not my number" -> returns to phone collection with discarded phone
+  const phoneRejectTurn = await unitStateMachine.handleTurn(
+    "No, that's not my number",
+    afterPhoneSession!,
+    { businessId: 'biz-001', sessionId: slotSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(phoneRejectTurn.response.success, true);
+  assert(phoneRejectTurn.response.response.includes('What is your phone number'));
+  const afterPhoneRejectSession = await unitStore.getSession(slotSessionId);
+  assert.strictEqual(afterPhoneRejectSession?.step, BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE);
+  assert.strictEqual(afterPhoneRejectSession?.customerPhone, undefined, 'Previous phone must be discarded on rejection');
+  console.log('  ✓ Phone Rejection & Discard: Discarded misheard phone and returned to phone collection.');
 
   // C. Confirm Step -> Tool Error Handled with Zero False Confirmations
   const confirmSessionId = 'test-confirm-session';
@@ -375,6 +465,76 @@ export async function runVoiceAppointmentPersistenceTests(): Promise<void> {
     confirmTurn.response.response.includes("scheduling conflict")
   );
   console.log('  ✓ Zero False Confirmations Guarantee: When tool creation fails, AI reports conflict and never claims booking.');
+
+  // ----------------------------------------------------
+  // 5. Universal User Correction Routing & State Rollback
+  // ----------------------------------------------------
+  console.log('\n5. Testing Universal User Correction Routing:');
+
+  const correctionSessionId = 'test-correction-session';
+  await unitStore.setSession({
+    sessionId: correctionSessionId,
+    businessId: 'biz-001',
+    step: BookingConversationStep.BOOKING_SELECT_SLOT,
+    selectedServiceId: 'srv-1',
+    selectedServiceName: 'Comprehensive Oral Exam',
+    selectedDate: '2026-09-15',
+    availableSlots: [
+      { timeLabel: '09:00 AM', startTime: '2026-09-15T09:00:00.000Z', endTime: '2026-09-15T09:30:00.000Z' },
+    ],
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+  });
+
+  // User says "Can I change the date?"
+  const dateCorrectionTurn = await unitStateMachine.handleTurn(
+    'Can I change the date?',
+    (await unitStore.getSession(correctionSessionId))!,
+    { businessId: 'biz-001', sessionId: correctionSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(dateCorrectionTurn.response.success, true);
+  assert(dateCorrectionTurn.response.response.includes('pick a different date') || dateCorrectionTurn.response.response.includes('What date'));
+  const afterDateCorrectionSession = await unitStore.getSession(correctionSessionId);
+  assert.strictEqual(afterDateCorrectionSession?.step, BookingConversationStep.BOOKING_COLLECT_DATE);
+  assert.strictEqual(afterDateCorrectionSession?.selectedDate, undefined);
+  console.log('  ✓ Universal Correction: "Can I change the date?" safely rolled back to date collection.');
+
+  // User says "Can I change the service?"
+  const serviceCorrectionTurn = await unitStateMachine.handleTurn(
+    'Wait, can I change the service?',
+    afterDateCorrectionSession!,
+    { businessId: 'biz-001', sessionId: correctionSessionId, channel: 'VOICE' },
+    performance.now()
+  );
+  assert.strictEqual(serviceCorrectionTurn.response.success, true);
+  assert(serviceCorrectionTurn.response.response.includes('select a different service') || serviceCorrectionTurn.response.response.includes('Which service'));
+  const afterServiceCorrectionSession = await unitStore.getSession(correctionSessionId);
+  assert.strictEqual(afterServiceCorrectionSession?.step, BookingConversationStep.BOOKING_COLLECT_SERVICE);
+  console.log('  ✓ Universal Correction: "Change service" safely rolled back to service selection.');
+
+  // ----------------------------------------------------
+  // 6. Typed Input Turn Transport Bypass
+  // ----------------------------------------------------
+  console.log('\n6. Testing Typed Input Turn Transport Layer:');
+  const { voiceTurnTransportService } = await import('../modules/speech/transport/services/voice-turn-transport.service');
+  const typedTurnBusiness = await prisma.business.findFirst();
+
+  if (typedTurnBusiness) {
+    const textTurnResult = await voiceTurnTransportService.processVoiceTurn({
+      businessId: typedTurnBusiness.id,
+      textInput: 'I would like to book a consultation',
+      clientChannel: 'MOBILE_WEB',
+    });
+
+    assert.strictEqual(textTurnResult.success, true);
+    assert.strictEqual(textTurnResult.transcript, 'I would like to book a consultation');
+    assert(textTurnResult.responseText.length > 0);
+    assert.strictEqual(textTurnResult.metrics.sttMs, 0, 'Typed input must completely bypass STT latency (0ms)');
+    assert(textTurnResult.audio, 'Typed turn should still synthesize TTS response audio');
+    console.log(`  ✓ Typed Turn Transport: Bypassed STT, processed conversational turn, and synthesized audio in ${textTurnResult.metrics.totalMs}ms.`);
+  }
 
 }
 

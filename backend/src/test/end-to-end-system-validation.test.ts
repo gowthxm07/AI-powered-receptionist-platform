@@ -57,6 +57,7 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
     // TEST 2: Complete 7-Turn Voice Booking Pipeline Execution
     // -------------------------------------------------------------------------
     let transportSessionId = '';
+    let executedTurnCount = 0;
     {
       const sessionRes = await voiceTransportSessionManager.createTransportSession({
         businessId: business.id,
@@ -65,7 +66,7 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       assert(sessionRes.session, 'Transport session must be created');
       transportSessionId = sessionRes.session.transportSessionId;
 
-      // The 8 canonical conversational booking turns
+      // The canonical conversational booking turns
       const testCustomerPhone = `555-019-${Math.floor(1000 + Math.random() * 9000)}`;
       const testCustomerName = 'Jane Watson';
 
@@ -76,9 +77,12 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
         { text: 'Tomorrow', desc: 'Turn 4 (Date)' },
         { text: '9 AM', desc: 'Turn 5 (Time)' },
         { text: `My name is ${testCustomerName}`, desc: 'Turn 6 (Caller Name)' },
+        { text: 'Yes, that is my name', desc: 'Turn 6b (Name Confirmation)' },
         { text: `My phone number is ${testCustomerPhone}`, desc: 'Turn 7 (Caller Phone)' },
+        { text: 'Yes, that is correct', desc: 'Turn 7b (Phone Confirmation)' },
         { text: 'Yes, please confirm the appointment', desc: 'Turn 8 (Confirmation)' },
       ];
+      executedTurnCount = bookingTurns.length;
 
       for (let i = 0; i < bookingTurns.length; i++) {
         const turn = bookingTurns[i];
@@ -177,9 +181,9 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       assert.strictEqual(analytics.businessId, business.id, 'Analytics record must link to Lumina Dental Care');
       assert.strictEqual(analytics.appointmentBooked, true, 'appointmentBooked must be true');
       assert.strictEqual(analytics.appointmentId, createdAppointmentId, 'appointmentId must link to created appointment');
-      assert.strictEqual(analytics.turnCount, 8, 'Turn count must accurately reflect 8 executed turns');
+      assert.strictEqual(analytics.turnCount, executedTurnCount, `Turn count must accurately reflect ${executedTurnCount} executed turns`);
       assert.ok(analytics.durationMs && analytics.durationMs > 0, 'Total session duration must be recorded');
-      assert.ok(analytics.successfulTranscriptionCount >= 8, 'Successful STT count must be at least 8');
+      assert.ok(analytics.successfulTranscriptionCount >= executedTurnCount, `Successful STT count must be at least ${executedTurnCount}`);
 
       // Strict Privacy Audit: verify zero raw audio, audio blobs, or speech transcripts stored
       const analyticsKeys = Object.keys(analytics);
