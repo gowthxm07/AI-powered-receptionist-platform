@@ -72,9 +72,9 @@ export const QuickActions: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-white tracking-tight">Quick Operations</h3>
-          <p className="text-xs text-slate-400">Shortcuts to core business workflows</p>
+          <p className="text-xs text-slate-400">Direct shortcuts to frequent business actions</p>
         </div>
-        <span className="text-[11px] text-slate-400 font-mono">Interactive navigation</span>
+        <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Shortcuts</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -86,7 +86,7 @@ export const QuickActions: React.FC = () => {
             <Link
               key={act.title}
               href={act.href}
-              className="relative overflow-hidden rounded-2xl bg-slate-900/70 border border-slate-800/80 p-4 hover:border-slate-700 hover:bg-slate-900 transition-all duration-200 group flex flex-col justify-between"
+              className="relative overflow-hidden rounded-2xl bg-slate-900/70 border border-slate-800/80 p-4 hover:border-indigo-500/40 hover:bg-slate-900 transition-all duration-200 group flex flex-col justify-between shadow-sm"
             >
               <div className="flex items-start justify-between">
                 <div
@@ -94,7 +94,7 @@ export const QuickActions: React.FC = () => {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
               </div>
 
               <div className="mt-3">

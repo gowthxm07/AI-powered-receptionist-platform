@@ -23,6 +23,8 @@ import {
   Cpu,
   Mic,
   Volume2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 export const VoiceAnalyticsDashboard: React.FC = () => {
@@ -30,6 +32,7 @@ export const VoiceAnalyticsDashboard: React.FC = () => {
   const [summary, setSummary] = useState<VoiceAnalyticsSummary | null>(null);
   const [sessions, setSessions] = useState<VoiceSessionRecord[]>([]);
   const [activeSessions, setActiveSessions] = useState<ActiveVoiceSession[]>([]);
+  const [showTelemetry, setShowTelemetry] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,18 +143,18 @@ export const VoiceAnalyticsDashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/30 via-indigo-900/30 to-purple-900/20 border border-indigo-500/20 p-6 sm:p-8 backdrop-blur-xl">
+      <div className="rounded-3xl bg-gradient-to-r from-blue-950/30 via-indigo-950/40 to-slate-900 border border-indigo-500/20 p-6 sm:p-7 backdrop-blur-xl shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold mb-2">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Voice Observability & Telemetry</span>
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Operational Intelligence</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Voice Session Analytics
+              Voice Reception Analytics
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
-              Real-time monitoring, conversational lifecycle telemetry, and booking conversion tracking for{' '}
+              Call volume, appointment conversion, and real-time interaction metrics for{' '}
               <span className="font-semibold text-white">{selectedBusiness.name}</span>.
             </p>
           </div>
@@ -159,10 +162,10 @@ export const VoiceAnalyticsDashboard: React.FC = () => {
           <button
             onClick={fetchAnalytics}
             disabled={loading}
-            className="self-start sm:self-auto inline-flex items-center px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium border border-slate-700 transition disabled:opacity-50"
+            className="self-start sm:self-auto inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-850 text-slate-200 text-xs font-semibold border border-slate-700/80 hover:border-slate-600 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
           >
-            <RefreshCw className={`w-3.5 h-3.5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Telemetry
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
+            <span>Refresh Analytics</span>
           </button>
         </div>
       </div>
@@ -243,54 +246,73 @@ export const VoiceAnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Latency Telemetry Cards */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <h2 className="text-sm font-semibold text-white tracking-wide uppercase">
-            Speech & AI Pipeline Latency Telemetry (Averages)
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-sky-500/10 text-sky-400">
-              <Mic className="w-5 h-5" />
+      {/* Collapsible Technical Pipeline Telemetry */}
+      <div className="rounded-2xl bg-slate-900/70 border border-slate-800/80 overflow-hidden shadow-sm">
+        <button
+          onClick={() => setShowTelemetry(!showTelemetry)}
+          className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-850/50 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <Zap className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-xs text-slate-400 font-medium">Whisper STT Latency</div>
-              <div className="text-lg font-bold text-white mt-0.5">
-                {summary?.averageSttLatencyMs ? `${summary.averageSttLatencyMs} ms` : '—'}
-              </div>
-              <div className="text-[11px] text-slate-500">whisper.cpp tiny.en</div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Technical Pipeline Latency (Speech & Inference)
+              </h3>
+              <p className="text-[11px] text-slate-400">Whisper STT, FastIntentRouter, and Piper TTS synthesis breakdown</p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+            <span>{showTelemetry ? 'Hide Metrics' : 'View Breakdown'}</span>
+            {showTelemetry ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
 
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-violet-500/10 text-violet-400">
-              <Cpu className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-slate-400 font-medium">AI Engine / Router Latency</div>
-              <div className="text-lg font-bold text-white mt-0.5">
-                {summary?.averageConversationLatencyMs ? `${summary.averageConversationLatencyMs} ms` : '—'}
+        {showTelemetry && (
+          <div className="p-4 pt-0 border-t border-slate-800/60 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3">
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-sky-500/10 text-sky-400">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Whisper STT Latency</div>
+                  <div className="text-lg font-bold text-white mt-0.5">
+                    {summary?.averageSttLatencyMs ? `${summary.averageSttLatencyMs} ms` : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500">whisper.cpp tiny.en</div>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500">FastIntentRouter & Tools</div>
-            </div>
-          </div>
 
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
-              <Volume2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-slate-400 font-medium">Piper Neural TTS Latency</div>
-              <div className="text-lg font-bold text-white mt-0.5">
-                {summary?.averageTtsLatencyMs ? `${summary.averageTtsLatencyMs} ms` : '—'}
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-violet-500/10 text-violet-400">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">AI Engine / Router Latency</div>
+                  <div className="text-lg font-bold text-white mt-0.5">
+                    {summary?.averageConversationLatencyMs ? `${summary.averageConversationLatencyMs} ms` : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500">FastIntentRouter & Tools</div>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500">lessac-medium ONNX</div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+                  <Volume2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Piper Neural TTS Latency</div>
+                  <div className="text-lg font-bold text-white mt-0.5">
+                    {summary?.averageTtsLatencyMs ? `${summary.averageTtsLatencyMs} ms` : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500">lessac-medium ONNX</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Live Active Voice Calls */}

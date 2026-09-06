@@ -6,60 +6,74 @@ import {
   Mic,
   Sparkles,
   CheckCircle2,
+  ShieldCheck,
+  Zap,
+  BarChart3,
+  Clock
 } from 'lucide-react';
 
 interface FeatureCard {
   title: string;
+  category: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   highlights: string[];
   gradient: string;
+  accentColor: string;
 }
 
 export const FeatureGrid: React.FC = () => {
   const features: FeatureCard[] = [
     {
-      title: 'AI Receptionist',
-      description: 'Automatically handle incoming customer inquiries with natural conversational understanding and human-like dialogue.',
+      title: 'Autonomous AI Voice Receptionist',
+      category: 'Voice Intake',
+      description: 'Handles incoming caller inquiries with conversational comprehension, voice activity detection, and human-sounding speech.',
       icon: Bot,
-      highlights: ['Natural Dialogue', 'Intent Understanding', 'Knowledge Retrieval'],
-      gradient: 'from-blue-500/20 to-indigo-500/5',
+      highlights: ['Local Speech-to-Text', 'Intent Extraction', 'Real-Time TTS'],
+      gradient: 'from-blue-500/10 via-slate-900/60 to-slate-950',
+      accentColor: 'text-blue-400 border-blue-500/20 bg-blue-500/10',
     },
     {
-      title: 'Smart Appointments',
-      description: 'Help customers discover available slots, resolve scheduling conflicts, and confirm calendar bookings automatically.',
+      title: 'Conflict-Free Smart Scheduling',
+      category: 'Calendar Engine',
+      description: 'Finds available openings across multiple practitioners, books appointments, and ensures zero overlapping reservations.',
       icon: Calendar,
-      highlights: ['Slot Discovery', 'Conflict Prevention', 'Automated Rescheduling'],
-      gradient: 'from-purple-500/20 to-pink-500/5',
+      highlights: ['Instant Slot Discovery', 'Overbooking Guard', 'Automatic Reschedule'],
+      gradient: 'from-purple-500/10 via-slate-900/60 to-slate-950',
+      accentColor: 'text-purple-400 border-purple-500/20 bg-purple-500/10',
     },
     {
-      title: 'Customer Management',
-      description: 'Maintain an organized directory of caller identities, past interaction logs, preferences, and appointment records.',
+      title: 'Customer Directory & Profiling',
+      category: 'Caller CRM',
+      description: 'Maintains comprehensive caller profiles, past appointment histories, and contact records organized by business workspace.',
       icon: Users,
-      highlights: ['Caller Profiling', 'Appointment History', 'Enterprise Scoping'],
-      gradient: 'from-emerald-500/20 to-teal-500/5',
+      highlights: ['Caller Recognition', 'Booking Timeline', 'Multi-Tenant Scoping'],
+      gradient: 'from-emerald-500/10 via-slate-900/60 to-slate-950',
+      accentColor: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10',
     },
     {
-      title: 'Voice Reception',
-      description: 'Enable customers to interact with your AI receptionist through real-time, browser-based voice conversations on mobile or desktop.',
-      icon: Mic,
-      highlights: ['Voice Activity Detection', 'Low-Latency Response', 'Mobile Responsive'],
-      gradient: 'from-indigo-500/20 to-blue-500/5',
+      title: 'Real-Time Conversational Analytics',
+      category: 'Operations & Insights',
+      description: 'Analyze call volumes, spoken conversation turns, booking conversion rates, and audio pipeline latency baselines.',
+      icon: BarChart3,
+      highlights: ['Conversion Tracking', 'Turn Breakdown', 'Latency Telemetry'],
+      gradient: 'from-amber-500/10 via-slate-900/60 to-slate-950',
+      accentColor: 'text-amber-400 border-amber-500/20 bg-amber-500/10',
     },
   ];
 
   return (
-    <section id="features" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center max-w-3xl mx-auto mb-14">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-blue-400 mb-3">
+    <section id="features" className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-indigo-400 mb-3 shadow-inner">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Platform Capabilities</span>
+          <span>Complete Front-Desk Suite</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Core Platform Features
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+          Everything Your Front Desk Needs
         </h2>
-        <p className="mt-3 text-slate-400 text-sm sm:text-base">
-          Everything your business needs to automate front-desk operations and streamline caller appointments.
+        <p className="mt-4 text-slate-400 text-sm sm:text-base leading-relaxed">
+          Replaces fragmented answering services and voicemail with an integrated, intelligent voice intake and booking platform.
         </p>
       </div>
 
@@ -69,20 +83,19 @@ export const FeatureGrid: React.FC = () => {
           return (
             <div
               key={feature.title}
-              className={`relative group p-6 rounded-2xl bg-gradient-to-br ${feature.gradient} bg-slate-900/50 border border-slate-800/80 hover:border-slate-700 transition-all duration-300 flex flex-col justify-between hover:shadow-xl hover:-translate-y-0.5`}
+              className={`relative group p-7 rounded-2xl bg-gradient-to-br ${feature.gradient} border border-slate-800/80 hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between hover:shadow-2xl hover:shadow-indigo-500/5 hover:-translate-y-1`}
             >
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-slate-800/90 border border-slate-700/60 flex items-center justify-center text-blue-400 group-hover:text-blue-300 group-hover:scale-105 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-indigo-400 group-hover:text-indigo-300 group-hover:scale-105 transition-all shadow-inner">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Available
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${feature.accentColor}`}>
+                    {feature.category}
                   </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-blue-300 transition-colors">
+                <h3 className="text-xl font-bold text-white mb-2.5 group-hover:text-indigo-200 transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-slate-400 text-sm leading-relaxed mb-6">
@@ -90,13 +103,14 @@ export const FeatureGrid: React.FC = () => {
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-800/60">
-                <div className="flex flex-wrap gap-1.5">
+              <div className="pt-4 border-t border-slate-800/80">
+                <div className="flex flex-wrap gap-2">
                   {feature.highlights.map((highlight) => (
                     <span
                       key={highlight}
-                      className="px-2 py-0.5 rounded-md text-[11px] bg-slate-800/60 text-slate-300 border border-slate-700/40"
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 text-slate-300 border border-slate-700/50"
                     >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 mr-1.5 flex-shrink-0" />
                       {highlight}
                     </span>
                   ))}

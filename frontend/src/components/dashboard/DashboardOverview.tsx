@@ -19,6 +19,7 @@ import {
   Building2,
   ShieldCheck,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 
 export const DashboardOverview: React.FC = () => {
@@ -35,19 +36,19 @@ export const DashboardOverview: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/30 via-indigo-900/30 to-purple-900/20 border border-indigo-500/20 p-6 sm:p-8 backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950/40 via-indigo-950/40 to-slate-900/60 border border-indigo-500/20 p-6 sm:p-8 backdrop-blur-xl shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Multi-Tenant Business Workspace</span>
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Front-Desk Overview</span>
               </div>
 
               {selectedBusiness && (
                 <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Data Isolated: {selectedBusiness.name}</span>
+                  <span>{selectedBusiness.name}</span>
                 </div>
               )}
             </div>
@@ -59,10 +60,10 @@ export const DashboardOverview: React.FC = () => {
             <p className="text-slate-300 text-xs sm:text-sm max-w-2xl">
               {selectedBusiness ? (
                 <>
-                  Managing operations for <span className="text-white font-medium">{selectedBusiness.name}</span> ({selectedBusiness.phone}). All statistics, customers, staff, and services are scoped to this business.
+                  Managing front-desk operations for <span className="text-white font-medium">{selectedBusiness.name}</span> ({selectedBusiness.phone}). View real-time appointments, customer records, and active specialists.
                 </>
               ) : (
-                'Review your live business overview, customer records, staff roster, and AI receptionist readiness.'
+                'Review your business overview, customer records, staff roster, and AI receptionist readiness.'
               )}
             </p>
           </div>
@@ -71,7 +72,7 @@ export const DashboardOverview: React.FC = () => {
             <button
               onClick={() => refetch()}
               disabled={loadingStats}
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-700 transition-all disabled:opacity-50"
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-slate-850 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
               title="Refresh dashboard data from backend"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingStats ? 'animate-spin text-indigo-400' : ''}`} />
@@ -106,7 +107,7 @@ export const DashboardOverview: React.FC = () => {
           subtitle="Registered client records"
           icon={Users}
           colorScheme="emerald"
-          badge={stats.totalCustomers > 0 ? 'Live Data' : 'Empty'}
+          badge={stats.totalCustomers > 0 ? 'Active Directory' : 'Empty'}
           badgeVariant={stats.totalCustomers > 0 ? 'success' : 'default'}
           loading={loadingStats}
         />
@@ -118,7 +119,7 @@ export const DashboardOverview: React.FC = () => {
           subtitle="Specialists on roster"
           icon={UserCheck}
           colorScheme="blue"
-          badge={stats.activeStaff > 0 ? `${stats.activeStaff} Available` : 'None Active'}
+          badge={stats.activeStaff > 0 ? `${stats.activeStaff} on Roster` : 'None Active'}
           badgeVariant={stats.activeStaff > 0 ? 'info' : 'default'}
           loading={loadingStats}
         />
@@ -130,7 +131,7 @@ export const DashboardOverview: React.FC = () => {
           subtitle="Configured catalog items"
           icon={Briefcase}
           colorScheme="purple"
-          badge={stats.availableServices > 0 ? 'Catalog Ready' : 'Unconfigured'}
+          badge={stats.availableServices > 0 ? `${stats.availableServices} in Catalog` : 'Unconfigured'}
           badgeVariant={stats.availableServices > 0 ? 'info' : 'default'}
           loading={loadingStats}
         />
@@ -144,7 +145,7 @@ export const DashboardOverview: React.FC = () => {
           colorScheme="amber"
           badge={
             typeof stats.upcomingAppointments === 'number' && stats.upcomingAppointments > 0
-              ? `${stats.upcomingAppointments} Active`
+              ? `${stats.upcomingAppointments} Scheduled`
               : 'No Bookings'
           }
           badgeVariant={

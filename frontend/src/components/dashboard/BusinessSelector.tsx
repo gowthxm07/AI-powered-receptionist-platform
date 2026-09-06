@@ -84,18 +84,18 @@ export const BusinessSelector: React.FC = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-xs transition-all shadow-sm group"
+        className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800/90 hover:border-indigo-500/30 text-xs transition-all shadow-sm group cursor-pointer"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <div className="w-5 h-5 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+        <div className="w-5 h-5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
           <Building2 className="w-3.5 h-3.5" />
         </div>
         <div className="flex flex-col text-left">
-          <span className="text-slate-200 font-semibold truncate max-w-[120px] sm:max-w-[180px]">
+          <span className="text-slate-100 font-semibold truncate max-w-[120px] sm:max-w-[180px]">
             {selectedBusiness?.name || 'Select Business'}
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">
+          <span className="text-[10px] text-slate-400 font-medium">
             {businesses.length} locations available
           </span>
         </div>
@@ -108,9 +108,10 @@ export const BusinessSelector: React.FC = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-150 backdrop-blur-xl">
-          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1">
-            Select Active Business
+        <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-800/90 shadow-2xl z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-150 backdrop-blur-xl">
+          <div className="px-3.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1 flex items-center justify-between">
+            <span>Switch Business Profile</span>
+            <span className="text-[10px] text-indigo-400 lowercase font-normal">tenant isolated</span>
           </div>
 
           <div className="max-h-60 overflow-y-auto px-1.5 space-y-1 scrollbar-thin scrollbar-thumb-slate-800">

@@ -318,7 +318,7 @@ export const VoiceReceptionist: React.FC = () => {
             onEndSession={endSession}
           />
 
-          {/* Technical Telemetry Collapsible Panel */}
+          {/* Active Call Telemetry Accordion (Optional Inspection) */}
           {session && (
             <VoiceSessionInfo
               session={session}
@@ -326,79 +326,12 @@ export const VoiceReceptionist: React.FC = () => {
               metrics={lastMetrics}
             />
           )}
-
-          {/* Safe Diagnostics Toggle */}
-          <div className="border-t border-slate-900 pt-2">
-            <button
-              onClick={() => setShowDiagnostics((prev) => !prev)}
-              className="w-full py-1 text-[11px] text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1 transition-colors"
-            >
-              <Info className="w-3 h-3" />
-              <span>{showDiagnostics ? 'Hide Client Diagnostics' : 'View Client Diagnostics'}</span>
-              {showDiagnostics ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-
-            {showDiagnostics && diagnostics && (
-              <div className="mt-2 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[10px] space-y-1 font-mono text-slate-300">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Current Origin:</span>
-                  <span className="text-slate-200 truncate max-w-[200px]">{diagnostics.origin}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">API Base Routing:</span>
-                  <span className="text-emerald-400 font-bold">{diagnostics.apiBaseUrl}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Session Endpoint:</span>
-                  <span className="text-indigo-400 font-bold truncate max-w-[200px]">{diagnostics.sessionEndpoint}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Protocol:</span>
-                  <span className={diagnostics.protocol === 'https:' ? 'text-emerald-400' : 'text-amber-400'}>
-                    {diagnostics.protocol}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Secure Context:</span>
-                  <span className={diagnostics.isSecureContext ? 'text-emerald-400' : 'text-rose-400'}>
-                    {diagnostics.isSecureContext ? 'true (Secure)' : 'false (Insecure)'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">MediaDevices API:</span>
-                  <span className={diagnostics.hasMediaDevices ? 'text-emerald-400' : 'text-rose-400'}>
-                    {diagnostics.hasMediaDevices ? 'Available' : 'Unavailable'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">getUserMedia:</span>
-                  <span className={diagnostics.hasGetUserMedia ? 'text-emerald-400' : 'text-rose-400'}>
-                    {diagnostics.hasGetUserMedia ? 'Available' : 'Unavailable'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">MediaRecorder:</span>
-                  <span className={diagnostics.hasMediaRecorder ? 'text-emerald-400' : 'text-rose-400'}>
-                    {diagnostics.hasMediaRecorder ? 'Available' : 'Unavailable'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Supported MIME:</span>
-                  <span className="text-indigo-400">{diagnostics.supportedMimeType || 'None'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Permission State:</span>
-                  <span className="text-slate-300">{permissionState}</span>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </main>
 
       {/* Footer Branding */}
-      <footer className="py-2 text-center text-[10px] text-slate-600 border-t border-slate-900">
-        AI-Powered Smart Receptionist Platform • Voice Reception
+      <footer className="py-3 text-center text-[11px] text-slate-500 border-t border-slate-900/80">
+        AI-Powered Smart Receptionist Platform
       </footer>
     </div>
   );

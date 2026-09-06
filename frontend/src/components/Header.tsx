@@ -24,18 +24,18 @@ export const Header: React.FC = () => {
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
-          <Link href="/voice" className="hover:text-indigo-400 transition-colors flex items-center space-x-1 text-emerald-400 font-semibold">
+          <Link href="/voice" className="hover:text-indigo-400 transition-colors flex items-center space-x-1.5 text-emerald-400 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Voice Reception</span>
           </Link>
-          <a href="/#features" className="hover:text-indigo-400 transition-colors">
+          <a href="/#features" className="hover:text-white transition-colors">
             Features
           </a>
-          <a href="/#system-status" className="hover:text-indigo-400 transition-colors flex items-center space-x-1.5">
-            <Activity className="w-4 h-4 text-emerald-400" />
-            <span>System Status</span>
+          <a href="/#how-it-works" className="hover:text-white transition-colors">
+            How It Works
           </a>
-          <a href="/#architecture" className="hover:text-indigo-400 transition-colors">
-            Architecture
+          <a href="/#benefits" className="hover:text-white transition-colors">
+            Benefits
           </a>
         </nav>
 

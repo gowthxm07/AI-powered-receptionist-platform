@@ -142,45 +142,45 @@ export const RecentAppointments: React.FC<RecentAppointmentsProps> = ({ business
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <th className="pb-2.5 font-medium">Customer</th>
-                <th className="pb-2.5 font-medium">Service</th>
-                <th className="pb-2.5 font-medium">Date & Time</th>
-                <th className="pb-2.5 font-medium">Specialist</th>
-                <th className="pb-2.5 font-medium text-right">Status</th>
+              <tr className="border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <th className="pb-3 font-semibold">Customer</th>
+                <th className="pb-3 font-semibold">Service</th>
+                <th className="pb-3 font-semibold">Date & Time</th>
+                <th className="pb-3 font-semibold">Specialist</th>
+                <th className="pb-3 font-semibold text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {appointments.map((apt) => (
                 <tr key={apt.id} className="hover:bg-slate-800/30 transition-colors">
-                  <td className="py-3 pr-2">
-                    <div className="font-semibold text-slate-200">
+                  <td className="py-3.5 pr-2">
+                    <div className="font-semibold text-slate-100">
                       {apt.customer?.name || 'Guest Caller'}
                     </div>
                     {apt.customer?.phone && (
-                      <div className="text-[10px] text-slate-500 font-mono">
+                      <div className="text-[10px] text-slate-400 font-mono">
                         {apt.customer.phone}
                       </div>
                     )}
                   </td>
-                  <td className="py-3 pr-2">
-                    <div className="text-slate-300 font-medium">
+                  <td className="py-3.5 pr-2">
+                    <div className="text-slate-200 font-medium">
                       {apt.service?.name || 'General Service'}
                     </div>
                     {apt.service?.durationMinutes && (
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                      <div className="text-[10px] text-indigo-400 flex items-center gap-1 font-mono">
                         <Clock className="w-2.5 h-2.5" />
                         {apt.service.durationMinutes} min
                       </div>
                     )}
                   </td>
-                  <td className="py-3 pr-2 text-slate-300 whitespace-nowrap">
+                  <td className="py-3.5 pr-2 text-slate-300 whitespace-nowrap font-medium">
                     {formatDateTime(apt.startTime)}
                   </td>
-                  <td className="py-3 pr-2 text-slate-400">
+                  <td className="py-3.5 pr-2 text-slate-400">
                     {apt.staff?.name || 'Any Specialist'}
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="py-3.5 text-right">
                     <div className="inline-block">{getStatusBadge(apt.status)}</div>
                   </td>
                 </tr>

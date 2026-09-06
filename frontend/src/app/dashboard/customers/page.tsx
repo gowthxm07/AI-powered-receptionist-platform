@@ -147,38 +147,39 @@ export default function CustomersPage() {
     <DashboardLayout title="Customers" businessSelector={<BusinessSelector />}>
       <div className="space-y-6">
         {/* Page Header Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Users className="w-4 h-4" />
+        <div className="rounded-3xl bg-gradient-to-r from-emerald-950/30 via-slate-900/60 to-slate-900 border border-emerald-500/20 p-6 sm:p-7 backdrop-blur-xl shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+                <Users className="w-3.5 h-3.5" />
+                <span>Client Directory</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                Customer Management
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Customer Directory
               </h1>
+              <p className="text-xs sm:text-sm text-slate-300">
+                {selectedBusiness ? (
+                  <>
+                    Manage registered clients and caller profiles for{' '}
+                    <span className="text-white font-medium">{selectedBusiness.name}</span>.
+                  </>
+                ) : (
+                  'Manage client records and caller identification profiles.'
+                )}
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400">
-              {selectedBusiness ? (
-                <>
-                  Viewing client records for{' '}
-                  <span className="text-slate-200 font-semibold">{selectedBusiness.name}</span>.
-                </>
-              ) : (
-                'Manage client records and caller identification profiles.'
-              )}
-            </p>
-          </div>
 
-          {selectedBusinessId && (
-            <button
-              onClick={() => loadCustomers()}
-              disabled={loading}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors disabled:opacity-50 self-start sm:self-auto"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
-              <span>Refresh</span>
-            </button>
-          )}
+            {selectedBusinessId && (
+              <button
+                onClick={() => loadCustomers()}
+                disabled={loading}
+                className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-slate-850 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition-all disabled:opacity-50 cursor-pointer self-start sm:self-auto shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
+                <span>Refresh Directory</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error Alert */}

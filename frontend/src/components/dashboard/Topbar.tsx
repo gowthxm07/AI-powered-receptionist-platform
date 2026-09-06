@@ -62,22 +62,22 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* Right section: User info badge & Logout button */}
       <div className="flex items-center space-x-3 sm:space-x-4">
         {/* User profile card */}
-        <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
-          <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800/90 text-xs shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600/30 to-blue-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300">
             <UserIcon className="w-3.5 h-3.5" />
           </div>
           <div className="hidden sm:flex flex-col text-left">
-            <span className="text-slate-200 font-semibold text-xs leading-none">
+            <span className="text-slate-100 font-semibold text-xs leading-none">
               {user?.name || 'User'}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5">
-              {user?.role === 'ADMIN' ? 'Administrator' : 'Owner'}
+            <span className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
+              {user?.role === 'ADMIN' ? 'Administrator' : 'Business Owner'}
             </span>
           </div>
           {user?.role && (
             <span className="sm:hidden px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               <Shield className="w-3 h-3 inline mr-0.5" />
-              {user.role}
+              {user.role === 'ADMIN' ? 'Admin' : 'Owner'}
             </span>
           )}
         </div>
@@ -86,7 +86,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 transition-all disabled:opacity-50"
+          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-rose-500/10 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/30 transition-all disabled:opacity-50 cursor-pointer"
           title="Sign out of your account"
         >
           {isLoggingOut ? (
