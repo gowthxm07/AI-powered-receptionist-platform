@@ -269,6 +269,9 @@ export const createAppointmentTool: AITool<CreateAppointmentInput, SafeAppointme
     try {
       const created = await prisma.$transaction(async (tx) => {
         if (input.staffId) {
+          // Acquire transaction-scoped PostgreSQL advisory lock for the specialist to prevent concurrent double-booking
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`staff_booking_${input.staffId}`}))`;
+
           const conflict = await tx.appointment.findFirst({
             where: {
               staffId: input.staffId,

@@ -161,6 +161,9 @@ export class AppointmentService {
     // 6. Transactional conflict check & creation
     return await prisma.$transaction(async (tx) => {
       if (data.staffId) {
+        // Acquire transaction-scoped PostgreSQL advisory lock for the specialist to prevent concurrent double-booking
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`staff_booking_${data.staffId}`}))`;
+
         const conflict = await tx.appointment.findFirst({
           where: {
             staffId: data.staffId,

@@ -122,9 +122,9 @@ export const api = {
     getAll: (businessId?: string) =>
       fetcher<Customer[]>(
         businessId ? `/api/customers?businessId=${encodeURIComponent(businessId)}` : '/api/customers',
-        { method: 'GET' }
+        { method: 'GET', cache: 'no-store' }
       ),
-    getById: (id: string) => fetcher<Customer>(`/api/customers/${id}`, { method: 'GET' }),
+    getById: (id: string) => fetcher<Customer>(`/api/customers/${id}`, { method: 'GET', cache: 'no-store' }),
     create: (input: CreateCustomerInput) =>
       fetcher<Customer>('/api/customers', {
         method: 'POST',
@@ -141,9 +141,9 @@ export const api = {
     getAll: (businessId?: string) =>
       fetcher<Staff[]>(
         businessId ? `/api/staff?businessId=${encodeURIComponent(businessId)}` : '/api/staff',
-        { method: 'GET' }
+        { method: 'GET', cache: 'no-store' }
       ),
-    getById: (id: string) => fetcher<Staff>(`/api/staff/${id}`, { method: 'GET' }),
+    getById: (id: string) => fetcher<Staff>(`/api/staff/${id}`, { method: 'GET', cache: 'no-store' }),
     create: (input: CreateStaffInput) =>
       fetcher<Staff>('/api/staff', {
         method: 'POST',
@@ -160,9 +160,9 @@ export const api = {
     getAll: (businessId?: string) =>
       fetcher<Service[]>(
         businessId ? `/api/services?businessId=${encodeURIComponent(businessId)}` : '/api/services',
-        { method: 'GET' }
+        { method: 'GET', cache: 'no-store' }
       ),
-    getById: (id: string) => fetcher<Service>(`/api/services/${id}`, { method: 'GET' }),
+    getById: (id: string) => fetcher<Service>(`/api/services/${id}`, { method: 'GET', cache: 'no-store' }),
     create: (input: CreateServiceInput) =>
       fetcher<Service>('/api/services', {
         method: 'POST',
@@ -185,6 +185,7 @@ export const api = {
       const qs = query.toString();
       return fetcher<Appointment[]>(qs ? `/api/appointments?${qs}` : '/api/appointments', {
         method: 'GET',
+        cache: 'no-store',
       });
     },
     getById: (id: string) => fetcher<Appointment>(`/api/appointments/${id}`, { method: 'GET' }),

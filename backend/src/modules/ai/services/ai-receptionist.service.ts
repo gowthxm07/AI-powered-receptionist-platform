@@ -451,9 +451,17 @@ export class AIReceptionistService {
             temperature: 0.2,
           });
 
+          let responseText = aiRes.text?.trim() || "I'm here to assist with services, specialists, and appointments. How may I help you?";
+
+          // Anti-hallucination guardrail: LLM cannot fabricate appointment confirmations without database execution
+          const confirmationPattern = /(?:appointment\s+(?:is|has been)\s+(?:confirmed|booked|scheduled)|successfully\s+(?:confirmed|booked|scheduled)\s+your\s+appointment|i(?:'ve|\s+have)\s+(?:booked|confirmed|scheduled)\s+your\s+appointment)/i;
+          if (confirmationPattern.test(responseText)) {
+            responseText = "I would be delighted to help you book that appointment! To get started, please tell me which service you are looking to book.";
+          }
+
           return {
             success: true,
-            response: aiRes.text || "I'm here to assist with services, specialists, and appointments. How may I help you?",
+            response: responseText,
             action: AIAction.NONE,
             intent: AIIntent.GENERAL_CONVERSATION,
             sessionId,
