@@ -133,8 +133,9 @@ export async function runMobileVoiceIntegrationTests(): Promise<void> {
     { speech: 'Comprehensive Oral Exam', expectedStep: 'BOOKING_COLLECT_STAFF' },
     { speech: 'Anyone is fine', expectedStep: 'BOOKING_COLLECT_DATE' },
     { speech: 'Tomorrow', expectedStep: 'BOOKING_SELECT_SLOT' },
-    { speech: '10 AM', expectedStep: 'BOOKING_COLLECT_CUSTOMER' },
-    { speech: `My phone number is 555-777-2299 and name is ${guestName}`, expectedStep: 'BOOKING_CONFIRM' },
+    { speech: '10 AM', expectedStep: 'BOOKING_COLLECT_CUSTOMER_NAME' },
+    { speech: `My name is ${guestName}`, expectedStep: 'BOOKING_COLLECT_CUSTOMER_PHONE' },
+    { speech: guestPhone, expectedStep: 'BOOKING_CONFIRM' },
     { speech: 'Yes confirm', expectedStep: 'IDLE' },
   ];
 

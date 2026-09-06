@@ -11,6 +11,7 @@ import { AudioStorageService } from '../modules/speech/services/audio-storage.se
 import { voiceAnalyticsService } from '../modules/speech/analytics/services/voice-analytics.service';
 import { runSystemHealthCheck } from '../scripts/demo-health-check';
 import { BookingConversationStep } from '../modules/ai/conversation/conversation-session.types';
+import { sessionStore } from '../modules/ai/conversation/in-memory-session-store';
 
 export async function runEndToEndSystemValidationTests(): Promise<void> {
   console.log('\n========================================================================');
@@ -64,9 +65,9 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       assert(sessionRes.session, 'Transport session must be created');
       transportSessionId = sessionRes.session.transportSessionId;
 
-      // The 7 canonical conversational booking turns
-      const testCustomerPhone = `+1-555-019-${Math.floor(1000 + Math.random() * 9000)}`;
-      const testCustomerName = `Jane Demo ${testSuffix}`;
+      // The 8 canonical conversational booking turns
+      const testCustomerPhone = `555-019-${Math.floor(1000 + Math.random() * 9000)}`;
+      const testCustomerName = 'Jane Watson';
 
       const bookingTurns = [
         { text: 'I want to book an appointment', desc: 'Turn 1 (Intent)' },
@@ -74,8 +75,9 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
         { text: 'Anyone is fine', desc: 'Turn 3 (Staff)' },
         { text: 'Tomorrow', desc: 'Turn 4 (Date)' },
         { text: '9 AM', desc: 'Turn 5 (Time)' },
-        { text: `My name is ${testCustomerName} and my phone number is ${testCustomerPhone}`, desc: 'Turn 6 (Customer Info)' },
-        { text: 'Yes, confirm it', desc: 'Turn 7 (Confirmation)' },
+        { text: `My name is ${testCustomerName}`, desc: 'Turn 6 (Caller Name)' },
+        { text: `My phone number is ${testCustomerPhone}`, desc: 'Turn 7 (Caller Phone)' },
+        { text: 'Yes, please confirm the appointment', desc: 'Turn 8 (Confirmation)' },
       ];
 
       for (let i = 0; i < bookingTurns.length; i++) {
@@ -94,15 +96,23 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
         assert.ok(turnResult.audio?.audioId, `${turn.desc} must yield synthesized audio response ID`);
         assert.ok(turnResult.metrics.totalMs > 0, `${turn.desc} must record valid non-zero pipeline latency`);
 
-        if (i === 6) {
+        if (i === 3) {
+          // After date selection, pick an available slot from the actual returned slots
+          const activeSession = await sessionStore.getSession(turnResult.conversationSessionId);
+          if (activeSession?.availableSlots && activeSession.availableSlots.length > 0) {
+            bookingTurns[4].text = activeSession.availableSlots[0].timeLabel;
+          }
+        }
+
+        if (i === bookingTurns.length - 1) {
           // Final confirmation turn
-          assert.strictEqual(turnResult.source, 'tool', 'Turn 7 must resolve as tool execution');
-          assert.ok(turnResult.metadata?.appointmentId, 'Turn 7 must return appointmentId in metadata');
+          assert.strictEqual(turnResult.source, 'tool', 'Final confirmation turn must resolve as tool execution');
+          assert.ok(turnResult.metadata?.appointmentId, 'Final confirmation turn must return appointmentId in metadata');
           createdAppointmentId = turnResult.metadata.appointmentId;
         }
       }
 
-      console.log('  ✓ Test 2: Full 7-turn voice booking conversation executed through Whisper STT, AI State Machine, and Piper TTS');
+      console.log(`  ✓ Test 2: Full ${bookingTurns.length}-turn voice booking conversation executed through Whisper STT, AI State Machine, and Piper TTS`);
     }
 
     // -------------------------------------------------------------------------
@@ -167,9 +177,9 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       assert.strictEqual(analytics.businessId, business.id, 'Analytics record must link to Lumina Dental Care');
       assert.strictEqual(analytics.appointmentBooked, true, 'appointmentBooked must be true');
       assert.strictEqual(analytics.appointmentId, createdAppointmentId, 'appointmentId must link to created appointment');
-      assert.strictEqual(analytics.turnCount, 7, 'Turn count must accurately reflect 7 executed turns');
+      assert.strictEqual(analytics.turnCount, 8, 'Turn count must accurately reflect 8 executed turns');
       assert.ok(analytics.durationMs && analytics.durationMs > 0, 'Total session duration must be recorded');
-      assert.ok(analytics.successfulTranscriptionCount >= 7, 'Successful STT count must be at least 7');
+      assert.ok(analytics.successfulTranscriptionCount >= 8, 'Successful STT count must be at least 8');
 
       // Strict Privacy Audit: verify zero raw audio, audio blobs, or speech transcripts stored
       const analyticsKeys = Object.keys(analytics);
