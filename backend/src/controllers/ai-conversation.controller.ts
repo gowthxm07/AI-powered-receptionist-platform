@@ -138,6 +138,8 @@ export class AIConversationController {
           source: engineResult.source,
           action: engineResult.action,
           intent: engineResult.intent,
+          toolUsed: engineResult.toolUsed,
+          toolData: engineResult.data,
           latencyMs: Number((engineResult.latencyMs ?? engineDurationMs).toFixed(2)),
           totalLatencyMs: Number(totalApiLatencyMs.toFixed(2)),
           metadata: {

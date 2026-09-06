@@ -16,6 +16,7 @@ import {
   DateParser,
   TimeParser,
   ConfirmationParser,
+  NameParser,
 } from './parsers';
 
 export interface StateMachineResult {
@@ -364,11 +365,14 @@ export class AppointmentStateMachine {
             customerPhone: customer.phone,
           });
 
-          const staffClause = assignedStaffName ? ` with ${assignedStaffName}` : '';
+          const staffClause =
+            assignedStaffName && assignedStaffName !== 'Any Available Specialist'
+              ? ` with ${assignedStaffName}`
+              : '';
           return {
             response: {
               success: true,
-              response: `Please confirm your appointment: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${slot.timeLabel}. Would you like me to book it?`,
+              response: `Please confirm your appointment: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${slot.timeLabel} for ${customer.name}, phone ${customer.phone}. Would you like me to book it?`,
               action: AIAction.CREATE_APPOINTMENT,
               intent: AIIntent.BOOK_APPOINTMENT,
               sessionId,
@@ -380,9 +384,9 @@ export class AppointmentStateMachine {
         }
       }
 
-      // If customer is not identified yet, ask for customer phone/name
+      // If customer is not identified yet, ask for customer full name first
       const updated = await this.sessionStore.updateSession(sessionId, {
-        step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER,
+        step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
         selectedStartTime: slot.startTime,
         selectedEndTime: slot.endTime,
         selectedStaffId: assignedStaffId,
@@ -392,7 +396,7 @@ export class AppointmentStateMachine {
       return {
         response: {
           success: true,
-          response: `Got it for ${slot.timeLabel}! Please provide your phone number to complete the booking.`,
+          response: `Got it for ${slot.timeLabel}! May I have your full name, please?`,
           action: AIAction.SEARCH_CUSTOMER,
           intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
@@ -404,36 +408,106 @@ export class AppointmentStateMachine {
     }
 
     // ----------------------------------------------------
-    // STEP 5: COLLECT CUSTOMER IDENTITY
+    // STEP 5A: COLLECT CUSTOMER NAME
     // ----------------------------------------------------
-    if (session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER) {
-      // Look up customer by phone / text
-      const phoneMatch = rawInput.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-      const query = phoneMatch ? phoneMatch[0].trim() : rawInput;
+    if (session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME) {
+      const nameResult = NameParser.parseName(rawInput);
 
-      let customer = await prisma.customer.findFirst({
-        where: {
-          businessId,
-          OR: [
-            { phone: query },
-            { phone: { contains: query.replace(/[^0-9]/g, '') } },
-            { name: { contains: rawInput, mode: 'insensitive' } },
-          ],
-        },
+      if (!nameResult.isValid || !nameResult.name) {
+        return {
+          response: {
+            success: true,
+            response: 'Could you please tell me your first and last name?',
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      const customerName = nameResult.name;
+      const inlinePhone = nameResult.phone || NameParser.extractPhone(rawInput);
+
+      if (inlinePhone) {
+        // Customer provided both name and phone in one utterance!
+        const customer = await this.resolveOrCreateCustomer(businessId, customerName, inlinePhone);
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_CONFIRM,
+          customerId: customer.id,
+          customerName: customer.name,
+          customerPhone: customer.phone,
+        });
+
+        const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
+        const timeLabel = timeSlot?.timeLabel || 'your selected time';
+        const staffClause =
+          session.selectedStaffId && session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
+            ? ` with ${session.selectedStaffName}`
+            : '';
+
+        return {
+          response: {
+            success: true,
+            response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} for ${customer.name}, phone ${customer.phone}. Should I confirm this appointment?`,
+            action: AIAction.CREATE_APPOINTMENT,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // Transition to collect phone
+      const updated = await this.sessionStore.updateSession(sessionId, {
+        step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE,
+        customerName,
       });
 
-      // If customer does not exist, create a default customer profile
-      if (!customer) {
-        const fallbackName = rawInput.length < 30 ? rawInput : 'Guest Customer';
-        const fallbackPhone = phoneMatch ? phoneMatch[0].trim() : `+1-555-${Math.floor(1000 + Math.random() * 9000)}`;
-        customer = await prisma.customer.create({
-          data: {
-            businessId,
-            name: fallbackName,
-            phone: fallbackPhone,
+      return {
+        response: {
+          success: true,
+          response: `Thank you, ${customerName}! Could you please provide your phone number so we can confirm your booking?`,
+          action: AIAction.SEARCH_CUSTOMER,
+          intent: AIIntent.BOOK_APPOINTMENT,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: updated,
+      };
+    }
+
+    // ----------------------------------------------------
+    // STEP 5B: COLLECT CUSTOMER PHONE
+    // ----------------------------------------------------
+    if (
+      session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE ||
+      session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER
+    ) {
+      const extractedPhone = NameParser.extractPhone(rawInput);
+
+      if (!extractedPhone) {
+        return {
+          response: {
+            success: true,
+            response: 'Please provide a valid 10-digit phone number so we can confirm your booking.',
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
           },
-        });
+          updatedSession: session,
+        };
       }
+
+      const customerName = session.customerName || (rawInput.length < 30 && !/\d/.test(rawInput) ? rawInput : 'Guest Customer');
+      const customer = await this.resolveOrCreateCustomer(businessId, customerName, extractedPhone);
 
       const updated = await this.sessionStore.updateSession(sessionId, {
         step: BookingConversationStep.BOOKING_CONFIRM,
@@ -452,7 +526,7 @@ export class AppointmentStateMachine {
       return {
         response: {
           success: true,
-          response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel}. Should I book it?`,
+          response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} for ${customer.name}, phone ${customer.phone}. Should I confirm this appointment?`,
           action: AIAction.CREATE_APPOINTMENT,
           intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
@@ -498,15 +572,19 @@ export class AppointmentStateMachine {
           context,
         });
 
-        if (createResult.success) {
+        if (createResult.success && (createResult.data as any)?.id) {
           await this.sessionStore.deleteSession(sessionId);
           const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
           const timeLabel = timeSlot?.timeLabel || 'your requested time';
+          const staffClause =
+            session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
+              ? ` with ${session.selectedStaffName}`
+              : '';
 
           return {
             response: {
               success: true,
-              response: `Your appointment for ${session.selectedServiceName} on ${session.selectedDate} at ${timeLabel} has been successfully booked! We look forward to seeing you.`,
+              response: `Your appointment for ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} has been successfully booked! We look forward to seeing you, ${session.customerName || 'valued customer'}.`,
               action: AIAction.CREATE_APPOINTMENT,
               intent: AIIntent.BOOK_APPOINTMENT,
               sessionId,
@@ -521,7 +599,7 @@ export class AppointmentStateMachine {
           return {
             response: {
               success: false,
-              response: `Could not complete booking: ${createResult.error?.message || 'Scheduling conflict'}. Would you like to select another time?`,
+              response: `I'm sorry, I wasn't able to complete the booking due to: ${createResult.error?.message || 'a scheduling conflict'}. Would you like to select another time?`,
               action: AIAction.CREATE_APPOINTMENT,
               intent: AIIntent.BOOK_APPOINTMENT,
               sessionId,
@@ -578,6 +656,101 @@ export class AppointmentStateMachine {
       },
       updatedSession: session,
     };
+  }
+
+  /**
+   * Deterministically resolves an existing customer or creates a new customer profile,
+   * strictly adhering to multi-tenant business isolation and global phone uniqueness.
+   */
+  public async resolveOrCreateCustomer(
+    businessId: string,
+    name: string,
+    phoneInput: string
+  ): Promise<{ id: string; name: string; phone: string }> {
+    const cleanPhone = phoneInput.trim();
+    const digits = cleanPhone.replace(/[^0-9]/g, '');
+    const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+
+    // 1. Look for existing customer in the active business tenant
+    let customer = await prisma.customer.findFirst({
+      where: {
+        businessId,
+        OR: [
+          { phone: cleanPhone },
+          ...(last10.length >= 7 ? [{ phone: { contains: last10 } }] : []),
+        ],
+      },
+    });
+
+    if (customer) {
+      if (name && name !== 'Guest Customer' && (!customer.name || customer.name === 'Guest Customer')) {
+        customer = await prisma.customer.update({
+          where: { id: customer.id },
+          data: { name },
+        });
+      }
+      return customer;
+    }
+
+    // 2. Look for existing customer globally by phone
+    const globalCustomer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { phone: cleanPhone },
+          ...(last10.length >= 7 ? [{ phone: { contains: last10 } }] : []),
+        ],
+      },
+    });
+
+    if (globalCustomer) {
+      customer = await prisma.customer.update({
+        where: { id: globalCustomer.id },
+        data: {
+          businessId,
+          ...(name && name !== 'Guest Customer' ? { name } : {}),
+        },
+      });
+      return customer;
+    }
+
+    // 3. Create a new customer record scoped to businessId
+    const formattedPhone = cleanPhone.startsWith('+') || cleanPhone.includes('-')
+      ? cleanPhone
+      : digits.length === 10
+        ? `+1-${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+        : cleanPhone;
+
+    try {
+      customer = await prisma.customer.create({
+        data: {
+          businessId,
+          name: name || 'Guest Customer',
+          phone: formattedPhone,
+        },
+      });
+      return customer;
+    } catch (err: any) {
+      // Concurrency / unique constraint safety
+      const existing = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { phone: formattedPhone },
+            { phone: cleanPhone },
+            ...(last10.length >= 7 ? [{ phone: { contains: last10 } }] : []),
+          ],
+        },
+      });
+      if (existing) {
+        if (existing.businessId !== businessId) {
+          return await prisma.customer.update({
+            where: { id: existing.id },
+            data: { businessId, ...(name && name !== 'Guest Customer' ? { name } : {}) },
+          });
+        }
+        return existing;
+      }
+      throw err;
+    }
   }
 }
 

@@ -109,7 +109,7 @@ export class VoiceResponseOptimizer {
       .replace(/Please confirm your appointment:\s*/gi, 'Please confirm: ')
       .replace(/Would you like me to book it\?/gi, 'Should I book it?')
       // Success completion phrases
-      .replace(/has been successfully booked! We look forward to seeing you(?:\s+on the scheduled date)?\./gi, options?.enableConciseFormatting ? 'is confirmed! See you then.' : 'is confirmed! Thank you.')
+      .replace(/has been successfully booked! We look forward to seeing you(?:,\s*[^.]+)?(?:\s+on the scheduled date)?\./gi, options?.enableConciseFormatting ? 'is confirmed! See you then.' : 'is confirmed! Thank you.')
       .replace(/has been successfully booked! We look forward to seeing you\./gi, options?.enableConciseFormatting ? 'is confirmed! See you then.' : 'is confirmed! Thank you.')
       .replace(/has been successfully booked!/gi, 'is confirmed.')
       // Cancellation phrases

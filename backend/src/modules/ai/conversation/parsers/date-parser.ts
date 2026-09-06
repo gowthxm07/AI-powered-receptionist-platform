@@ -52,15 +52,15 @@ export class DateParser {
     if (/\btoday\b/.test(clean)) {
       targetDate = new Date(todayStart);
     }
-    // 2. "Tomorrow"
+    // 2. "Day after tomorrow" (must be evaluated before "tomorrow")
+    else if (/\b(the\s+)?day after tomorrow\b/.test(clean)) {
+      targetDate = new Date(todayStart);
+      targetDate.setDate(targetDate.getDate() + 2);
+    }
+    // 3. "Tomorrow"
     else if (/\btomorrow\b/.test(clean)) {
       targetDate = new Date(todayStart);
       targetDate.setDate(targetDate.getDate() + 1);
-    }
-    // 3. "Day after tomorrow"
-    else if (/\bday after tomorrow\b/.test(clean)) {
-      targetDate = new Date(todayStart);
-      targetDate.setDate(targetDate.getDate() + 2);
     }
     // 4. Weekday matching (e.g. "monday", "next friday")
     else {

@@ -3,3 +3,4 @@ export * from './staff-matcher';
 export * from './date-parser';
 export * from './time-parser';
 export * from './confirmation-parser';
+export * from './name-parser';
