@@ -36,13 +36,14 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
   const formatDateTimeRange = (startIso: string, endIso: string) => {
     const start = new Date(startIso);
     const end = new Date(endIso);
-    const dateStr = start.toLocaleDateString(undefined, {
+    const dateStr = start.toLocaleDateString('en-US', {
+      timeZone: 'UTC',
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
-    const timeStr = `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const timeStr = `${start.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}`;
     return { dateStr, timeStr };
   };
 

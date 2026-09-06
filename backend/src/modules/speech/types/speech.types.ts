@@ -77,7 +77,8 @@ export interface VoiceOrchestrationOptions {
 }
 
 export interface SpeechPipelineInput {
-  audioFilePath: string;
+  audioFilePath?: string;
+  textInput?: string;
   businessId: string;
   sessionId?: string;
   customerId?: string;

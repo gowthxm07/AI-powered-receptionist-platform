@@ -88,6 +88,7 @@ export const RecentAppointments: React.FC<RecentAppointmentsProps> = ({ business
     try {
       const d = new Date(iso);
       return d.toLocaleDateString('en-US', {
+        timeZone: 'UTC',
         month: 'short',
         day: 'numeric',
         hour: 'numeric',

@@ -65,18 +65,27 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const [checkingAvail, setCheckingAvail] = useState(false);
   const [availResult, setAvailResult] = useState<{ available: boolean; reason?: string } | null>(null);
 
-  // Format ISO to local input datetime string (YYYY-MM-DDTHH:mm)
+  // Helper to parse datetime-local string to UTC ISO string
+  const parseInputToIso = (str: string): string => {
+    if (!str) return '';
+    if (str.endsWith('Z')) return str;
+    const parts = str.split('T');
+    if (parts.length !== 2) return new Date(str).toISOString();
+    return `${parts[0]}T${parts[1]}:00.000Z`;
+  };
+
+  // Format ISO to UTC input datetime string (YYYY-MM-DDTHH:mm)
   const formatIsoForInput = (isoString?: string) => {
     if (!isoString) {
       const now = new Date();
-      now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15);
-      now.setSeconds(0, 0);
+      now.setUTCMinutes(Math.ceil(now.getUTCMinutes() / 15) * 15);
+      now.setUTCSeconds(0, 0);
       const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      return `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}T${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}`;
     }
     const d = new Date(isoString);
     const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
   };
 
   useEffect(() => {
@@ -105,7 +114,8 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   // Calculate projected End Time
   const calculatedEndTime = React.useMemo(() => {
     if (!startTimeStr) return null;
-    const start = new Date(startTimeStr);
+    const iso = parseInputToIso(startTimeStr);
+    const start = new Date(iso);
     if (isNaN(start.getTime())) return null;
     return new Date(start.getTime() + duration * 60000);
   }, [startTimeStr, duration]);
@@ -116,7 +126,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     try {
       setCheckingAvail(true);
       setAvailResult(null);
-      const startIso = new Date(startTimeStr).toISOString();
+      const startIso = parseInputToIso(startTimeStr);
       const res = await api.appointments.checkAvailability({
         businessId,
         staffId,
@@ -153,7 +163,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
-    const startIso = new Date(startTimeStr).toISOString();
+    const startIso = parseInputToIso(startTimeStr);
     const endIso = calculatedEndTime ? calculatedEndTime.toISOString() : undefined;
 
     if (isEdit) {

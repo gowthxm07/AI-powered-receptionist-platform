@@ -146,6 +146,48 @@ export class VoiceTransportClient {
   }
 
   /**
+   * Submit a typed textual turn to the voice transport pipeline (reusing the exact same backend engine and TTS).
+   */
+  public async submitTypedTurn(params: {
+    transportSessionId?: string;
+    businessId: string;
+    customerId?: string;
+    textInput: string;
+    channel?: VoiceClientChannel;
+  }): Promise<VoiceTurnResult> {
+    const { transportSessionId, businessId, customerId, textInput, channel = 'MOBILE_WEB' } = params;
+
+    const url = `${this.getUrl()}/api/ai/voice/transport/turn`;
+    const response = await this.executeFetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        businessId,
+        transportSessionId,
+        customerId,
+        textInput,
+        channel,
+      }),
+    });
+
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Invalid response from voice transport engine (${response.status})`);
+    }
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error?.message || data.message || `Failed to process text turn (${response.status})`);
+    }
+
+    return data.data || data;
+  }
+
+  /**
    * Generate a relative audio playback URL for a synthesized audio response.
    */
   public getAudioStreamUrl(audioId: string): string {

@@ -76,10 +76,17 @@ export class AppointmentStateMachine {
       };
     }
 
-    if (
-      confirmCheck === 'REJECTED' &&
-      session.step !== BookingConversationStep.BOOKING_CONFIRM
-    ) {
+    // Safe cancellation: ONLY on explicit cancellation phrases
+    const isExplicitCancel =
+      /\b(?:cancel|abort|stop)\s+(?:this\s+|my\s+)?(?:booking|appointment)\b/i.test(rawInput) ||
+      /\b(?:cancel booking|cancel appointment|cancel my booking|cancel my appointment|abort booking|stop booking)\b/i.test(rawInput) ||
+      /\b(?:never\s*mind|nevermind|forget\s*it|don'?t\s*bother)\b/i.test(rawInput) ||
+      ((rawInput.toLowerCase() === 'cancel' || rawInput.toLowerCase() === 'stop') &&
+        session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME &&
+        session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE &&
+        session.step !== BookingConversationStep.BOOKING_CONFIRM);
+
+    if (isExplicitCancel) {
       await this.sessionStore.deleteSession(sessionId);
       return {
         response: {
@@ -93,6 +100,267 @@ export class AppointmentStateMachine {
         },
         updatedSession: null,
       };
+    }
+
+    // ----------------------------------------------------
+    // UNIVERSAL USER CORRECTION ROUTING
+    // ----------------------------------------------------
+    const correction = ConfirmationParser.parseCorrectionIntent(rawInput);
+    if (
+      correction.isCorrection &&
+      session.step !== BookingConversationStep.IDLE &&
+      session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME &&
+      session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE
+    ) {
+      // 1. Date Correction
+      if (correction.field === 'date') {
+        const dateResult = DateParser.parseDate(rawInput);
+        if (dateResult.parsedDate && !dateResult.error) {
+          const duration = session.serviceDurationMinutes || 30;
+          const availableSlots = await AppointmentSlotFinder.findAvailableSlots({
+            businessId,
+            dateStr: dateResult.parsedDate,
+            durationMinutes: duration,
+            staffId: session.selectedStaffId,
+          });
+
+          if (availableSlots.length > 0) {
+            const slotLabels = availableSlots.map((s) => s.timeLabel).join(', ');
+            const updated = await this.sessionStore.updateSession(sessionId, {
+              step: BookingConversationStep.BOOKING_SELECT_SLOT,
+              selectedDate: dateResult.parsedDate,
+              availableSlots,
+              selectedStartTime: undefined,
+              selectedEndTime: undefined,
+              selectedSlot: undefined,
+              selectedTimeLabel: undefined,
+            });
+            return {
+              response: {
+                success: true,
+                response: `No problem! I updated the date to ${dateResult.formattedLabel}. Available times are ${slotLabels}. Which one would you prefer?`,
+                action: AIAction.CHECK_AVAILABILITY,
+                intent: AIIntent.BOOK_APPOINTMENT,
+                sessionId,
+                source: 'deterministic',
+                latencyMs: performance.now() - startTime,
+              },
+              updatedSession: updated,
+            };
+          }
+        }
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_DATE,
+          selectedDate: undefined,
+          availableSlots: [],
+          selectedStartTime: undefined,
+          selectedEndTime: undefined,
+          selectedSlot: undefined,
+          selectedTimeLabel: undefined,
+        });
+        return {
+          response: {
+            success: true,
+            response: "Sure, let's pick a different date. What date would you prefer?",
+            action: AIAction.CHECK_AVAILABILITY,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 2. Time Correction
+      if (correction.field === 'time') {
+        if (session.selectedDate) {
+          const slots =
+            session.availableSlots && session.availableSlots.length > 0
+              ? session.availableSlots
+              : await AppointmentSlotFinder.findAvailableSlots({
+                  businessId,
+                  dateStr: session.selectedDate,
+                  durationMinutes: session.serviceDurationMinutes || 30,
+                  staffId: session.selectedStaffId,
+                });
+
+          const timeMatch = TimeParser.matchSlot(rawInput, slots);
+          if (timeMatch.matchedSlot) {
+            const slot = timeMatch.matchedSlot;
+            const assignedStaffId = slot.staffId || session.selectedStaffId || null;
+            const assignedStaffName = slot.staffName || session.selectedStaffName || null;
+
+            if (session.customerName && session.customerPhone) {
+              const updated = await this.sessionStore.updateSession(sessionId, {
+                step: BookingConversationStep.BOOKING_CONFIRM,
+                selectedSlot: slot,
+                selectedTimeLabel: slot.timeLabel,
+                selectedStartTime: slot.startTime,
+                selectedEndTime: slot.endTime,
+                selectedStaffId: assignedStaffId,
+                selectedStaffName: assignedStaffName,
+              });
+              const staffClause =
+                assignedStaffName && assignedStaffName !== 'Any Available Specialist'
+                  ? ` with ${assignedStaffName}`
+                  : '';
+              return {
+                response: {
+                  success: true,
+                  response: `Updated your appointment time to ${slot.timeLabel}. Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${slot.timeLabel} for ${session.customerName}. Should I confirm this booking?`,
+                  action: AIAction.CREATE_APPOINTMENT,
+                  intent: AIIntent.BOOK_APPOINTMENT,
+                  sessionId,
+                  source: 'deterministic',
+                  latencyMs: performance.now() - startTime,
+                },
+                updatedSession: updated,
+              };
+            } else {
+              const updated = await this.sessionStore.updateSession(sessionId, {
+                step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
+                selectedSlot: slot,
+                selectedTimeLabel: slot.timeLabel,
+                selectedStartTime: slot.startTime,
+                selectedEndTime: slot.endTime,
+                selectedStaffId: assignedStaffId,
+                selectedStaffName: assignedStaffName,
+              });
+              return {
+                response: {
+                  success: true,
+                  response: `Updated your appointment time to ${slot.timeLabel}! May I have your full name, please?`,
+                  action: AIAction.SEARCH_CUSTOMER,
+                  intent: AIIntent.BOOK_APPOINTMENT,
+                  sessionId,
+                  source: 'deterministic',
+                  latencyMs: performance.now() - startTime,
+                },
+                updatedSession: updated,
+              };
+            }
+          }
+
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_SELECT_SLOT,
+            selectedStartTime: undefined,
+            selectedEndTime: undefined,
+            selectedSlot: undefined,
+            selectedTimeLabel: undefined,
+            availableSlots: slots,
+          });
+          return {
+            response: {
+              success: true,
+              response: `Sure! The available times on ${session.selectedDate} are ${slots.map((s) => s.timeLabel).join(', ')}. Which one works best?`,
+              action: AIAction.CHECK_AVAILABILITY,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+      }
+
+      // 3. Service Correction
+      if (correction.field === 'service') {
+        const resetSession = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_SERVICE,
+          selectedServiceId: undefined,
+          selectedServiceName: undefined,
+          selectedStaffId: undefined,
+          selectedStaffName: undefined,
+          selectedDate: undefined,
+          selectedStartTime: undefined,
+          selectedEndTime: undefined,
+          selectedSlot: undefined,
+          selectedTimeLabel: undefined,
+          availableSlots: [],
+        });
+        return {
+          response: {
+            success: true,
+            response: "Sure, let's select a different service. Which service would you like to book?",
+            action: AIAction.GET_SERVICES,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: resetSession,
+        };
+      }
+
+      // 4. Specialist Correction
+      if (correction.field === 'staff') {
+        const resetSession = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_STAFF,
+          selectedStaffId: undefined,
+          selectedStaffName: undefined,
+          selectedDate: undefined,
+          selectedStartTime: undefined,
+          selectedEndTime: undefined,
+          selectedSlot: undefined,
+          selectedTimeLabel: undefined,
+          availableSlots: [],
+        });
+        return {
+          response: {
+            success: true,
+            response: 'No problem. Which specialist would you prefer, or is anyone okay?',
+            action: AIAction.GET_STAFF,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: resetSession,
+        };
+      }
+
+      // 5. Name Correction
+      if (correction.field === 'name') {
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
+          customerName: undefined,
+        });
+        return {
+          response: {
+            success: true,
+            response: 'No problem. Could you please tell me your first and last name?',
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 6. Phone Correction
+      if (correction.field === 'phone') {
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE,
+          customerPhone: undefined,
+        });
+        return {
+          response: {
+            success: true,
+            response: 'No problem. What is your 10-digit phone number?',
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
     }
 
     // ----------------------------------------------------
@@ -356,6 +624,8 @@ export class AppointmentStateMachine {
         if (customer) {
           const updated = await this.sessionStore.updateSession(sessionId, {
             step: BookingConversationStep.BOOKING_CONFIRM,
+            selectedSlot: slot,
+            selectedTimeLabel: slot.timeLabel,
             selectedStartTime: slot.startTime,
             selectedEndTime: slot.endTime,
             selectedStaffId: assignedStaffId,
@@ -384,9 +654,11 @@ export class AppointmentStateMachine {
         }
       }
 
-      // If customer is not identified yet, ask for customer full name first
+      // If customer is not identified yet, save exact slot identity and ask for customer full name first
       const updated = await this.sessionStore.updateSession(sessionId, {
         step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
+        selectedSlot: slot,
+        selectedTimeLabel: slot.timeLabel,
         selectedStartTime: slot.startTime,
         selectedEndTime: slot.endTime,
         selectedStaffId: assignedStaffId,
@@ -432,27 +704,19 @@ export class AppointmentStateMachine {
       const inlinePhone = nameResult.phone || NameParser.extractPhone(rawInput);
 
       if (inlinePhone) {
-        // Customer provided both name and phone in one utterance!
-        const customer = await this.resolveOrCreateCustomer(businessId, customerName, inlinePhone);
+        const digits = inlinePhone.replace(/[^0-9]/g, '');
+        const formattedPhone = digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : inlinePhone;
         const updated = await this.sessionStore.updateSession(sessionId, {
-          step: BookingConversationStep.BOOKING_CONFIRM,
-          customerId: customer.id,
-          customerName: customer.name,
-          customerPhone: customer.phone,
+          step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME,
+          customerName,
+          customerPhone: formattedPhone,
         });
-
-        const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
-        const timeLabel = timeSlot?.timeLabel || 'your selected time';
-        const staffClause =
-          session.selectedStaffId && session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
-            ? ` with ${session.selectedStaffName}`
-            : '';
 
         return {
           response: {
             success: true,
-            response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} for ${customer.name}, phone ${customer.phone}. Should I confirm this appointment?`,
-            action: AIAction.CREATE_APPOINTMENT,
+            response: `Just to make sure I got that right, your name is ${customerName} and your phone number is ${formattedPhone}, correct?`,
+            action: AIAction.SEARCH_CUSTOMER,
             intent: AIIntent.BOOK_APPOINTMENT,
             sessionId,
             source: 'deterministic',
@@ -462,16 +726,16 @@ export class AppointmentStateMachine {
         };
       }
 
-      // Transition to collect phone
+      // Transition to explicit name confirmation
       const updated = await this.sessionStore.updateSession(sessionId, {
-        step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE,
+        step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME,
         customerName,
       });
 
       return {
         response: {
           success: true,
-          response: `Thank you, ${customerName}! Could you please provide your phone number so we can confirm your booking?`,
+          response: `Just to make sure I got that right, your name is ${customerName}, correct?`,
           action: AIAction.SEARCH_CUSTOMER,
           intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
@@ -479,6 +743,109 @@ export class AppointmentStateMachine {
           latencyMs: performance.now() - startTime,
         },
         updatedSession: updated,
+      };
+    }
+
+    // ----------------------------------------------------
+    // STEP 5A-2: CONFIRM CUSTOMER NAME
+    // ----------------------------------------------------
+    if (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME) {
+      const nameConfirm = ConfirmationParser.parseConfirmation(rawInput);
+
+      if (nameConfirm === 'CONFIRMED') {
+        if (session.customerPhone) {
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE,
+          });
+          return {
+            response: {
+              success: true,
+              response: `I heard your phone number as ${session.customerPhone}. Is that correct?`,
+              action: AIAction.SEARCH_CUSTOMER,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `Thank you, ${session.customerName}! Could you please provide your phone number so we can confirm your booking?`,
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      if (nameConfirm === 'REJECTED' || ConfirmationParser.parseCorrectionIntent(rawInput).isCorrection) {
+        // Check if caller provided the corrected name in the same utterance (e.g. "No, my name is Alex Turner")
+        const inlineNewName = NameParser.parseName(rawInput);
+        const cleanedName = inlineNewName.name
+          ? inlineNewName.name.replace(/\b(no|wrong|not|incorrect|misheard|that'?s not|it'?s not)\b/gi, '').trim()
+          : '';
+
+        if (inlineNewName.isValid && cleanedName.length >= 2) {
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME,
+            customerName: cleanedName,
+          });
+          return {
+            response: {
+              success: true,
+              response: `I apologize! Just to confirm, your name is ${cleanedName}, correct?`,
+              action: AIAction.SEARCH_CUSTOMER,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
+        // Otherwise, caller said "No, you got it wrong" / "That's not my name" -> discard and re-prompt
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
+          customerName: undefined,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: 'I apologize for the misunderstanding. Could you please repeat your first and last name?',
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      return {
+        response: {
+          success: true,
+          response: `Please say "Yes" if your name is ${session.customerName}, or tell me your correct name.`,
+          action: AIAction.SEARCH_CUSTOMER,
+          intent: AIIntent.BOOK_APPOINTMENT,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: session,
       };
     }
 
@@ -506,34 +873,120 @@ export class AppointmentStateMachine {
         };
       }
 
-      const customerName = session.customerName || (rawInput.length < 30 && !/\d/.test(rawInput) ? rawInput : 'Guest Customer');
-      const customer = await this.resolveOrCreateCustomer(businessId, customerName, extractedPhone);
+      const digits = extractedPhone.replace(/[^0-9]/g, '');
+      const formattedPhone = digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : extractedPhone;
 
       const updated = await this.sessionStore.updateSession(sessionId, {
-        step: BookingConversationStep.BOOKING_CONFIRM,
-        customerId: customer.id,
-        customerName: customer.name,
-        customerPhone: customer.phone,
+        step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE,
+        customerPhone: formattedPhone,
       });
-
-      const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
-      const timeLabel = timeSlot?.timeLabel || 'your selected time';
-      const staffClause =
-        session.selectedStaffId && session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
-          ? ` with ${session.selectedStaffName}`
-          : '';
 
       return {
         response: {
           success: true,
-          response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} for ${customer.name}, phone ${customer.phone}. Should I confirm this appointment?`,
-          action: AIAction.CREATE_APPOINTMENT,
+          response: `I heard your phone number as ${formattedPhone}. Is that correct?`,
+          action: AIAction.SEARCH_CUSTOMER,
           intent: AIIntent.BOOK_APPOINTMENT,
           sessionId,
           source: 'deterministic',
           latencyMs: performance.now() - startTime,
         },
         updatedSession: updated,
+      };
+    }
+
+    // ----------------------------------------------------
+    // STEP 5B-2: CONFIRM CUSTOMER PHONE
+    // ----------------------------------------------------
+    if (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE) {
+      const phoneConfirm = ConfirmationParser.parseConfirmation(rawInput);
+
+      if (phoneConfirm === 'CONFIRMED') {
+        const customerName = session.customerName || 'Guest Customer';
+        const customer = await this.resolveOrCreateCustomer(businessId, customerName, session.customerPhone!);
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_CONFIRM,
+          customerId: customer.id,
+          customerName: customer.name,
+          customerPhone: customer.phone,
+        });
+
+        const timeLabel = session.selectedTimeLabel || session.selectedSlot?.timeLabel || 'your selected time';
+        const staffClause =
+          session.selectedStaffId && session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
+            ? ` with ${session.selectedStaffName}`
+            : '';
+
+        return {
+          response: {
+            success: true,
+            response: `Thank you, ${customer.name}! Please confirm: ${session.selectedServiceName}${staffClause} on ${session.selectedDate} at ${timeLabel} for ${customer.name}, phone ${customer.phone}. Should I confirm this appointment?`,
+            action: AIAction.CREATE_APPOINTMENT,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      if (phoneConfirm === 'REJECTED' || ConfirmationParser.parseCorrectionIntent(rawInput).isCorrection) {
+        // Check if caller repeated a new phone number inline (e.g. "No, it's 555-987-6543")
+        const inlineNewPhone = NameParser.extractPhone(rawInput);
+        if (inlineNewPhone) {
+          const digits = inlineNewPhone.replace(/[^0-9]/g, '');
+          const formattedNewPhone = digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : inlineNewPhone;
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE,
+            customerPhone: formattedNewPhone,
+          });
+          return {
+            response: {
+              success: true,
+              response: `Got it, I updated your phone number to ${formattedNewPhone}. Is that correct?`,
+              action: AIAction.SEARCH_CUSTOMER,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
+        // Caller said "No, you got it wrong" / "Wrong number" -> discard previous phone and re-prompt
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE,
+          customerPhone: undefined,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: "I apologize. Let's try that again. What is your phone number?",
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      return {
+        response: {
+          success: true,
+          response: `Please say "Yes" if ${session.customerPhone} is your correct phone number, or say "No" to correct it.`,
+          action: AIAction.SEARCH_CUSTOMER,
+          intent: AIIntent.BOOK_APPOINTMENT,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: session,
       };
     }
 
@@ -573,9 +1026,13 @@ export class AppointmentStateMachine {
         });
 
         if (createResult.success && (createResult.data as any)?.id) {
-          await this.sessionStore.deleteSession(sessionId);
-          const timeSlot = session.availableSlots?.find((s) => s.startTime === session.selectedStartTime);
-          const timeLabel = timeSlot?.timeLabel || 'your requested time';
+          const appointmentId = (createResult.data as any).id;
+          await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_COMPLETE,
+            expiresAt: new Date(Date.now() + 60 * 1000), // Keep available for 1 min for client reference
+          });
+
+          const timeLabel = session.selectedTimeLabel || session.selectedSlot?.timeLabel || 'your requested time';
           const staffClause =
             session.selectedStaffName && session.selectedStaffName !== 'Any Available Specialist'
               ? ` with ${session.selectedStaffName}`

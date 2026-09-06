@@ -56,6 +56,7 @@ export interface VoiceAudioTurnInput {
   conversationSessionId?: string;
   businessId: string;
   customerId?: string;
+  textInput?: string;
   audioFilePath?: string;
   audioBuffer?: Buffer;
   audioBase64?: string;

@@ -13,6 +13,7 @@ out/
 # Production / Transpiled outputs
 dist/
 build/
+*.tsbuildinfo
 
 # Environment Variables
 .env

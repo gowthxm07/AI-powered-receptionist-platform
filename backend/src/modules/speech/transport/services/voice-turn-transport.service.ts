@@ -160,60 +160,33 @@ export class VoiceTurnTransportService {
       });
 
       // -------------------------------------------------------------
-      // STAGE 2: Audio Payload Extraction & MIME Validation
+      // STAGE 2: Audio/Text Payload Extraction & Validation
       // -------------------------------------------------------------
       const audioValidationStart = performance.now();
-      AudioStorageService.ensureDirectories();
+      const hasText = Boolean(input.textInput && input.textInput.trim().length > 0);
+      let audioValidationMs = 0;
 
-      if (input.audioFilePath) {
-        tempAudioPath = input.audioFilePath;
-        shouldCleanupTemp = true; // Clean up uploaded file after turn processing
-      } else if (input.audioBuffer) {
-        const uniqueUploadName = `vturn_${Date.now()}_${crypto.randomBytes(8).toString('hex')}.wav`;
-        tempAudioPath = path.resolve(speechConfig.storage.uploadDir, uniqueUploadName);
-        fs.writeFileSync(tempAudioPath, input.audioBuffer);
-        shouldCleanupTemp = true;
-      } else if (input.audioBase64) {
-        const base64Clean = input.audioBase64.replace(/^data:audio\/\w+;base64,/, '');
-        const buffer = Buffer.from(base64Clean, 'base64');
-        const uniqueUploadName = `vturn_${Date.now()}_${crypto.randomBytes(8).toString('hex')}.wav`;
-        tempAudioPath = path.resolve(speechConfig.storage.uploadDir, uniqueUploadName);
-        fs.writeFileSync(tempAudioPath, buffer);
-        shouldCleanupTemp = true;
-      }
+      if (!hasText) {
+        AudioStorageService.ensureDirectories();
 
-      if (!tempAudioPath) {
-        const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
-        const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
-        return {
-          success: false,
-          transportSessionId: session.transportSessionId,
-          conversationSessionId: session.conversationSessionId,
-          businessId,
-          transcript: '',
-          responseText: '',
-          source: 'deterministic',
-          audio: null,
-          metrics: {
-            transportOverheadMs: Number((performance.now() - sessionSetupStart - audioValidationMs).toFixed(2)),
-            audioValidationMs,
-            sttMs: 0,
-            conversationMs: 0,
-            ttsMs: 0,
-            totalMs,
-          },
-          error: {
-            code: 'MISSING_AUDIO_PAYLOAD',
-            message: 'Audio turn requires a valid audio file, buffer, or base64 stream.',
-          },
-        };
-      }
+        if (input.audioFilePath) {
+          tempAudioPath = input.audioFilePath;
+          shouldCleanupTemp = true; // Clean up uploaded file after turn processing
+        } else if (input.audioBuffer) {
+          const uniqueUploadName = `vturn_${Date.now()}_${crypto.randomBytes(8).toString('hex')}.wav`;
+          tempAudioPath = path.resolve(speechConfig.storage.uploadDir, uniqueUploadName);
+          fs.writeFileSync(tempAudioPath, input.audioBuffer);
+          shouldCleanupTemp = true;
+        } else if (input.audioBase64) {
+          const base64Clean = input.audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Clean, 'base64');
+          const uniqueUploadName = `vturn_${Date.now()}_${crypto.randomBytes(8).toString('hex')}.wav`;
+          tempAudioPath = path.resolve(speechConfig.storage.uploadDir, uniqueUploadName);
+          fs.writeFileSync(tempAudioPath, buffer);
+          shouldCleanupTemp = true;
+        }
 
-      // Check audio size boundary if file exists
-      if (fs.existsSync(tempAudioPath)) {
-        const fileStat = fs.statSync(tempAudioPath);
-        if (fileStat.size > speechConfig.stt.maxAudioSizeBytes) {
-          const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
+        if (!tempAudioPath) {
           const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
           return {
             success: false,
@@ -225,29 +198,61 @@ export class VoiceTurnTransportService {
             source: 'deterministic',
             audio: null,
             metrics: {
-              transportOverheadMs: 0,
-              audioValidationMs,
+              transportOverheadMs: Number((performance.now() - sessionSetupStart).toFixed(2)),
+              audioValidationMs: 0,
               sttMs: 0,
               conversationMs: 0,
               ttsMs: 0,
               totalMs,
             },
             error: {
-              code: 'AUDIO_PAYLOAD_TOO_LARGE',
-              message: `Audio payload exceeds the ${speechConfig.stt.maxAudioSizeBytes / 1024 / 1024} MB size limit.`,
+              code: 'MISSING_AUDIO_PAYLOAD',
+              message: 'Turn requires a valid text input, audio file, buffer, or base64 stream.',
             },
           };
         }
+
+        // Check audio size boundary if file exists
+        if (fs.existsSync(tempAudioPath)) {
+          const fileStat = fs.statSync(tempAudioPath);
+          if (fileStat.size > speechConfig.stt.maxAudioSizeBytes) {
+            audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
+            const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
+            return {
+              success: false,
+              transportSessionId: session.transportSessionId,
+              conversationSessionId: session.conversationSessionId,
+              businessId,
+              transcript: '',
+              responseText: '',
+              source: 'deterministic',
+              audio: null,
+              metrics: {
+                transportOverheadMs: 0,
+                audioValidationMs,
+                sttMs: 0,
+                conversationMs: 0,
+                ttsMs: 0,
+                totalMs,
+              },
+              error: {
+                code: 'AUDIO_PAYLOAD_TOO_LARGE',
+                message: `Audio payload exceeds the ${speechConfig.stt.maxAudioSizeBytes / 1024 / 1024} MB size limit.`,
+              },
+            };
+          }
+        }
+        audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
       }
 
-      const audioValidationMs = Number((performance.now() - audioValidationStart).toFixed(2));
       const transportPreOverheadMs = Number((performance.now() - sessionSetupStart - audioValidationMs).toFixed(2));
 
       // -------------------------------------------------------------
       // STAGE 3: Invoke Existing VoiceConversationOrchestrator
       // -------------------------------------------------------------
       const orchestratorResult = await this.orchestrator.orchestrateVoiceTurn({
-        audioFilePath: tempAudioPath,
+        audioFilePath: tempAudioPath || undefined,
+        textInput: input.textInput,
         businessId,
         sessionId: session.conversationSessionId,
         customerId: session.customerId || customerId,

@@ -6,7 +6,9 @@ export enum BookingConversationStep {
   BOOKING_SELECT_SLOT = 'BOOKING_SELECT_SLOT',
   BOOKING_COLLECT_CUSTOMER = 'BOOKING_COLLECT_CUSTOMER',
   BOOKING_COLLECT_CUSTOMER_NAME = 'BOOKING_COLLECT_CUSTOMER_NAME',
+  BOOKING_CONFIRM_CUSTOMER_NAME = 'BOOKING_CONFIRM_CUSTOMER_NAME',
   BOOKING_COLLECT_CUSTOMER_PHONE = 'BOOKING_COLLECT_CUSTOMER_PHONE',
+  BOOKING_CONFIRM_CUSTOMER_PHONE = 'BOOKING_CONFIRM_CUSTOMER_PHONE',
   BOOKING_CONFIRM = 'BOOKING_CONFIRM',
   BOOKING_COMPLETE = 'BOOKING_COMPLETE',
   BOOKING_CANCELLED = 'BOOKING_CANCELLED',
@@ -36,6 +38,9 @@ export interface ConversationSessionData {
   selectedDate?: string; // YYYY-MM-DD
   selectedStartTime?: string; // ISO 8601 string
   selectedEndTime?: string;   // ISO 8601 string
+  selectedSlot?: AvailableSlot;
+  selectedTimeLabel?: string;
+  pendingCorrectionField?: 'name' | 'phone' | 'date' | 'time' | 'service' | 'staff';
   
   availableSlots?: AvailableSlot[];
   
@@ -43,6 +48,7 @@ export interface ConversationSessionData {
   customerId?: string;
   customerName?: string;
   customerPhone?: string;
+  confirmedAppointmentId?: string;
   
   // Metadata & TTL
   metadata?: Record<string, unknown>;

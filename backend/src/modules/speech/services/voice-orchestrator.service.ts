@@ -57,7 +57,10 @@ export class VoiceConversationOrchestrator {
     // ---------------------------------------------------------
     const inputStageStart = performance.now();
 
-    if (!audioFilePath || audioFilePath.trim().length === 0) {
+    const hasAudio = Boolean(audioFilePath && audioFilePath.trim().length > 0);
+    const hasText = Boolean(input.textInput && input.textInput.trim().length > 0);
+
+    if (!hasAudio && !hasText) {
       const audioInputMs = Number((performance.now() - inputStageStart).toFixed(2));
       const totalMs = Number((performance.now() - pipelineStartTime).toFixed(2));
       return {
@@ -82,7 +85,7 @@ export class VoiceConversationOrchestrator {
         },
         error: {
           code: 'INVALID_AUDIO_INPUT',
-          message: 'Audio input file path is required.',
+          message: 'Audio input file path or text input is required.',
         },
       };
     }
@@ -263,25 +266,33 @@ export class VoiceConversationOrchestrator {
     let sttResult: SpeechToTextResult;
     let sttLatencyMs = 0;
 
-    try {
-      // 2A: Convert audio to 16kHz mono PCM WAV if required (e.g. WebM, Opus, Ogg, MP4)
-      const convResult = await audioConverterService.convertTo16kMonoWav(audioFilePath);
-      audioConversionMs = convResult.latencyMs;
-      const effectiveAudioPath = convResult.outputPath;
-      if (convResult.converted) {
-        convertedAudioPath = convResult.outputPath;
-      }
+    if (hasText) {
+      sttResult = {
+        success: true,
+        transcript: input.textInput!.trim(),
+        latencyMs: 0,
+      };
+    } else {
+      try {
+        // 2A: Convert audio to 16kHz mono PCM WAV if required (e.g. WebM, Opus, Ogg, MP4)
+        const convResult = await audioConverterService.convertTo16kMonoWav(audioFilePath!);
+        audioConversionMs = convResult.latencyMs;
+        const effectiveAudioPath = convResult.outputPath;
+        if (convResult.converted) {
+          convertedAudioPath = convResult.outputPath;
+        }
 
-      // 2B: Transcribe using Whisper
-      const transcribeStart = performance.now();
-      sttResult = await this.sttProvider.transcribe(effectiveAudioPath, {
-        timeoutMs: input.options?.sttTimeoutMs,
-      });
-      sttLatencyMs = Number((performance.now() - transcribeStart).toFixed(2));
-    } finally {
-      // Clean up converted temporary WAV file
-      if (convertedAudioPath) {
-        AudioConverterService.safeUnlink(convertedAudioPath);
+        // 2B: Transcribe using Whisper
+        const transcribeStart = performance.now();
+        sttResult = await this.sttProvider.transcribe(effectiveAudioPath, {
+          timeoutMs: input.options?.sttTimeoutMs,
+        });
+        sttLatencyMs = Number((performance.now() - transcribeStart).toFixed(2));
+      } finally {
+        // Clean up converted temporary WAV file
+        if (convertedAudioPath) {
+          AudioConverterService.safeUnlink(convertedAudioPath);
+        }
       }
     }
 
@@ -502,12 +513,20 @@ export class VoiceConversationOrchestrator {
         totalMs: totalPipelineLatencyMs,
       },
       metadata: {
-        conversationStep: updatedSession?.step || 'IDLE',
+        conversationStep: updatedSession?.step || (engineResult as any).metadata?.conversationStep || 'IDLE',
         serviceName: updatedSession?.selectedServiceName || null,
         staffName: updatedSession?.selectedStaffName || null,
         date: updatedSession?.selectedDate || null,
-        time: updatedSession?.availableSlots?.find((s) => s.startTime === updatedSession?.selectedStartTime)?.timeLabel || null,
-        appointmentId: (engineResult.data as any)?.id || (engineResult.data as any)?.appointment?.id || null,
+        time: updatedSession?.selectedTimeLabel || updatedSession?.availableSlots?.find((s) => s.startTime === updatedSession?.selectedStartTime)?.timeLabel || null,
+        customerName: updatedSession?.customerName || null,
+        customerPhone: updatedSession?.customerPhone || null,
+        appointmentId: (engineResult.data as any)?.id || (engineResult.data as any)?.appointment?.id || (engineResult as any).metadata?.appointmentId || updatedSession?.confirmedAppointmentId || null,
+        appointmentConfirmed: Boolean(
+          (engineResult as any).metadata?.appointmentConfirmed ||
+          updatedSession?.step === 'BOOKING_COMPLETE' ||
+          (engineResult.data as any)?.id ||
+          updatedSession?.confirmedAppointmentId
+        ),
       },
       error: engineResult.error || undefined,
     };

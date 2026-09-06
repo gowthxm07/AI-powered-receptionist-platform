@@ -64,7 +64,7 @@ export class VoiceTransportController {
   ): Promise<void> {
     try {
       const body = req.body;
-      const { transportSessionId, conversationSessionId, businessId, customerId, channel = 'MOBILE_WEB', metadata } = body;
+      const { transportSessionId, conversationSessionId, businessId, customerId, channel = 'MOBILE_WEB', metadata, textInput } = body;
 
       if (!businessId) {
         res.status(400).json({
@@ -82,6 +82,7 @@ export class VoiceTransportController {
         conversationSessionId,
         businessId,
         customerId,
+        textInput: textInput || body.text,
         clientChannel: channel,
         metadata,
       };

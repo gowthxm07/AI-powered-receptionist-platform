@@ -41,6 +41,7 @@ export class NameParser {
     const carrierPrefixes = [
       /^(?:hello|hi|hey)(?:\s+there)?\s+/i,
       /^(?:good\s+morning|good\s+afternoon|good\s+evening)\s+/i,
+      /^(?:no|nope|nah|actually|sorry|no\s+sorry|sorry\s+no)\s+/i,
       /^(?:my\s+name\s+is|my\s+name's|the\s+name\s+is|name\s+is)\s+/i,
       /^(?:i\s+am|i'm|im)\s+/i,
       /^(?:this\s+is|it\s+is|it's)\s+/i,
@@ -81,9 +82,11 @@ export class NameParser {
     // Reject common negative / cancellation / non-name phrases
     const lower = clean.toLowerCase();
     const invalidPhrases = [
-      'no', 'nope', 'cancel', 'stop', 'quit', 'start over', 'restart', 'never mind',
+      'no', 'nope', 'nah', 'cancel', 'stop', 'quit', 'start over', 'restart', 'never mind',
       'nevermind', 'guest', 'guest customer', 'anonymous', 'unknown', 'none', 'nothing',
       'appointment', 'service', 'booking', 'doctor', 'specialist', 'not now', 'later',
+      'wrong', 'incorrect', 'thats wrong', 'that s wrong', 'that is wrong', 'not correct',
+      'not right', 'not my name', 'you got it wrong', 'got it wrong', 'misheard',
     ];
 
     if (

@@ -17,9 +17,189 @@ export function useVoiceSession() {
   const [error, setError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState<boolean>(false);
+  const [confirmedDetails, setConfirmedDetails] = useState<{
+    id?: string;
+    service?: string;
+    specialist?: string;
+    date?: string;
+    time?: string;
+    customer?: string;
+  } | null>(null);
+
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const sessionRef = useRef<VoiceTransportSession | null>(null);
   sessionRef.current = session;
+  const releaseMicrophoneRef = useRef<() => void>(() => {});
+
+  // Common turn result handler for both audio speech and typed text turns
+  const handleTurnResult = useCallback(
+    async (
+      turnResult: any,
+      uploadNetworkMs: number,
+      recordingMetrics?: VoiceRecordingMetrics
+    ) => {
+      const isAppointmentSuccess = Boolean(
+        turnResult.success &&
+        (turnResult.metadata?.appointmentId || turnResult.action === 'CREATE_APPOINTMENT' || turnResult.metadata?.appointmentConfirmed) &&
+        (turnResult.metadata?.conversationStep === 'BOOKING_COMPLETE' || turnResult.metadata?.appointmentConfirmed)
+      );
+
+      const audioUrl = turnResult.audio?.url
+        ? voiceTransportClient.getAudioStreamUrl(turnResult.audio.audioId)
+        : undefined;
+
+      let audioPlaybackPrepMs = 0;
+      let audioPlaybackStartMs = 0;
+
+      const onTurnFinished = () => {
+        if (isAppointmentSuccess) {
+          if (releaseMicrophoneRef.current) {
+            releaseMicrophoneRef.current();
+          }
+          setAppointmentConfirmed(true);
+          setConfirmedDetails({
+            id: turnResult.metadata?.appointmentId,
+            service: turnResult.metadata?.serviceName,
+            specialist: turnResult.metadata?.staffName,
+            date: turnResult.metadata?.date,
+            time: turnResult.metadata?.time,
+            customer: turnResult.metadata?.customerName,
+          });
+          setUiState('ENDED');
+        } else {
+          setUiState('READY');
+        }
+      };
+
+      if (audioUrl) {
+        const prepStart = performance.now();
+        if (audioPlayerRef.current) {
+          audioPlayerRef.current.pause();
+        }
+
+        const player = new Audio();
+        audioPlayerRef.current = player;
+        player.preload = 'auto';
+        player.src = audioUrl;
+        audioPlaybackPrepMs = Number((performance.now() - prepStart).toFixed(2));
+
+        player.onended = () => {
+          onTurnFinished();
+        };
+        player.onerror = () => {
+          onTurnFinished();
+        };
+
+        const playStart = performance.now();
+        setUiState('PLAYING');
+
+        try {
+          await player.play();
+          audioPlaybackStartMs = Number((performance.now() - playStart).toFixed(2));
+        } catch {
+          audioPlaybackStartMs = Number((performance.now() - playStart).toFixed(2));
+          onTurnFinished();
+        }
+      } else {
+        onTurnFinished();
+      }
+
+      // Calculate 8 distinct pipeline stages
+      const stage1FinalizeMs = Number(
+        ((recordingMetrics?.mediaRecorderFinalizeMs || 20) + (recordingMetrics?.audioBlobReadyMs || 4)).toFixed(2)
+      );
+      const stage2UploadMs = uploadNetworkMs;
+      const stage3SttMs = Number(
+        ((turnResult.metrics?.audioConversionMs || 0) + (turnResult.metrics?.sttMs || 0)).toFixed(2)
+      );
+      const convMs = turnResult.metrics?.conversationMs || 0;
+      const dbMs = turnResult.metrics?.databaseToolLatencyMs || 0;
+      const llmMs = turnResult.metrics?.ollamaLatencyMs || 0;
+      const stage4AiConvMs = Number(Math.max(1, convMs - dbMs - llmMs).toFixed(2));
+      const stage5DbMs = Number((dbMs + llmMs).toFixed(2));
+      const stage6TtsMs = Number((turnResult.metrics?.ttsMs || 0).toFixed(2));
+      const stage7DeliveryMs = audioPlaybackPrepMs;
+      const stage8PlaybackMs = audioPlaybackStartMs;
+
+      // Calculate composite latencies
+      const recStopWall = recordingMetrics?.recordingStopTimestamp || Date.now();
+      const clientStopTrigger = recordingMetrics?.stopTriggerTime || (Date.now() - (recordingMetrics?.uploadDispatchMs || 25));
+      const endToEndVoiceLatencyMs = Number((performance.now() - clientStopTrigger).toFixed(2));
+      const speechToTranscriptionMs = Number(
+        ((recordingMetrics?.uploadDispatchMs || 20) + (turnResult.metrics?.audioValidationMs || 0) + stage3SttMs).toFixed(2)
+      );
+      const transcriptionToResponseMs = Number(
+        (convMs + (turnResult.metrics?.responseOptimizationMs || 0) + stage6TtsMs).toFixed(2)
+      );
+      const responseToPlaybackMs = Number((stage7DeliveryMs + stage8PlaybackMs).toFixed(2));
+
+      // Merge backend transport metrics with client recording telemetry and stage breakdown
+      const mergedMetrics: VoiceTurnMetrics = {
+        ...turnResult.metrics,
+        ...(recordingMetrics || {}),
+        recordingStopTimestamp: recStopWall,
+        mediaRecorderFinalizeMs: recordingMetrics?.mediaRecorderFinalizeMs,
+        audioBlobReadyMs: recordingMetrics?.audioBlobReadyMs,
+        uploadNetworkMs,
+        audioPlaybackPrepMs,
+        audioPlaybackStartMs,
+        endToEndVoiceLatencyMs,
+        speechToTranscriptionMs,
+        transcriptionToResponseMs,
+        responseToPlaybackMs,
+        stageBreakdown: {
+          stage1FinalizeMs,
+          stage2UploadMs,
+          stage3SttMs,
+          stage4AiConvMs,
+          stage5DbMs,
+          stage6TtsMs,
+          stage7DeliveryMs,
+          stage8PlaybackMs,
+        },
+      };
+
+      // Append user turn
+      if (turnResult.transcript) {
+        setDialogueTurns((prev) => [
+          ...prev,
+          {
+            id: `usr_${Date.now()}`,
+            speaker: 'user',
+            text: turnResult.transcript,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+
+      // Append assistant turn
+      if (turnResult.responseText) {
+        setDialogueTurns((prev) => [
+          ...prev,
+          {
+            id: `ast_${Date.now()}`,
+            speaker: 'assistant',
+            text: turnResult.responseText,
+            audioUrl,
+            timestamp: new Date(),
+            source: turnResult.source,
+            metrics: mergedMetrics,
+          },
+        ]);
+
+        if (turnResult.metadata?.conversationStep) {
+          setActiveStep(turnResult.metadata.conversationStep);
+        }
+
+        setLastMetrics(mergedMetrics);
+      }
+
+      // Refresh session turn count
+      setSession((prev) => (prev ? { ...prev, turnCount: prev.turnCount + 1 } : null));
+    },
+    []
+  );
 
   // Handler when recorded audio Blob and metrics are ready from useMediaRecorder
   const handleAudioReady = useCallback(
@@ -31,7 +211,6 @@ export function useVoiceSession() {
         return;
       }
 
-      // Safe structured client recording telemetry logging (NO audio data, NO PII)
       if (recordingMetrics) {
         console.log(
           `[Voice Recording] duration=${recordingMetrics.recordingDurationMs}ms size=${recordingMetrics.audioBlobSizeBytes}bytes speechDetected=${recordingMetrics.speechDetected} trailingSilence=${recordingMetrics.trailingSilenceMs}ms autoStop=${recordingMetrics.autoStopTriggered} uploadDispatch=${recordingMetrics.uploadDispatchMs}ms`
@@ -52,150 +231,53 @@ export function useVoiceSession() {
         });
         const uploadNetworkMs = Number((performance.now() - fetchStart).toFixed(2));
 
-        // Prepare audio playback immediately without React render delays
-        const audioUrl = turnResult.audio?.url
-          ? voiceTransportClient.getAudioStreamUrl(turnResult.audio.audioId)
-          : undefined;
-
-        let audioPlaybackPrepMs = 0;
-        let audioPlaybackStartMs = 0;
-
-        if (audioUrl) {
-          const prepStart = performance.now();
-          if (audioPlayerRef.current) {
-            audioPlayerRef.current.pause();
-          }
-
-          const player = new Audio();
-          audioPlayerRef.current = player;
-          player.preload = 'auto';
-          player.src = audioUrl;
-          audioPlaybackPrepMs = Number((performance.now() - prepStart).toFixed(2));
-
-          player.onended = () => {
-            setUiState('READY');
-          };
-          player.onerror = () => {
-            setUiState('READY');
-          };
-
-          const playStart = performance.now();
-          setUiState('PLAYING');
-
-          try {
-            await player.play();
-            audioPlaybackStartMs = Number((performance.now() - playStart).toFixed(2));
-          } catch {
-            audioPlaybackStartMs = Number((performance.now() - playStart).toFixed(2));
-            setUiState('READY');
-          }
-        } else {
-          setUiState('READY');
-        }
-
-        // Calculate 8 distinct pipeline stages
-        const stage1FinalizeMs = Number(
-          ((recordingMetrics?.mediaRecorderFinalizeMs || 20) + (recordingMetrics?.audioBlobReadyMs || 4)).toFixed(2)
-        );
-        const stage2UploadMs = uploadNetworkMs;
-        const stage3SttMs = Number(
-          ((turnResult.metrics.audioConversionMs || 0) + (turnResult.metrics.sttMs || 0)).toFixed(2)
-        );
-        const convMs = turnResult.metrics.conversationMs || 0;
-        const dbMs = turnResult.metrics.databaseToolLatencyMs || 0;
-        const llmMs = turnResult.metrics.ollamaLatencyMs || 0;
-        const stage4AiConvMs = Number(Math.max(1, convMs - dbMs - llmMs).toFixed(2));
-        const stage5DbMs = Number((dbMs + llmMs).toFixed(2));
-        const stage6TtsMs = Number((turnResult.metrics.ttsMs || 0).toFixed(2));
-        const stage7DeliveryMs = audioPlaybackPrepMs;
-        const stage8PlaybackMs = audioPlaybackStartMs;
-
-        // Calculate composite latencies
-        const recStopWall = recordingMetrics?.recordingStopTimestamp || Date.now();
-        const clientStopTrigger = recordingMetrics?.stopTriggerTime || (fetchStart - (recordingMetrics?.uploadDispatchMs || 25));
-        const endToEndVoiceLatencyMs = Number((performance.now() - clientStopTrigger).toFixed(2));
-        const speechToTranscriptionMs = Number(
-          ((recordingMetrics?.uploadDispatchMs || 20) + (turnResult.metrics.audioValidationMs || 0) + stage3SttMs).toFixed(2)
-        );
-        const transcriptionToResponseMs = Number(
-          (convMs + (turnResult.metrics.responseOptimizationMs || 0) + stage6TtsMs).toFixed(2)
-        );
-        const responseToPlaybackMs = Number((stage7DeliveryMs + stage8PlaybackMs).toFixed(2));
-
-        // Merge backend transport metrics with client recording telemetry and stage breakdown
-        const mergedMetrics: VoiceTurnMetrics = {
-          ...turnResult.metrics,
-          ...(recordingMetrics || {}),
-          recordingStopTimestamp: recStopWall,
-          mediaRecorderFinalizeMs: recordingMetrics?.mediaRecorderFinalizeMs,
-          audioBlobReadyMs: recordingMetrics?.audioBlobReadyMs,
-          uploadNetworkMs,
-          audioPlaybackPrepMs,
-          audioPlaybackStartMs,
-          endToEndVoiceLatencyMs,
-          speechToTranscriptionMs,
-          transcriptionToResponseMs,
-          responseToPlaybackMs,
-          stageBreakdown: {
-            stage1FinalizeMs,
-            stage2UploadMs,
-            stage3SttMs,
-            stage4AiConvMs,
-            stage5DbMs,
-            stage6TtsMs,
-            stage7DeliveryMs,
-            stage8PlaybackMs,
-          },
-        };
-
-        // Append user turn
-        if (turnResult.transcript) {
-          setDialogueTurns((prev) => [
-            ...prev,
-            {
-              id: `usr_${Date.now()}`,
-              speaker: 'user',
-              text: turnResult.transcript,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-
-        // Append assistant turn
-        if (turnResult.responseText) {
-          setDialogueTurns((prev) => [
-            ...prev,
-            {
-              id: `ast_${Date.now()}`,
-              speaker: 'assistant',
-              text: turnResult.responseText,
-              audioUrl,
-              timestamp: new Date(),
-              source: turnResult.source,
-              metrics: mergedMetrics,
-            },
-          ]);
-
-          if (turnResult.metadata?.conversationStep) {
-            setActiveStep(turnResult.metadata.conversationStep);
-          }
-
-          setLastMetrics(mergedMetrics);
-        }
-
-        // Safe telemetry log (no PII, no audio buffers)
-        console.log(
-          `[Voice Latency] endToEnd=${endToEndVoiceLatencyMs}ms (finalize=${stage1FinalizeMs}ms upload=${stage2UploadMs}ms stt=${stage3SttMs}ms ai=${stage4AiConvMs}ms db=${stage5DbMs}ms tts=${stage6TtsMs}ms deliv=${stage7DeliveryMs}ms play=${stage8PlaybackMs}ms)`
-        );
-
-        // Refresh session turn count
-        setSession((prev) => (prev ? { ...prev, turnCount: prev.turnCount + 1 } : null));
+        await handleTurnResult(turnResult, uploadNetworkMs, recordingMetrics);
       } catch (err: any) {
         setError(err.message || 'Failed to process voice turn.');
         setUiState('READY');
       }
     },
-    []
+    [handleTurnResult]
+  );
+
+  // Handler to submit typed turn from user input
+  const submitTypedTurn = useCallback(
+    async (text: string) => {
+      const currentSession = sessionRef.current;
+      if (!currentSession) {
+        setError('Voice session not found. Please restart the call.');
+        setUiState('ERROR');
+        return;
+      }
+
+      const cleanText = text.trim();
+      if (!cleanText) return;
+
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+
+      setUiState('PROCESSING');
+      setError(null);
+
+      try {
+        const fetchStart = performance.now();
+        const turnResult = await voiceTransportClient.submitTypedTurn({
+          transportSessionId: currentSession.transportSessionId,
+          businessId: currentSession.businessId,
+          customerId: currentSession.customerId || undefined,
+          textInput: cleanText,
+          channel: 'MOBILE_WEB',
+        });
+        const uploadNetworkMs = Number((performance.now() - fetchStart).toFixed(2));
+
+        await handleTurnResult(turnResult, uploadNetworkMs);
+      } catch (err: any) {
+        setError(err.message || 'Failed to process typed input turn.');
+        setUiState('READY');
+      }
+    },
+    [handleTurnResult]
   );
 
   const {
@@ -225,6 +307,7 @@ export function useVoiceSession() {
       setUiState('ERROR');
     },
   });
+  releaseMicrophoneRef.current = releaseMicrophone;
 
   // Clean up audio player on unmount
   useEffect(() => {
@@ -246,6 +329,8 @@ export function useVoiceSession() {
       setDialogueTurns([]);
       setLastMetrics(null);
       setActiveStep('IDLE');
+      setAppointmentConfirmed(false);
+      setConfirmedDetails(null);
 
       try {
         // 1. Request microphone access first
@@ -349,6 +434,8 @@ export function useVoiceSession() {
     setLastMetrics(null);
     setError(null);
     setActiveStep(null);
+    setAppointmentConfirmed(false);
+    setConfirmedDetails(null);
     setUiState('IDLE');
   }, [releaseMicrophone]);
 
@@ -359,6 +446,8 @@ export function useVoiceSession() {
     lastMetrics,
     error: error || recorderError,
     activeStep,
+    appointmentConfirmed,
+    confirmedDetails,
     isRecording,
     recordingDurationSec,
     permissionState,
@@ -376,6 +465,7 @@ export function useVoiceSession() {
     startSession,
     startTalking,
     stopTalking,
+    submitTypedTurn,
     endSession,
     resetSession,
   };
