@@ -1,5 +1,6 @@
 export enum BookingConversationStep {
   IDLE = 'IDLE',
+  BOOKING_SYMPTOM_TRIAGE = 'BOOKING_SYMPTOM_TRIAGE',
   BOOKING_COLLECT_SERVICE = 'BOOKING_COLLECT_SERVICE',
   BOOKING_COLLECT_STAFF = 'BOOKING_COLLECT_STAFF',
   BOOKING_COLLECT_DATE = 'BOOKING_COLLECT_DATE',
@@ -31,6 +32,10 @@ export interface ConversationSessionData {
   selectedServiceId?: string;
   selectedServiceName?: string;
   serviceDurationMinutes?: number;
+  
+  reportedSymptom?: string;
+  suggestedServiceId?: string;
+  suggestedServiceName?: string;
   
   selectedStaffId?: string | null; // null represents "any / no preference"
   selectedStaffName?: string | null;

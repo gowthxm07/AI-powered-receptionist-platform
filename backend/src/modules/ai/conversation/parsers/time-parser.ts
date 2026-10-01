@@ -30,6 +30,9 @@ export class TimeParser {
       .replace(/\s+/g, ' ')
       .trim();
 
+    // Strip conversational carrier preambles (e.g. "no make it 4 pm" -> "4 pm")
+    clean = clean.replace(/^(?:no\s+)?(?:actually\s+)?(?:make\s+it|change\s+to|switch\s+to|let'?s\s+do|i\s+prefer|i'?d\s+like|how\s+about|what\s+about|can\s+(?:we|i)\s+do|could\s+(?:we|i)\s+do|at)\s+/gi, '').trim();
+
     // Map spoken word hours (e.g. "ten am" -> "10 am", "nine" -> "9")
     const wordNumbers: Record<string, string> = {
       one: '1', two: '2', three: '3', four: '4', five: '5',
@@ -42,24 +45,7 @@ export class TimeParser {
     }
     clean = clean.replace(/\b10\s*e\s*m\b/gi, '10 am').replace(/\b10eum\b/gi, '10 am').replace(/\bteneum\b/gi, '10 am');
 
-    // 1. Ordinal / Index matching (e.g. "1", "first", "option 2", "2nd", "the third one", "last")
-    if (/\b(1|first|1st|option 1|number 1)\b/i.test(clean) && availableSlots.length >= 1) {
-      return { matchedSlot: availableSlots[0] };
-    }
-    if (/\b(2|second|2nd|option 2|number 2)\b/i.test(clean) && availableSlots.length >= 2) {
-      return { matchedSlot: availableSlots[1] };
-    }
-    if (/\b(3|third|3rd|option 3|number 3)\b/i.test(clean) && availableSlots.length >= 3) {
-      return { matchedSlot: availableSlots[2] };
-    }
-    if (/\b(4|fourth|4th|option 4|number 4)\b/i.test(clean) && availableSlots.length >= 4) {
-      return { matchedSlot: availableSlots[3] };
-    }
-    if (/\b(last|last one)\b/i.test(clean)) {
-      return { matchedSlot: availableSlots[availableSlots.length - 1] };
-    }
-
-    // 2. Exact or normalized time string matching against available slots
+    // 1. Exact or normalized time string matching against available slots
     // Normalize slot labels: e.g. "10:00 AM" -> "10:00 am", "10 am", "10:00", "10"
     for (const slot of availableSlots) {
       const label = slot.timeLabel.toLowerCase();
@@ -103,6 +89,26 @@ export class TimeParser {
       const time24 = `${h24}:${m24}`;
       if (clean.includes(time24) || clean.includes(`${slotDate.getHours()}:${m24}`)) {
         return { matchedSlot: slot };
+      }
+    }
+
+    // 2. Ordinal / Index matching ONLY if caller did not specify an explicit time (am/pm/:)
+    const hasExplicitTime = /\b(am|pm|:\d{2}|o'?clock)\b/i.test(clean);
+    if (!hasExplicitTime) {
+      if (/^(?:1|first|1st|option 1|number 1)$/i.test(clean) && availableSlots.length >= 1) {
+        return { matchedSlot: availableSlots[0] };
+      }
+      if (/^(?:2|second|2nd|option 2|number 2)$/i.test(clean) && availableSlots.length >= 2) {
+        return { matchedSlot: availableSlots[1] };
+      }
+      if (/^(?:3|third|3rd|option 3|number 3)$/i.test(clean) && availableSlots.length >= 3) {
+        return { matchedSlot: availableSlots[2] };
+      }
+      if (/^(?:4|fourth|4th|option 4|number 4)$/i.test(clean) && availableSlots.length >= 4) {
+        return { matchedSlot: availableSlots[3] };
+      }
+      if (/\b(last|last one)\b/i.test(clean)) {
+        return { matchedSlot: availableSlots[availableSlots.length - 1] };
       }
     }
 

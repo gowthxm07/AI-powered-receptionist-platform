@@ -13,7 +13,7 @@ export async function runAiToolsTests(): Promise<void> {
   console.log('======================================================');
 
   const biz1Id = 'b0000001-0000-0000-0000-000000000001'; // Lumina Dental Care
-  const biz2Id = 'b0000002-0000-0000-0000-000000000002'; // Radiance Dermatology
+  const biz2Id = 'b0000002-0000-0000-0000-000000000002'; // Apex Endodontics & Oral Surgery
 
   const contextBiz1: AIConversationContext = {
     businessId: biz1Id,

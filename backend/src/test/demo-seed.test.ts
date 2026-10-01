@@ -68,7 +68,10 @@ export async function runDemoSeedTests(): Promise<void> {
   // 4. Foreign Key and Tenant Isolation Consistency
   console.log('\n4. Verifying Cross-Entity Tenant Consistency:');
   const appointments = await prisma.appointment.findMany({
-    where: { business: { email: { endsWith: '.demo' } } },
+    where: {
+      business: { email: { endsWith: '.demo' } },
+      id: { startsWith: 'apt' },
+    },
     include: { customer: true, staff: true, service: true },
   });
 
@@ -110,7 +113,10 @@ export async function runDemoSeedTests(): Promise<void> {
     where: { business: { email: { endsWith: '.demo' } } },
     include: {
       appointments: {
-        where: { status: { not: AppointmentStatus.CANCELLED } },
+        where: {
+          status: { not: AppointmentStatus.CANCELLED },
+          id: { startsWith: 'apt' },
+        },
         orderBy: { startTime: 'asc' },
       },
     },

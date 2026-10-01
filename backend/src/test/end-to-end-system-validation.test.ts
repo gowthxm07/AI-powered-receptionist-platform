@@ -67,7 +67,7 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       transportSessionId = sessionRes.session.transportSessionId;
 
       // The canonical conversational booking turns
-      const testCustomerPhone = `555-019-${Math.floor(1000 + Math.random() * 9000)}`;
+      const testCustomerPhone = `555-234-${Math.floor(1000 + Math.random() * 9000)}`;
       const testCustomerName = 'Jane Watson';
 
       const bookingTurns = [
@@ -94,6 +94,8 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
           audioFilePath: audio.audioPath,
           clientChannel: 'MOBILE_WEB',
         });
+
+        console.log(`    Turn ${i + 1} [${turn.desc}] STT: "${turnResult.transcript}" -> "${turnResult.responseText}"`);
 
         assert.strictEqual(turnResult.success, true, `${turn.desc} must process successfully`);
         assert.ok(turnResult.responseText.length > 0, `${turn.desc} must yield non-empty text response`);

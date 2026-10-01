@@ -259,6 +259,7 @@ export class VoiceTurnTransportService {
         channel: clientChannel === 'MOBILE_WEB' ? 'VOICE' : 'VOICE',
         metadata: {
           transportSessionId: session.transportSessionId,
+          turnCount: session.turnCount,
           ...(metadata || {}),
         },
       });

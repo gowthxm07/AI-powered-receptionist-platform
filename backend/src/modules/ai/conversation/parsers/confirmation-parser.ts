@@ -71,12 +71,16 @@ export class ConfirmationParser {
     }
 
     // 2. Name correction
-    if (/\b(change (my |the )?name|wrong name|different name|not my name|correct (my |the )?name|my name is actually|actually my name is)\b/.test(clean)) {
+    if (/\b(change (my |the )?name|wrong name|different name|not my name|correct (my |the )?name|my name is actually|actually my name is|actually it'?s|it'?s actually|my name is not)\b/.test(clean)) {
       return { isCorrection: true, field: 'name' };
     }
 
     // 3. Time correction
-    if (/\b(change (the )?time|different time|wrong time|another time|different slot|change slot|actually at \d|how about \d|what about \d)\b/.test(clean)) {
+    if (
+      /\b(change (the )?time|different time|wrong time|another time|different slot|change slot|slot)\b/.test(clean) ||
+      /\b(make it|switch to|can i do|could i do|how about|what about|actually at|actually|no,? make it)\s+\d{1,2}(?::\d{2})?\s*(am|pm)?\b/.test(clean) ||
+      (/\b(no|actually|wait|rather|instead)\b/.test(clean) && /\b\d{1,2}(?::\d{2})?\s*(am|pm)\b/.test(clean))
+    ) {
       return { isCorrection: true, field: 'time' };
     }
 
@@ -97,6 +101,14 @@ export class ConfirmationParser {
 
     // General correction triggers: "wait, actually...", "can I change...", "let me change"
     if (/\b(wait|actually|hold on|change that|go back)\b/.test(clean)) {
+      // Guard against FAQ questions that happen to contain clinic topics or hours
+      if (
+        /\b(open|opening hours|business hours|operating hours|close|closing|what time do you|when do you|parking|visitor|mother|husband|wheelchair|direction|insurance|arrive|wait|lounge)\b/.test(
+          clean
+        )
+      ) {
+        return { isCorrection: false };
+      }
       if (/\b(phone|number)\b/.test(clean)) return { isCorrection: true, field: 'phone' };
       if (/\b(name)\b/.test(clean)) return { isCorrection: true, field: 'name' };
       if (/\b(time|slot|hour|morning|afternoon)\b/.test(clean)) return { isCorrection: true, field: 'time' };

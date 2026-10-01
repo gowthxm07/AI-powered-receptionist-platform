@@ -30,6 +30,9 @@ import { runVoiceLatencyOptimizationTests } from './voice-latency-optimization.t
 import { runEndToEndSystemValidationTests } from './end-to-end-system-validation.test';
 import { runPublicBusinessDiscoveryTests } from './public-business-discovery.test';
 import { runVoiceAppointmentPersistenceTests } from './voice-appointment-persistence.test';
+import { runDentalDomainTests } from './dental-domain.test';
+import { runClinicFaqTests } from './clinic-faq.test';
+import { runDentalIntelligenceTests } from './dental-intelligence.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -67,6 +70,9 @@ async function runAllTestSuites() {
   await runEndToEndSystemValidationTests();
   await runPublicBusinessDiscoveryTests();
   await runVoiceAppointmentPersistenceTests();
+  await runDentalDomainTests();
+  await runClinicFaqTests();
+  await runDentalIntelligenceTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

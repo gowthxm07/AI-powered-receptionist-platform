@@ -42,11 +42,11 @@ export class NameParser {
       /^(?:hello|hi|hey)(?:\s+there)?\s+/i,
       /^(?:good\s+morning|good\s+afternoon|good\s+evening)\s+/i,
       /^(?:no|nope|nah|actually|sorry|no\s+sorry|sorry\s+no)\s+/i,
-      /^(?:my\s+name\s+is|my\s+name's|the\s+name\s+is|name\s+is)\s+/i,
-      /^(?:i\s+am|i'm|im)\s+/i,
-      /^(?:this\s+is|it\s+is|it's)\s+/i,
+      /^(?:my\s+name\s+is|my\s+name'?s|my\s+name\s+s|the\s+name\s+is|name\s+is)\s+/i,
+      /^(?:i\s+am|i'm|im|i\s+m)\s+/i,
+      /^(?:this\s+is|it\s+is|it'?s|it\s+s|that\s+is|that'?s|that\s+s)\s+/i,
       /^(?:you\s+can\s+call\s+me|call\s+me|please\s+call\s+me)\s+/i,
-      /^(?:sure\s+(?:it's|it\s+is)?|yes\s+(?:it's|it\s+is)?|yeah\s+(?:it's|it\s+is)?|yep\s+(?:it's|it\s+is)?)\s+/i,
+      /^(?:sure\s+(?:it's|it\s+is|it\s+s)?|yes\s+(?:it's|it\s+is|it\s+s)?|yeah\s+(?:it's|it\s+is|it\s+s)?|yep\s+(?:it's|it\s+is|it\s+s)?)\s+/i,
       /^(?:well|so|ok|okay|there)\s+/i,
     ];
 
@@ -93,6 +93,15 @@ export class NameParser {
       invalidPhrases.some(
         (phrase) => lower === phrase || lower.startsWith(`${phrase} `) || lower.endsWith(` ${phrase}`) || lower.includes(` ${phrase} `)
       )
+    ) {
+      return { name: null, phone: extractedPhone, isValid: false };
+    }
+
+    // Guard: Questions or clinic inquiries must never be treated as customer names
+    if (
+      raw.includes('?') ||
+      /^(can|could|is|are|do|does|did|what|where|when|why|how|who|which|should|would|will)\b/i.test(raw.trim()) ||
+      /\b(can i|can my|is it|do you|how do|what is|where is|bring my|come with|come alone)\b/i.test(lower)
     ) {
       return { name: null, phone: extractedPhone, isValid: false };
     }

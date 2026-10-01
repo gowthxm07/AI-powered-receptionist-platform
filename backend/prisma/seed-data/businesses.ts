@@ -23,35 +23,35 @@ export const DEMO_BUSINESSES: DemoBusinessData[] = [
   },
   {
     id: 'b0000002-0000-0000-0000-000000000002',
-    ownerId: 'u0000001-0000-0000-0000-000000000001', // Dr. Sarah Jenkins (Multiple business ownership)
-    name: 'Radiance Dermatology & Aesthetics',
+    ownerId: 'u0000001-0000-0000-0000-000000000001', // Dr. Sarah Jenkins (Multiple dental clinic ownership)
+    name: 'Apex Endodontics & Oral Surgery',
     phone: '+1-555-019-4920',
-    email: 'care@radiancederm.demo',
+    email: 'care@apexendo.demo',
     address: '880 Grand Boulevard, 4th Floor, Metropolis',
     description:
-      'Advanced medical dermatology, clinical skin rejuvenation therapies, laser resurfacing, and aesthetic consultation.',
+      'Specialized microscopic endodontics, surgical root canals, complex tooth extractions, and emergency dental trauma care.',
     timezone: 'UTC',
   },
   {
     id: 'b0000003-0000-0000-0000-000000000003',
     ownerId: 'u0000002-0000-0000-0000-000000000002', // Marcus Vance
-    name: 'Apex Strategy & Financial Advisory',
+    name: 'Zenith Dental Implants & Periodontics',
     phone: '+1-555-019-7733',
-    email: 'contact@apexstrategy.demo',
+    email: 'contact@zenithimplants.demo',
     address: '1200 Financial Plaza, Tower 2, Suite 1800, Metropolis',
     description:
-      'Boutique corporate consulting, strategic financial restructuring, tax advisory, and private equity transaction review.',
+      'Advanced dental implant reconstruction, precision 3D-guided surgery, regenerative bone grafting, and specialized periodontics.',
     timezone: 'UTC',
   },
   {
     id: 'b0000004-0000-0000-0000-000000000004',
     ownerId: 'u0000003-0000-0000-0000-000000000003', // Elena Rostova
-    name: 'Zenith Luxury Hair & Spa Studio',
+    name: 'Radiance Pediatric & Orthodontic Dental',
     phone: '+1-555-019-8844',
-    email: 'concierge@zenithspa.demo',
+    email: 'care@radianceortho.demo',
     address: '350 Fashion Island Avenue, Ground Floor, Metropolis',
     description:
-      'High-end artisanal hair styling, precision color balayage, organic facial rejuvenation, and restorative scalp therapies.',
+      'Dedicated pediatric dentistry, gentle early-childhood oral care, clear aligners, and adolescent orthodontic alignment.',
     timezone: 'UTC',
   },
 ];

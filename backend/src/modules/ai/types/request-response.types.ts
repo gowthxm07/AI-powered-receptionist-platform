@@ -19,6 +19,7 @@ export interface AIReceptionistResponse<T = unknown> {
   toolUsed?: string;
   latencyMs?: number;
   data?: T;
+  conversationState?: any;
   error?: {
     code: string;
     message: string;

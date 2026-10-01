@@ -28,6 +28,28 @@ export class ServiceMatcher {
       }
     }
 
+    // 1b. Common dental domain synonym mappings
+    if (/\b(routine\s+(?:dental\s+)?checkup|dental\s+checkup|routine\s+check\s+up|checkup|check-up|routine\s+exam)\b/i.test(clean)) {
+      const examService = services.find((s) => /exam|comprehensive|consultation/i.test(s.name));
+      if (examService) return { matchedService: examService, ambiguous: [] };
+    }
+    if (/\b(teeth\s+cleaning|tooth\s+cleaning|dental\s+cleaning|routine\s+cleaning|clean\s+my\s+teeth|cleaning|prophylaxis|tartar\s+removal)\b/i.test(clean)) {
+      const cleanService = services.find((s) => /prophylaxis|hygiene|cleaning/i.test(s.name));
+      if (cleanService) return { matchedService: cleanService, ambiguous: [] };
+    }
+    if (/\b(whiten|whitening|teeth\s+whitening|laser\s+whitening)\b/i.test(clean)) {
+      const whitenService = services.find((s) => /whitening|brightening/i.test(s.name));
+      if (whitenService) return { matchedService: whitenService, ambiguous: [] };
+    }
+    if (/\b(crown|ceramic\s+crown|dental\s+crown|cap)\b/i.test(clean)) {
+      const crownService = services.find((s) => /crown/i.test(s.name));
+      if (crownService) return { matchedService: crownService, ambiguous: [] };
+    }
+    if (/\b(pediatric|child\s+exam|kid\s+exam|baby\s+tooth)\b/i.test(clean)) {
+      const pedService = services.find((s) => /pediatric/i.test(s.name));
+      if (pedService) return { matchedService: pedService, ambiguous: [] };
+    }
+
     // 2. Direct Substring Containment (either input contains service name or service name contains input)
     const substringMatches: SafeServiceSummary[] = [];
     for (const service of services) {
@@ -47,7 +69,8 @@ export class ServiceMatcher {
     // 3. Significant Token Overlap (ignoring common stop words)
     const stopWords = new Set([
       'i', 'want', 'a', 'an', 'the', 'book', 'need', 'like', 'to', 'for', 'service',
-      'treatment', 'please', 'appointment', 'schedule', 'get', 'have'
+      'treatment', 'please', 'appointment', 'schedule', 'get', 'have', 'would', 'could',
+      'can', 'dental', 'dentist', 'clinic', 'office', 'visit', 'doctor', 'care', 'one'
     ]);
 
     const inputTokens = clean

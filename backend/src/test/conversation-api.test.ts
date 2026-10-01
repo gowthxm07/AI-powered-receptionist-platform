@@ -22,7 +22,7 @@ export async function runConversationApiTests(): Promise<void> {
     where: { name: 'Lumina Dental Care' },
   });
   const dermBiz = await prisma.business.findFirst({
-    where: { name: 'Radiance Dermatology & Aesthetics' },
+    where: { name: 'Apex Endodontics & Oral Surgery' },
   });
 
   assert(dentalBiz && dermBiz, 'Demo businesses must exist in database');

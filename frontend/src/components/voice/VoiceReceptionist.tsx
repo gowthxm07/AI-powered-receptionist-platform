@@ -24,7 +24,44 @@ import {
   Keyboard,
   Send,
   X,
+  MessageSquare,
 } from 'lucide-react';
+
+const DENTAL_PROMPT_CHIPS = [
+  'I have tooth pain when chewing',
+  'Book a routine cleaning',
+  "Where is Dr. Emily Chen's cabin?",
+  'Where should I wait if I arrive early?',
+  'What time does the clinic close?',
+];
+
+function getStepLabel(step: string | null): string | null {
+  if (!step) return null;
+  switch (step) {
+    case 'BOOKING_SYMPTOM_TRIAGE':
+      return 'Symptom Triage & Clinical Guidance';
+    case 'BOOKING_COLLECT_SERVICE':
+      return 'Select Dental Service';
+    case 'BOOKING_COLLECT_STAFF':
+      return 'Select Specialist';
+    case 'BOOKING_COLLECT_DATE':
+      return 'Select Appointment Date';
+    case 'BOOKING_SELECT_SLOT':
+      return 'Select Time Slot';
+    case 'BOOKING_COLLECT_CUSTOMER_NAME':
+      return 'Patient Full Name';
+    case 'BOOKING_CONFIRM_CUSTOMER_NAME':
+      return 'Confirm Patient Name';
+    case 'BOOKING_COLLECT_CUSTOMER_PHONE':
+      return 'Patient Phone Number';
+    case 'BOOKING_CONFIRM_CUSTOMER_PHONE':
+      return 'Confirm Phone Number';
+    case 'BOOKING_CONFIRM':
+      return 'Review & Confirm Booking';
+    default:
+      return null;
+  }
+}
 
 export const VoiceReceptionist: React.FC = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -273,6 +310,13 @@ export const VoiceReceptionist: React.FC = () => {
               </div>
             </div>
 
+            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-emerald-500/20 text-left space-y-1 text-xs">
+              <span className="font-semibold text-emerald-300 block">Clinic Arrival Instructions:</span>
+              <span className="text-slate-300">
+                Please check in at the Reception Desk on the Ground Floor 10 minutes prior to your visit. Bring a valid photo ID and your dental insurance card.
+              </span>
+            </div>
+
             <div className="flex items-center justify-center gap-2 text-xs text-slate-500 font-medium">
               <span className="w-2 h-2 rounded-full bg-slate-600"></span>
               <span>Call Ended</span>
@@ -290,6 +334,13 @@ export const VoiceReceptionist: React.FC = () => {
           <>
             {/* Center Animated Activity Visualizer */}
             <div className="flex flex-col items-center justify-center my-auto py-2">
+              {activeStep && getStepLabel(activeStep) && (
+                <div className="mb-4 px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 flex items-center gap-1.5 shadow-sm animate-fadeIn">
+                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                  <span>{getStepLabel(activeStep)}</span>
+                </div>
+              )}
+
               <VoiceActivityIndicator
                 state={uiState}
                 volumeLevel={volumeLevel}
@@ -326,6 +377,30 @@ export const VoiceReceptionist: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* Dental Prompt Suggestion Chips */}
+              {selectedBusinessId && !appointmentConfirmed && uiState !== 'PROCESSING' && (
+                <div className="mt-4 w-full flex flex-wrap items-center justify-center gap-1.5 px-2 max-w-sm">
+                  {DENTAL_PROMPT_CHIPS.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={async () => {
+                        if (session) {
+                          await submitTypedTurn(chip);
+                        } else {
+                          setTypedText(chip);
+                          setShowTypeInput(true);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[11px] bg-slate-900/80 hover:bg-slate-800 border border-slate-800/90 text-slate-300 hover:text-white transition-colors flex items-center gap-1"
+                    >
+                      <MessageSquare className="w-2.5 h-2.5 text-indigo-400" />
+                      <span>{chip}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Optional Typed Input for Sensitive Information (Name & Phone) */}
               {session && uiState !== 'ENDED' && (

@@ -78,9 +78,9 @@ export async function runPublicBusinessDiscoveryTests(): Promise<void> {
 
     const names = res1.data.data.map((b: any) => b.name);
     assert(names.includes('Lumina Dental Care'), 'Must include Lumina Dental Care');
-    assert(names.includes('Radiance Dermatology & Aesthetics'), 'Must include Radiance Dermatology & Aesthetics');
-    assert(names.includes('Apex Strategy & Financial Advisory'), 'Must include Apex Strategy & Financial Advisory');
-    assert(names.includes('Zenith Luxury Hair & Spa Studio'), 'Must include Zenith Luxury Hair & Spa Studio');
+    assert(names.includes('Apex Endodontics & Oral Surgery'), 'Must include Apex Endodontics & Oral Surgery');
+    assert(names.includes('Zenith Dental Implants & Periodontics'), 'Must include Zenith Dental Implants & Periodontics');
+    assert(names.includes('Radiance Pediatric & Orthodontic Dental'), 'Must include Radiance Pediatric & Orthodontic Dental');
     console.log(`  ✓ Successfully returned ${res1.data.data.length} active businesses across multiple organizations without auth.`);
 
     // --------------------------------------------------------------------------
@@ -114,7 +114,7 @@ export async function runPublicBusinessDiscoveryTests(): Promise<void> {
     // --------------------------------------------------------------------------
     console.log('\n4. Testing Dynamic Voice Session Creation:');
     const biz1 = res1.data.data.find((b: any) => b.name === 'Lumina Dental Care');
-    const biz2 = res1.data.data.find((b: any) => b.name === 'Radiance Dermatology & Aesthetics');
+    const biz2 = res1.data.data.find((b: any) => b.name === 'Apex Endodontics & Oral Surgery');
     assert(biz1 && biz2, 'Both businesses must be found in discovery');
 
     // Create session for Business 1
@@ -134,7 +134,7 @@ export async function runPublicBusinessDiscoveryTests(): Promise<void> {
     });
     assert.strictEqual(session2.success, true);
     assert.strictEqual(session2.session?.businessId, biz2.id);
-    assert.strictEqual(session2.session?.businessName, 'Radiance Dermatology & Aesthetics');
+    assert.strictEqual(session2.session?.businessName, 'Apex Endodontics & Oral Surgery');
     console.log(`  ✓ Session 2 dynamically bound to '${session2.session?.businessName}' (${session2.session?.businessId}).`);
 
     // --------------------------------------------------------------------------

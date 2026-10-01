@@ -18,6 +18,15 @@ import {
   ConfirmationParser,
   NameParser,
 } from './parsers';
+import { FastIntentRouter } from '../routing/intent-router';
+import {
+  getClinicKnowledge,
+  findDoctorCabin,
+  findClinicFAQ,
+  isUnrelatedInquiry,
+  isQuestionLike,
+  triageDentalInquiry,
+} from '../knowledge';
 
 export interface StateMachineResult {
   response: AIReceptionistResponse;
@@ -324,6 +333,30 @@ export class AppointmentStateMachine {
 
       // 5. Name Correction
       if (correction.field === 'name') {
+        const inlineNewName = NameParser.parseName(rawInput);
+        const cleanedName = inlineNewName.name
+          ? inlineNewName.name.replace(/\b(no|wrong|not|incorrect|misheard|that'?s not|it'?s not|actually|wait)\b/gi, '').trim()
+          : '';
+
+        if (inlineNewName.isValid && cleanedName.length >= 2) {
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME,
+            customerName: cleanedName,
+          });
+          return {
+            response: {
+              success: true,
+              response: `I've updated your name to ${cleanedName}. Just to make sure I got that right, your name is ${cleanedName}, correct?`,
+              action: AIAction.SEARCH_CUSTOMER,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
         const updated = await this.sessionStore.updateSession(sessionId, {
           step: BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME,
           customerName: undefined,
@@ -361,6 +394,335 @@ export class AppointmentStateMachine {
           updatedSession: updated,
         };
       }
+    }
+
+    // ----------------------------------------------------
+    // MID-BOOKING FAQ INTERRUPTION & SEAMLESS RESUMPTION
+    // ----------------------------------------------------
+    // ----------------------------------------------------
+    // MID-BOOKING FAQ INTERRUPTION & SEAMLESS RESUMPTION
+    // ----------------------------------------------------
+    const midIntentMatch = FastIntentRouter.routeIntent(rawInput, businessId);
+    const faqLookup = findClinicFAQ(businessId, rawInput);
+    const isUnrelated = isUnrelatedInquiry(rawInput) || midIntentMatch.intent === AIIntent.UNRELATED_INQUIRY;
+    const isQuestion = isQuestionLike(rawInput);
+
+    const isFaqIntent =
+      [
+        AIIntent.CABIN_ROOM_LOCATION,
+        AIIntent.CLINIC_DIRECTIONS,
+        AIIntent.WAITING_AREA_POLICY,
+        AIIntent.EMERGENCY_DENTAL,
+        AIIntent.APPOINTMENT_PREPARATION,
+        AIIntent.PAYMENT_POLICY,
+        AIIntent.BUSINESS_INFORMATION,
+        AIIntent.CLINIC_FAQ,
+        AIIntent.DENTAL_SYMPTOM_INQUIRY,
+      ].includes(midIntentMatch.intent) ||
+      faqLookup.matched ||
+      faqLookup.isClinicQuestion ||
+      isUnrelated ||
+      (midIntentMatch.intent === AIIntent.STAFF_INFORMATION && session.step !== BookingConversationStep.BOOKING_COLLECT_STAFF);
+
+    // Guard: Do not intercept simple YES/NO or explicit data inputs at confirmation steps
+    const isSimpleConfirmTurn =
+      (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME ||
+        session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE ||
+        session.step === BookingConversationStep.BOOKING_CONFIRM ||
+        session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) &&
+      (confirmCheck === 'CONFIRMED' || confirmCheck === 'REJECTED');
+
+    if ((isFaqIntent || isQuestion) && !isSimpleConfirmTurn) {
+      const clinicProfile = getClinicKnowledge(businessId);
+      let faqAnswer = '';
+      let matchedIntent = midIntentMatch.intent;
+
+      // Emergency overrides booking completely without asking to resume
+      if (midIntentMatch.intent === AIIntent.EMERGENCY_DENTAL) {
+        const emergencyAnswer = clinicProfile
+          ? `${clinicProfile.emergencyPolicy.immediateInstruction} ${clinicProfile.emergencyPolicy.erInstruction}`
+          : 'If you are experiencing difficulty breathing, severe facial swelling, or continuous heavy bleeding, please call 911 or go to the nearest emergency room immediately.';
+
+        return {
+          response: {
+            success: true,
+            response: emergencyAnswer,
+            action: AIAction.EMERGENCY_ESCALATION,
+            intent: AIIntent.EMERGENCY_DENTAL,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      if (isUnrelated) {
+        matchedIntent = AIIntent.UNRELATED_INQUIRY;
+        faqAnswer = `I'm here to help with ${clinicProfile?.businessName || 'our dental clinic'}, appointments, and clinic information.`;
+      } else if (midIntentMatch.intent === AIIntent.DENTAL_SYMPTOM_INQUIRY) {
+        const triageRes = triageDentalInquiry(businessId, rawInput);
+        if (triageRes.isEmergency) {
+          const emergencyAnswer = clinicProfile
+            ? `${clinicProfile.emergencyPolicy.immediateInstruction} ${clinicProfile.emergencyPolicy.erInstruction}`
+            : triageRes.responsePrompt ||
+              'If you are experiencing difficulty breathing, severe facial swelling, or continuous heavy bleeding, please call 911 or go to the nearest emergency room immediately.';
+
+          return {
+            response: {
+              success: true,
+              response: emergencyAnswer,
+              action: AIAction.EMERGENCY_ESCALATION,
+              intent: AIIntent.EMERGENCY_DENTAL,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: session,
+          };
+        }
+
+        if (!triageRes.isSupportedByClinic) {
+          faqAnswer =
+            triageRes.unavailableExplanation ||
+            `${clinicProfile?.businessName || 'This clinic'} does not currently list that specialized treatment among its available services.`;
+        } else if (triageRes.isAmbiguous && triageRes.ambiguousQuestion) {
+          faqAnswer = triageRes.ambiguousQuestion;
+        } else {
+          faqAnswer =
+            triageRes.cautiousExplanation ||
+            'A dental clinical examination would be an appropriate place to start so our dentist can evaluate this concern.';
+        }
+      } else if (faqLookup.matched && faqLookup.answer) {
+        matchedIntent = AIIntent.CLINIC_FAQ;
+        faqAnswer = faqLookup.answer;
+      } else if (midIntentMatch.intent === AIIntent.CABIN_ROOM_LOCATION) {
+        const cabinRes = findDoctorCabin(businessId, rawInput);
+        if (cabinRes && cabinRes.directions) {
+          faqAnswer = cabinRes.directions;
+        } else if (clinicProfile) {
+          const list = clinicProfile.doctors.map((d) => `${d.cabin} (${d.name})`).join(', ');
+          faqAnswer = `Our consultation rooms include ${list}.`;
+        } else {
+          faqAnswer = 'Our doctor cabins are located on the ground floor of our clinic.';
+        }
+      } else if (midIntentMatch.intent === AIIntent.CLINIC_DIRECTIONS) {
+        if (clinicProfile) {
+          faqAnswer = `${clinicProfile.navigation.receptionDesk} ${clinicProfile.navigation.waitingLounge}`;
+        } else {
+          faqAnswer = 'Our reception desk is directly inside the entrance, and our staff will guide you to your room.';
+        }
+      } else if (midIntentMatch.intent === AIIntent.WAITING_AREA_POLICY) {
+        if (clinicProfile) {
+          if (/\b(check in|after entering|when i arrive|enter the clinic)\b/i.test(rawInput)) {
+            faqAnswer = clinicProfile.patientGuidance.checkInProcedure;
+          } else if (/\b(early|arrive early|arriving early)\b/i.test(rawInput)) {
+            faqAnswer = clinicProfile.patientGuidance.earlyArrivalPolicy;
+          } else if (/\b(late|running late)\b/i.test(rawInput)) {
+            faqAnswer = clinicProfile.patientGuidance.lateArrivalPolicy;
+          } else {
+            faqAnswer = `${clinicProfile.navigation.waitingLounge} ${clinicProfile.patientGuidance.earlyArrivalPolicy}`;
+          }
+        } else {
+          faqAnswer = 'You are welcome to relax in our waiting area before your visit. If running late, please call our office.';
+        }
+      } else if (midIntentMatch.intent === AIIntent.APPOINTMENT_PREPARATION) {
+        if (clinicProfile) {
+          faqAnswer = clinicProfile.patientGuidance.firstTimePatientInstructions;
+        } else {
+          faqAnswer = 'Please arrive 10 minutes early with a valid photo ID and your dental insurance card or payment method.';
+        }
+      } else if (midIntentMatch.intent === AIIntent.PAYMENT_POLICY) {
+        faqAnswer = 'We accept most major dental insurance plans, credit cards, debit cards, and cash. Please bring your card to your visit.';
+      } else if (midIntentMatch.intent === AIIntent.STAFF_INFORMATION) {
+        if (clinicProfile) {
+          const docList = clinicProfile.doctors.map((d) => `${d.name} (${d.title})`).join(', ');
+          faqAnswer = `Our specialists include ${docList}.`;
+        } else {
+          faqAnswer = 'Our certified specialists are here to assist with your care.';
+        }
+      } else if (midIntentMatch.intent === AIIntent.BUSINESS_INFORMATION) {
+        if (clinicProfile) {
+          faqAnswer = `${clinicProfile.businessName} is located at ${clinicProfile.address}. Our hours are: ${clinicProfile.openingHours}.`;
+        } else {
+          faqAnswer = 'Our clinic is open during standard operating hours Monday through Friday.';
+        }
+      } else if (faqLookup.isClinicQuestion || isQuestion) {
+        matchedIntent = AIIntent.CLINIC_FAQ;
+        faqAnswer = "I don't have specific information about that policy on file, but our front desk will be happy to assist you upon your arrival.";
+      }
+
+      // Compose seamless resumption question based on active session step
+      let resumeQuestion = 'Continuing with your appointment, how can I assist you?';
+      if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
+        resumeQuestion = `Returning to your dental concern, would you like to schedule an appointment for ${session.suggestedServiceName || 'a comprehensive exam'}?`;
+      } else if (session.step === BookingConversationStep.BOOKING_COLLECT_SERVICE) {
+        resumeQuestion = 'Returning to your booking, which service would you like to schedule?';
+      } else if (session.step === BookingConversationStep.BOOKING_COLLECT_STAFF) {
+        resumeQuestion = `Returning to your booking for ${session.selectedServiceName}, do you have a preferred specialist, or is anyone okay?`;
+      } else if (session.step === BookingConversationStep.BOOKING_COLLECT_DATE) {
+        resumeQuestion = 'Now, returning to your appointment, what date would you prefer?';
+      } else if (session.step === BookingConversationStep.BOOKING_SELECT_SLOT) {
+        const slotLabels = session.availableSlots?.map((s) => s.timeLabel).join(', ') || 'our available times';
+        resumeQuestion = `Returning to your appointment on ${session.selectedDate}, which time works best: ${slotLabels}?`;
+      } else if (session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER_NAME) {
+        resumeQuestion = 'Returning to your booking, may I have your full name, please?';
+      } else if (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME) {
+        resumeQuestion = `Returning to your booking, please confirm: is your name ${session.customerName}?`;
+      } else if (session.step === BookingConversationStep.BOOKING_COLLECT_CUSTOMER_PHONE) {
+        resumeQuestion = `Returning to your booking for ${session.customerName}, what is your 10-digit phone number?`;
+      } else if (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE) {
+        resumeQuestion = `Returning to your booking, please confirm: is your phone number ${session.customerPhone}?`;
+      } else if (session.step === BookingConversationStep.BOOKING_CONFIRM) {
+        resumeQuestion = `Returning to your appointment confirmation for ${session.selectedServiceName} on ${session.selectedDate} at ${session.selectedTimeLabel}, should I confirm this booking?`;
+      }
+
+      return {
+        response: {
+          success: true,
+          response: `${faqAnswer} ${resumeQuestion}`,
+          action: AIAction.NONE,
+          intent: matchedIntent,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: session,
+      };
+    }
+
+    // ----------------------------------------------------
+    // STEP 0: SYMPTOM TRIAGE CONFIRMATION / GUIDANCE
+    // ----------------------------------------------------
+    if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
+      if (
+        confirmCheck === 'CONFIRMED' ||
+        /\b(yes|sure|yeah|yep|please|let's do that|book it|schedule it|sounds good|okay|ok|continue)\b/i.test(
+          rawInput
+        )
+      ) {
+        const targetServiceId = session.suggestedServiceId || session.selectedServiceId;
+        const targetServiceName = session.suggestedServiceName || session.selectedServiceName;
+
+        let duration = session.serviceDurationMinutes || 30;
+        if (targetServiceId) {
+          try {
+            const s = await prisma.service.findUnique({
+              where: { id: targetServiceId },
+              select: { id: true, name: true, durationMinutes: true },
+            });
+            if (s) {
+              duration = s.durationMinutes;
+            }
+          } catch {
+            // Graceful fallback to default duration when database is offline
+          }
+        }
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_STAFF,
+          selectedServiceId: targetServiceId,
+          selectedServiceName: targetServiceName,
+          serviceDurationMinutes: duration,
+        });
+
+        const specialistPrompt = session.selectedStaffName
+          ? `Dr. Marcus Thorne handles oral examinations, or would you prefer any available dentist?`
+          : `Do you have a preferred specialist, or is anyone okay?`;
+
+        return {
+          response: {
+            success: true,
+            response: `Wonderful! I've selected ${targetServiceName}. ${specialistPrompt}`,
+            action: AIAction.GET_STAFF,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      if (confirmCheck === 'REJECTED' || /\b(no|nope|don't|different|not that)\b/i.test(rawInput)) {
+        const services = await prisma.service.findMany({
+          where: { businessId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        });
+        const serviceNames = services.slice(0, 4).map((s) => s.name).join(', ');
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_SERVICE,
+          suggestedServiceId: undefined,
+          suggestedServiceName: undefined,
+          selectedServiceId: undefined,
+          selectedServiceName: undefined,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `No problem at all. We offer: ${serviceNames}. Which dental service would you prefer to schedule?`,
+            action: AIAction.GET_SERVICES,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // Check if user directly named a specific service
+      const services = await prisma.service.findMany({
+        where: { businessId, isActive: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          durationMinutes: true,
+          isActive: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      const match = ServiceMatcher.matchService(rawInput, services);
+      if (match.matchedService) {
+        const s = match.matchedService;
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_STAFF,
+          selectedServiceId: s.id,
+          selectedServiceName: s.name,
+          serviceDurationMinutes: s.durationMinutes,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `Got it, ${s.name}. Do you have a preferred specialist, or is anyone okay?`,
+            action: AIAction.GET_STAFF,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // Re-prompt for triage confirmation
+      return {
+        response: {
+          success: true,
+          response: `Would you like to schedule an appointment for ${session.suggestedServiceName || 'a comprehensive exam'}, or would you prefer a different service?`,
+          action: AIAction.NONE,
+          intent: AIIntent.BOOK_APPOINTMENT,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: session,
+      };
     }
 
     // ----------------------------------------------------
@@ -750,6 +1112,33 @@ export class AppointmentStateMachine {
     // STEP 5A-2: CONFIRM CUSTOMER NAME
     // ----------------------------------------------------
     if (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME) {
+      // Check if user provided their phone number directly during name confirmation
+      const inlinePhone = NameParser.extractPhone(rawInput);
+      if (inlinePhone) {
+        const digits = inlinePhone.replace(/[^0-9]/g, '');
+        const formattedPhone =
+          digits.length === 10
+            ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+            : inlinePhone;
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE,
+          customerPhone: formattedPhone,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `Got it, ${session.customerName}! I heard your phone number as ${formattedPhone}. Is that correct?`,
+            action: AIAction.SEARCH_CUSTOMER,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
       const nameConfirm = ConfirmationParser.parseConfirmation(rawInput);
 
       if (nameConfirm === 'CONFIRMED') {
@@ -1027,8 +1416,9 @@ export class AppointmentStateMachine {
 
         if (createResult.success && (createResult.data as any)?.id) {
           const appointmentId = (createResult.data as any).id;
-          await this.sessionStore.updateSession(sessionId, {
+          const completedSession = await this.sessionStore.updateSession(sessionId, {
             step: BookingConversationStep.BOOKING_COMPLETE,
+            confirmedAppointmentId: appointmentId,
             expiresAt: new Date(Date.now() + 60 * 1000), // Keep available for 1 min for client reference
           });
 
@@ -1050,7 +1440,7 @@ export class AppointmentStateMachine {
               data: createResult.data,
               latencyMs: performance.now() - startTime,
             },
-            updatedSession: null,
+            updatedSession: completedSession,
           };
         } else {
           return {
@@ -1140,7 +1530,7 @@ export class AppointmentStateMachine {
     });
 
     if (customer) {
-      if (name && name !== 'Guest Customer' && (!customer.name || customer.name === 'Guest Customer')) {
+      if (name && name !== 'Guest Customer' && customer.name !== name) {
         customer = await prisma.customer.update({
           where: { id: customer.id },
           data: { name },
