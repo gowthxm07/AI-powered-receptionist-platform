@@ -3,7 +3,9 @@ import { findClinicFAQ, isUnrelatedInquiry } from '../knowledge/faq-matcher';
 import { LUMINA_DENTAL_BUSINESS_ID } from '../knowledge/clinic-capabilities';
 import {
   isLifeThreateningDentalEmergency,
+  isSpreadingFacialSwelling,
   matchGlobalDentalComplaint,
+  getAmbiguousSymptomFollowUp,
 } from '../knowledge/global-dental-catalogue';
 
 export interface IntentMatchResult {
@@ -138,11 +140,13 @@ export class FastIntentRouter {
 
     // 8. Dental Symptoms & Visit Reason Understanding
     if (
+      isSpreadingFacialSwelling(text) ||
+      getAmbiguousSymptomFollowUp(text) !== null ||
       matchGlobalDentalComplaint(text).matched ||
-      /\b(tooth pain|tooth ache|toothache|teeth hurt|tooth hurts|pain in my tooth|hurts when i chew|hurts to chew|pain while biting|pain when biting|sensitive to cold|sensitive to hot|cold sensitivity|hot sensitivity|bleeding gums|swollen gum|gums bleeding|chipped tooth|broken tooth|cracked tooth|lost filling|lost crown|cavity|decay|teeth whitening|yellow teeth|whiten my teeth|teeth cleaning|tooth cleaning|dental cleaning|clean my teeth|routine cleaning|plaque removal|tartar removal|tartar|plaque|prophylaxis|periodontal|baby tooth|baby teeth|pediatric dental|child checkup|back tooth is troubling me|tooth is troubling me|troubling me|uncomfortable in my mouth|discomfort in my mouth|routine dental checkup|routine checkup|dental checkup|screw tooth|dental implant|implants|false teeth|denture|dentures|braces|aligners|invisalign|jaw clicks|night guard|bleeding when i brush|hole in my tooth|filling fell out)\b/i.test(
+      /\b(tooth pain|tooth ache|toothache|teeth hurt|tooth hurts|pain in my tooth|hurts when i chew|hurts to chew|pain while biting|pain when biting|sensitive to cold|sensitive to hot|cold sensitivity|hot sensitivity|bleeding gums|swollen gum|gums bleeding|chipped tooth|broken tooth|cracked tooth|lost filling|lost crown|cavity|decay|teeth whitening|yellow teeth|whiten my teeth|teeth cleaning|tooth cleaning|dental cleaning|clean my teeth|routine cleaning|plaque removal|tartar removal|tartar|plaque|prophylaxis|periodontal|baby tooth|baby teeth|pediatric dental|child checkup|back tooth is troubling me|tooth is troubling me|troubling me|uncomfortable in my mouth|discomfort in my mouth|routine dental checkup|routine checkup|dental checkup|screw tooth|dental implant|implants|false teeth|denture|dentures|braces|aligners|invisalign|jaw clicks|night guard|bleeding when i brush|hole in my tooth|filling fell out|lost a tooth|lost tooth|missing tooth|missing teeth|replace a tooth|replace my tooth|replace tooth|replace it|tooth replacement)\b/i.test(
         normalized
       ) ||
-      (/\b(pain|hurts|hurting|ache|aching|sensitive|sensitivity|swollen|chipped|broken|bleeding|cleaning|clean|whiten|whitening|checkup|discomfort|uncomfortable|troubling)\b/i.test(normalized) &&
+      (/\b(pain|hurts|hurting|ache|aching|sensitive|sensitivity|swollen|swelling|chipped|broken|bleeding|cleaning|clean|whiten|whitening|checkup|discomfort|uncomfortable|troubling|weird|strange|off|wrong)\b/i.test(normalized) &&
         /\b(tooth|teeth|gum|gums|mouth|jaw|chew|chewing|biting|child|kid|baby)\b/i.test(normalized))
     ) {
       return {

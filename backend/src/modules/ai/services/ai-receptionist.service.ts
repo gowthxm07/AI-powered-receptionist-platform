@@ -14,6 +14,7 @@ import {
 import {
   BookingConversationStep,
   ConversationSessionData,
+  DentalTriageProfile,
   IConversationSessionStore,
   sessionStore,
   appointmentStateMachine,
@@ -29,6 +30,7 @@ import {
   isUnrelatedInquiry,
   LUMINA_DENTAL_BUSINESS_ID,
 } from '../knowledge';
+import { extractTriageFacts } from '../knowledge/triage-extractor';
 
 export class AIReceptionistService {
   private toolRouter: AIToolRouter;
@@ -262,8 +264,47 @@ export class AIReceptionistService {
           };
         }
 
-        // 2. Ambiguous symptom: Gentle receptionist follow-up
+        // 2. Ambiguous symptom: Gentle receptionist follow-up with persistent state
         if (triageRes.isAmbiguous && triageRes.ambiguousQuestion) {
+          const initialFacts = extractTriageFacts(trimmedMessage);
+          const triageProfile: DentalTriageProfile = {
+            originalPatientStatement: trimmedMessage,
+            reportedSymptoms: initialFacts.reportedSymptoms || [trimmedMessage],
+            symptomCategories: triageRes.category ? [triageRes.category] : [],
+            triggers: initialFacts.triggers || [],
+            anatomicalLocation: initialFacts.anatomicalLocation,
+            anatomicalScope: initialFacts.anatomicalScope,
+            onset: initialFacts.onset,
+            duration: initialFacts.duration,
+            painPattern: initialFacts.painPattern,
+            swellingPresent: initialFacts.swellingPresent,
+            bleedingPresent: initialFacts.bleedingPresent,
+            traumaPresent: initialFacts.traumaPresent,
+            patientGoal: initialFacts.patientGoal,
+            urgencyLevel: 'ROUTINE',
+            activeFollowUpQuestion: triageRes.ambiguousQuestion,
+            followUpHistory: [
+              {
+                question: triageRes.ambiguousQuestion,
+                answer: '',
+                timestamp: now.toISOString(),
+              },
+            ],
+            isAmbiguous: true,
+          };
+
+          await this.sessionStore.setSession({
+            sessionId,
+            businessId,
+            step: BookingConversationStep.TRIAGE_CLARIFICATION,
+            customerId: request.context.customerId || undefined,
+            reportedSymptom: trimmedMessage,
+            triageProfile,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+          });
+
           return {
             success: true,
             response: triageRes.ambiguousQuestion,
@@ -272,6 +313,9 @@ export class AIReceptionistService {
             sessionId,
             source: 'deterministic',
             latencyMs: performance.now() - startTime,
+            conversationState: {
+              step: BookingConversationStep.TRIAGE_CLARIFICATION,
+            },
           };
         }
 
@@ -307,6 +351,27 @@ export class AIReceptionistService {
           }
         }
 
+        const stagedFacts = extractTriageFacts(trimmedMessage);
+        const stagedTriageProfile: DentalTriageProfile = {
+          originalPatientStatement: trimmedMessage,
+          reportedSymptoms: stagedFacts.reportedSymptoms || [trimmedMessage],
+          symptomCategories: triageRes.category ? [triageRes.category] : [],
+          triggers: stagedFacts.triggers || [],
+          anatomicalLocation: stagedFacts.anatomicalLocation,
+          anatomicalScope: stagedFacts.anatomicalScope,
+          onset: stagedFacts.onset,
+          duration: stagedFacts.duration,
+          painPattern: stagedFacts.painPattern,
+          swellingPresent: stagedFacts.swellingPresent,
+          bleedingPresent: stagedFacts.bleedingPresent,
+          traumaPresent: stagedFacts.traumaPresent,
+          patientGoal: stagedFacts.patientGoal,
+          urgencyLevel: triageRes.category === 'ABSCESS_ACUTE_INFECTION' ? 'HIGH' : 'MEDIUM',
+          followUpHistory: [],
+          isAmbiguous: false,
+          recommendedNextStep: targetServiceName,
+        };
+
         // Pre-stage the suggested service into the session at BOOKING_SYMPTOM_TRIAGE step
         await this.sessionStore.setSession({
           sessionId,
@@ -314,6 +379,7 @@ export class AIReceptionistService {
           step: BookingConversationStep.BOOKING_SYMPTOM_TRIAGE,
           customerId: request.context.customerId || undefined,
           reportedSymptom: trimmedMessage,
+          triageProfile: stagedTriageProfile,
           suggestedServiceId: targetServiceId,
           suggestedServiceName: targetServiceName,
           selectedServiceId: targetServiceId,

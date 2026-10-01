@@ -7,6 +7,7 @@ import { AIReceptionistResponse } from '../types/request-response.types';
 import {
   BookingConversationStep,
   ConversationSessionData,
+  DentalTriageProfile,
 } from './conversation-session.types';
 import { IConversationSessionStore } from './session-store.interface';
 import { AppointmentSlotFinder } from './appointment-slot-finder';
@@ -27,6 +28,8 @@ import {
   isQuestionLike,
   triageDentalInquiry,
 } from '../knowledge';
+import { extractTriageFacts, mergeTriageFacts } from '../knowledge/triage-extractor';
+import { isSpreadingFacialSwelling } from '../knowledge/global-dental-catalogue';
 
 export interface StateMachineResult {
   response: AIReceptionistResponse;
@@ -118,6 +121,8 @@ export class AppointmentStateMachine {
     if (
       correction.isCorrection &&
       session.step !== BookingConversationStep.IDLE &&
+      session.step !== BookingConversationStep.TRIAGE_CLARIFICATION &&
+      session.step !== BookingConversationStep.BOOKING_SYMPTOM_TRIAGE &&
       session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME &&
       session.step !== BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE
     ) {
@@ -407,6 +412,10 @@ export class AppointmentStateMachine {
     const isUnrelated = isUnrelatedInquiry(rawInput) || midIntentMatch.intent === AIIntent.UNRELATED_INQUIRY;
     const isQuestion = isQuestionLike(rawInput);
 
+    const isTriageStep =
+      session.step === BookingConversationStep.TRIAGE_CLARIFICATION ||
+      session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE;
+
     const isFaqIntent =
       [
         AIIntent.CABIN_ROOM_LOCATION,
@@ -417,8 +426,8 @@ export class AppointmentStateMachine {
         AIIntent.PAYMENT_POLICY,
         AIIntent.BUSINESS_INFORMATION,
         AIIntent.CLINIC_FAQ,
-        AIIntent.DENTAL_SYMPTOM_INQUIRY,
       ].includes(midIntentMatch.intent) ||
+      (midIntentMatch.intent === AIIntent.DENTAL_SYMPTOM_INQUIRY && !isTriageStep) ||
       faqLookup.matched ||
       faqLookup.isClinicQuestion ||
       isUnrelated ||
@@ -554,7 +563,11 @@ export class AppointmentStateMachine {
 
       // Compose seamless resumption question based on active session step
       let resumeQuestion = 'Continuing with your appointment, how can I assist you?';
-      if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
+      if (session.step === BookingConversationStep.TRIAGE_CLARIFICATION) {
+        resumeQuestion = session.triageProfile?.activeFollowUpQuestion
+          ? `Returning to your dental concern, ${session.triageProfile.activeFollowUpQuestion}`
+          : 'Returning to your dental concern, could you tell me a little more about what you are experiencing?';
+      } else if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
         resumeQuestion = `Returning to your dental concern, would you like to schedule an appointment for ${session.suggestedServiceName || 'a comprehensive exam'}?`;
       } else if (session.step === BookingConversationStep.BOOKING_COLLECT_SERVICE) {
         resumeQuestion = 'Returning to your booking, which service would you like to schedule?';
@@ -592,9 +605,260 @@ export class AppointmentStateMachine {
     }
 
     // ----------------------------------------------------
+    // STEP -1: TRIAGE CLARIFICATION (Ambiguous Symptom Follow-Up)
+    // ----------------------------------------------------
+    if (session.step === BookingConversationStep.TRIAGE_CLARIFICATION) {
+      const newFacts = extractTriageFacts(rawInput, session.triageProfile);
+      const existingProfile: DentalTriageProfile = session.triageProfile || {
+        originalPatientStatement: session.reportedSymptom || rawInput,
+        reportedSymptoms: [],
+        symptomCategories: [],
+        triggers: [],
+        urgencyLevel: 'ROUTINE',
+        followUpHistory: [],
+        isAmbiguous: true,
+      };
+
+      const updatedProfile = mergeTriageFacts(existingProfile, newFacts, rawInput);
+      const combinedStatement = `${updatedProfile.originalPatientStatement}. ${rawInput}`.trim();
+      let triageRes = triageDentalInquiry(businessId, rawInput);
+      if (!triageRes.matched || triageRes.isAmbiguous) {
+        const combinedRes = triageDentalInquiry(businessId, combinedStatement);
+        if (combinedRes.matched && !combinedRes.isAmbiguous) {
+          triageRes = combinedRes;
+        } else if (!triageRes.matched) {
+          triageRes = combinedRes;
+        }
+      }
+
+      // 1. Life-safety emergency priority
+      if (triageRes.isEmergency) {
+        const clinicProfile = getClinicKnowledge(businessId);
+        const emergencyResponse =
+          clinicProfile?.emergencyPolicy?.immediateInstruction
+            ? `${clinicProfile.emergencyPolicy.immediateInstruction} ${clinicProfile.emergencyPolicy.erInstruction}`
+            : 'If you are experiencing difficulty breathing, severe facial swelling, or continuous heavy bleeding, please call 911 or go to the nearest emergency room immediately.';
+
+        return {
+          response: {
+            success: true,
+            response: emergencyResponse,
+            action: AIAction.EMERGENCY_ESCALATION,
+            intent: AIIntent.EMERGENCY_DENTAL,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 2. Urgent Spreading Swelling
+      if (isSpreadingFacialSwelling(combinedStatement) || isSpreadingFacialSwelling(rawInput)) {
+        updatedProfile.swellingPresent = true;
+        updatedProfile.urgencyLevel = 'HIGH';
+        updatedProfile.isAmbiguous = false;
+
+        const urgentServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_SYMPTOM_TRIAGE,
+          triageProfile: updatedProfile,
+          suggestedServiceId: 'sv000001-0000-0000-0000-000000000001',
+          suggestedServiceName: urgentServiceName,
+          selectedServiceId: 'sv000001-0000-0000-0000-000000000001',
+          selectedServiceName: urgentServiceName,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `Facial or cheek swelling can indicate an active dental infection that requires prompt professional attention. If you develop any difficulty breathing, swallowing, or fever, please seek emergency medical care immediately. For your dental care, we strongly recommend an urgent examination today. Would you like to schedule an appointment for ${urgentServiceName}?`,
+            action: AIAction.TRIAGE_SYMPTOM,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 3. Still Ambiguous (No concrete symptoms/scope/triggers extracted)
+      const hasClinicalClarity =
+        Boolean(updatedProfile.anatomicalScope) ||
+        Boolean(updatedProfile.anatomicalLocation) ||
+        Boolean(updatedProfile.painPattern) ||
+        Boolean(updatedProfile.triggers && updatedProfile.triggers.length > 0) ||
+        Boolean(updatedProfile.reportedSymptoms && updatedProfile.reportedSymptoms.length > 0) ||
+        triageRes.matched;
+
+      if (!hasClinicalClarity && triageRes.isAmbiguous && triageRes.ambiguousQuestion) {
+        updatedProfile.activeFollowUpQuestion = triageRes.ambiguousQuestion;
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          triageProfile: updatedProfile,
+        });
+        return {
+          response: {
+            success: true,
+            response: triageRes.ambiguousQuestion,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 4. Clinical clarity established -> Advance to BOOKING_SYMPTOM_TRIAGE
+      updatedProfile.isAmbiguous = false;
+      if (triageRes.category && !updatedProfile.symptomCategories.includes(triageRes.category)) {
+        updatedProfile.symptomCategories.push(triageRes.category);
+      }
+
+      const targetServiceId = triageRes.suggestedServiceId || 'sv000001-0000-0000-0000-000000000001';
+      const targetServiceName = triageRes.suggestedServiceName || 'Comprehensive Oral Exam & Digital X-Rays';
+      const targetSpecialistId = triageRes.suggestedStaffId || 's0000001-0000-0000-0000-000000000001';
+      const targetSpecialistName = triageRes.suggestedStaffName || 'Dr. Marcus Thorne';
+
+      const updated = await this.sessionStore.updateSession(sessionId, {
+        step: BookingConversationStep.BOOKING_SYMPTOM_TRIAGE,
+        triageProfile: updatedProfile,
+        suggestedServiceId: targetServiceId,
+        suggestedServiceName: targetServiceName,
+        selectedServiceId: targetServiceId,
+        selectedServiceName: targetServiceName,
+        selectedStaffId: targetSpecialistId,
+        selectedStaffName: targetSpecialistName,
+      });
+
+      const responseText =
+        triageRes.responsePrompt ||
+        `Thank you for providing those details. A dental examination and digital X-rays would be the appropriate starting point to evaluate the tooth. Would you like to schedule an appointment for ${targetServiceName}?`;
+
+      return {
+        response: {
+          success: true,
+          response: responseText,
+          action: AIAction.TRIAGE_SYMPTOM,
+          intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: updated,
+      };
+    }
+
+    // ----------------------------------------------------
     // STEP 0: SYMPTOM TRIAGE CONFIRMATION / GUIDANCE
     // ----------------------------------------------------
     if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
+      // 1. Check if user provided natural clinical triage details
+      const facts = extractTriageFacts(rawInput, session.triageProfile);
+      const hasClinicalInfo =
+        Boolean(facts.anatomicalScope) ||
+        Boolean(facts.anatomicalLocation) ||
+        Boolean(facts.duration) ||
+        Boolean(facts.onset) ||
+        Boolean(facts.painPattern) ||
+        Boolean(facts.triggers && facts.triggers.length > 0) ||
+        facts.swellingPresent !== undefined ||
+        facts.bleedingPresent !== undefined ||
+        facts.traumaPresent !== undefined ||
+        facts.patientGoal !== undefined;
+
+      if (hasClinicalInfo) {
+        const existingProfile: DentalTriageProfile = session.triageProfile || {
+          originalPatientStatement: session.reportedSymptom || rawInput,
+          reportedSymptoms: [],
+          symptomCategories: [],
+          triggers: [],
+          urgencyLevel: 'ROUTINE',
+          followUpHistory: [],
+          isAmbiguous: false,
+        };
+
+        const updatedProfile = mergeTriageFacts(existingProfile, facts, rawInput);
+        const targetServiceName = session.suggestedServiceName || 'Comprehensive Oral Exam & Digital X-Rays';
+
+        // Urgency check (swelling reported)
+        if (facts.swellingPresent === true || isSpreadingFacialSwelling(rawInput)) {
+          updatedProfile.swellingPresent = true;
+          updatedProfile.urgencyLevel = 'HIGH';
+
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            triageProfile: updatedProfile,
+          });
+
+          return {
+            response: {
+              success: true,
+              response: `I note that swelling is present. Facial swelling should be evaluated promptly by a dentist to prevent spread. Would you like to schedule an urgent evaluation for ${targetServiceName}?`,
+              action: AIAction.NONE,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
+        // Formulate natural acknowledgement
+        const acknowledgements: string[] = [];
+        if (facts.anatomicalScope === 'single tooth') {
+          acknowledgements.push('it is localized to a single tooth');
+        }
+        if (facts.anatomicalLocation) {
+          acknowledgements.push(`located on the ${facts.anatomicalLocation}`);
+        }
+        if (facts.duration) {
+          acknowledgements.push(`has been present for ${facts.duration}`);
+        }
+        if (facts.onset && !facts.duration) {
+          acknowledgements.push(`started ${facts.onset}`);
+        }
+        if (facts.painPattern === 'intermittent') {
+          acknowledgements.push('the pain stops quickly and comes intermittently');
+        } else if (facts.painPattern === 'throbbing') {
+          acknowledgements.push('it has a throbbing pattern');
+        }
+        if (facts.triggers && facts.triggers.includes('cold')) {
+          acknowledgements.push('it reacts to cold');
+        }
+        if (facts.triggers && facts.triggers.includes('sweet')) {
+          acknowledgements.push('it reacts to sweets');
+        }
+        if (facts.swellingPresent === false) {
+          acknowledgements.push('there is no swelling');
+        }
+
+        const ackText =
+          acknowledgements.length > 0
+            ? `Thank you for sharing that ${acknowledgements.join(' and ')}.`
+            : 'Thank you for providing those details.';
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          triageProfile: updatedProfile,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `${ackText} A dental examination and digital X-rays will help our dentist inspect the tooth and determine the cause. Would you like to schedule an appointment for ${targetServiceName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 2. Caller agreed to book the suggested service
       if (
         confirmCheck === 'CONFIRMED' ||
         /\b(yes|sure|yeah|yep|please|let's do that|book it|schedule it|sounds good|okay|ok|continue)\b/i.test(
@@ -644,7 +908,14 @@ export class AppointmentStateMachine {
         };
       }
 
-      if (confirmCheck === 'REJECTED' || /\b(no|nope|don't|different|not that)\b/i.test(rawInput)) {
+      // 3. Caller rejected or requested a different service
+      if (
+        confirmCheck === 'REJECTED' ||
+        /\b(different service|different treatment|not that service|don'?t want that|no thanks|nah)\b/i.test(
+          rawInput
+        ) ||
+        /^(no|nope)$/i.test(rawInput.trim())
+      ) {
         const services = await prisma.service.findMany({
           where: { businessId, isActive: true },
           select: { id: true, name: true },
@@ -673,7 +944,7 @@ export class AppointmentStateMachine {
         };
       }
 
-      // Check if user directly named a specific service
+      // 4. Check if user directly named a specific service
       const services = await prisma.service.findMany({
         where: { businessId, isActive: true },
         select: {

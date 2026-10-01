@@ -7,6 +7,7 @@ import {
 import {
   matchGlobalDentalComplaint,
   isLifeThreateningDentalEmergency,
+  isSpreadingFacialSwelling,
   getAmbiguousSymptomFollowUp,
   DentalClinicalCategory,
   GLOBAL_DENTAL_CATALOGUE,
@@ -642,6 +643,38 @@ export interface DentalTriageResult {
  * 4. Tenant clinic capability awareness
  * 5. Appropriate non-diagnostic response generation
  */
+/**
+ * Formats an empathetic, professional receptionist opening tailored to visit reason
+ * (e.g. pain empathy, aesthetic courtesy, gentle reassurance).
+ */
+export function getEmpatheticOpening(category: DentalClinicalCategory, input?: string): string {
+  switch (category) {
+    case DentalClinicalCategory.AESTHETIC_WHITENING:
+      return 'Certainly! We can help you explore professional whitening options.';
+    case DentalClinicalCategory.COSMETIC_SMILE_DESIGN:
+      return 'Wonderful! We would be delighted to help you explore cosmetic smile options.';
+    case DentalClinicalCategory.PREVENTIVE_ROUTINE:
+      return 'Sure, I can help you schedule a dental cleaning.';
+    case DentalClinicalCategory.PEDIATRIC_PREVENTIVE:
+      return "We'd be glad to help schedule a gentle visit for your child.";
+    case DentalClinicalCategory.FRACTURED_TOOTH_RESTORATION:
+      return 'That sounds uncomfortable.';
+    case DentalClinicalCategory.ABSCESS_ACUTE_INFECTION:
+      return "I'm concerned about those symptoms. Swelling can indicate an active infection that needs prompt care.";
+    default:
+      return "I'm sorry you're dealing with that discomfort.";
+  }
+}
+
+/**
+ * Intelligent dental domain inquiry resolution:
+ * 1. Urgency / Emergency safety check
+ * 2. Spreading facial swelling triage
+ * 3. Ambiguous symptom follow-up question
+ * 4. Global dental problem mapping (18 CDT categories)
+ * 5. Tenant clinic capability awareness
+ * 6. Appropriate non-diagnostic response generation
+ */
 export function triageDentalInquiry(businessId: string, input: string): DentalTriageResult {
   const profile = getClinicKnowledge(businessId);
   const clinicName = profile?.businessName || 'our dental clinic';
@@ -659,7 +692,31 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
     };
   }
 
-  // 2. Ambiguous symptom check
+  // 2. Urgent Spreading Facial Swelling Triage
+  if (isSpreadingFacialSwelling(input)) {
+    const urgentPrompt =
+      `Facial or cheek swelling can indicate an active dental infection that requires prompt professional attention. ` +
+      `If you develop any difficulty breathing, swallowing, or fever, please seek emergency medical care immediately. ` +
+      `For your dental care, we strongly recommend an urgent examination today. ` +
+      `Would you like to schedule an appointment for Comprehensive Oral Exam & Digital X-Rays?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.ABSCESS_ACUTE_INFECTION,
+      isSupportedByClinic: true,
+      suggestedServiceId: 'sv000001-0000-0000-0000-000000000001',
+      suggestedServiceName: 'Comprehensive Oral Exam & Digital X-Rays',
+      suggestedStaffId: 's0000001-0000-0000-0000-000000000001',
+      suggestedStaffName: 'Dr. Marcus Thorne',
+      cautiousExplanation:
+        'Facial or cheek swelling is commonly associated with an active dental infection requiring clinical evaluation and radiographic assessment.',
+      responsePrompt: urgentPrompt,
+    };
+  }
+
+  // 3. Ambiguous symptom check
   const ambiguousPrompt = getAmbiguousSymptomFollowUp(input);
   if (ambiguousPrompt) {
     return {
@@ -672,15 +729,49 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
     };
   }
 
-  // 3. Match against Global Dental Knowledge Catalogue
+  // 4. Match against Global Dental Knowledge Catalogue
   const globalMatch = matchGlobalDentalComplaint(input);
 
-  // 4. Also check tenant's local custom triage rules
+  // 5. Also check tenant's local custom triage rules
   const localRule = triageDentalSymptom(businessId, input);
 
   if (globalMatch.matched && globalMatch.entry) {
     const entry = globalMatch.entry;
     const capability = checkClinicCapability(businessId, entry.category);
+
+    // Evaluation-first mapping for tooth replacement at Lumina
+    if (
+      entry.category === DentalClinicalCategory.IMPLANT_PROSTHODONTICS &&
+      businessId === LUMINA_DENTAL_BUSINESS_ID
+    ) {
+      const explicitImplantProcedureDemand =
+        /\b(need an? implant|want an? implant|screw tooth|dental implant|implants|need a dental implant|want a dental implant)\b/i.test(
+          input
+        );
+      if (!explicitImplantProcedureDemand) {
+        // General tooth replacement inquiry -> Evaluation first consultation at Lumina!
+        const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+        const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+        const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+        const evalStaffName = 'Dr. Marcus Thorne';
+        const cautiousText =
+          'Replacing a missing tooth can involve options like an implant, bridge, or partial denture depending on your oral health. While Lumina does not perform surgical implant placement in-house, our dentists can perform a comprehensive oral evaluation to assess your bone, bite, and replacement options.';
+        const promptText = `Certainly. ${cautiousText} Would you like to schedule an examination with Dr. Marcus Thorne, or are you looking specifically for surgical implant placement?`;
+        return {
+          matched: true,
+          isEmergency: false,
+          isAmbiguous: false,
+          category: entry.category,
+          isSupportedByClinic: true,
+          suggestedServiceId: evalServiceId,
+          suggestedServiceName: evalServiceName,
+          suggestedStaffId: evalStaffId,
+          suggestedStaffName: evalStaffName,
+          cautiousExplanation: cautiousText,
+          responsePrompt: promptText,
+        };
+      }
+    }
 
     if (!capability.isSupported) {
       const explanation = generateUnavailableCapabilityResponse(clinicName, entry.category, input);
@@ -697,12 +788,39 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
 
     // Service is supported by current clinic!
     const mapping = capability.serviceMapping;
-    const serviceId = mapping?.serviceId || localRule?.suggestedServiceId || 'sv000001-0000-0000-0000-000000000001';
-    const serviceName = mapping?.serviceName || localRule?.suggestedServiceName || 'Comprehensive Oral Exam & Digital X-Rays';
-    const staffId = mapping?.defaultStaffId || localRule?.recommendedSpecialistId || 's0000001-0000-0000-0000-000000000001';
-    const staffName = mapping?.defaultStaffName || localRule?.recommendedSpecialistName || 'Dr. Marcus Thorne';
+    let serviceId =
+      mapping?.serviceId || localRule?.suggestedServiceId || 'sv000001-0000-0000-0000-000000000001';
+    let serviceName =
+      mapping?.serviceName || localRule?.suggestedServiceName || 'Comprehensive Oral Exam & Digital X-Rays';
+    let staffId =
+      mapping?.defaultStaffId || localRule?.recommendedSpecialistId || 's0000001-0000-0000-0000-000000000001';
+    let staffName =
+      mapping?.defaultStaffName || localRule?.recommendedSpecialistName || 'Dr. Marcus Thorne';
+    let cautiousText = entry.cautiousExplanation;
+    let actionText = entry.suggestedAction;
 
-    const promptText = `I'm sorry to hear that. ${entry.cautiousExplanation} ${entry.suggestedAction} Would you like to schedule an appointment for ${serviceName}?`;
+    // Evaluation-First Mapping for broken/chipped teeth (Lumina Dental Care)
+    if (
+      entry.category === DentalClinicalCategory.FRACTURED_TOOTH_RESTORATION &&
+      businessId === LUMINA_DENTAL_BUSINESS_ID
+    ) {
+      const patientExplicitlyWantsCrown =
+        /\b(crown prep|prepare a crown|make a crown|need a crown|crown fell off|lost my crown)\b/i.test(
+          input
+        );
+      if (!patientExplicitlyWantsCrown) {
+        serviceId = 'sv000001-0000-0000-0000-000000000001';
+        serviceName = 'Comprehensive Oral Exam & Digital X-Rays';
+        staffId = 's0000001-0000-0000-0000-000000000001';
+        staffName = 'Dr. Marcus Thorne';
+        cautiousText =
+          'A broken tooth can sometimes be treated with bonding, a filling, or a crown depending on how much of the tooth is affected. A dentist would need to examine it first.';
+        actionText = 'We can help you schedule an evaluation.';
+      }
+    }
+
+    const opening = getEmpatheticOpening(entry.category, input);
+    const promptText = `${opening} ${cautiousText} ${actionText} Would you like to schedule an appointment for ${serviceName}?`;
 
     const dynamicRule: DentalSymptomTriageRule = {
       symptomKeywords: entry.keywords,
@@ -711,7 +829,7 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       recommendedSpecialistId: staffId,
       recommendedSpecialistName: staffName,
       triageCategory: entry.category,
-      clinicalExplanation: entry.cautiousExplanation,
+      clinicalExplanation: cautiousText,
       clinicalSafetyDisclaimer: 'A dentist would need to examine you to determine the exact cause.',
     };
 
@@ -726,25 +844,48 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       suggestedServiceName: serviceName,
       suggestedStaffId: staffId,
       suggestedStaffName: staffName,
-      cautiousExplanation: entry.cautiousExplanation,
+      cautiousExplanation: cautiousText,
       responsePrompt: promptText,
     };
   }
 
   // 5. Fallback to local rule if global catalogue didn't hit
   if (localRule) {
-    const promptText = `I'm sorry to hear that. ${localRule.clinicalExplanation} ${localRule.clinicalSafetyDisclaimer} Would you like to schedule an appointment for ${localRule.suggestedServiceName}?`;
+    let serviceId = localRule.suggestedServiceId;
+    let serviceName = localRule.suggestedServiceName;
+    let staffId = localRule.recommendedSpecialistId;
+    let staffName = localRule.recommendedSpecialistName;
+    let explanation = localRule.clinicalExplanation;
+    let disclaimer = localRule.clinicalSafetyDisclaimer;
+
+    // Evaluation-First safety for broken tooth if localRule mapped to crown
+    if (
+      businessId === LUMINA_DENTAL_BUSINESS_ID &&
+      serviceId === 'sv000004-0000-0000-0000-000000000004' &&
+      !/\b(crown prep|prepare a crown|make a crown|need a crown|crown fell off|lost my crown)\b/i.test(input)
+    ) {
+      serviceId = 'sv000001-0000-0000-0000-000000000001';
+      serviceName = 'Comprehensive Oral Exam & Digital X-Rays';
+      staffId = 's0000001-0000-0000-0000-000000000001';
+      staffName = 'Dr. Marcus Thorne';
+      explanation =
+        'A broken tooth can sometimes be treated with bonding, a filling, or a crown depending on how much of the tooth is affected.';
+      disclaimer =
+        'A dental examination and digital X-rays would be the appropriate first step so Dr. Marcus Thorne can evaluate the tooth.';
+    }
+
+    const promptText = `I'm sorry to hear that. ${explanation} ${disclaimer} Would you like to schedule an appointment for ${serviceName}?`;
     return {
       matched: true,
       isEmergency: false,
       isAmbiguous: false,
       isSupportedByClinic: true,
       triageRule: localRule,
-      suggestedServiceId: localRule.suggestedServiceId,
-      suggestedServiceName: localRule.suggestedServiceName,
-      suggestedStaffId: localRule.recommendedSpecialistId,
-      suggestedStaffName: localRule.recommendedSpecialistName,
-      cautiousExplanation: localRule.clinicalExplanation,
+      suggestedServiceId: serviceId,
+      suggestedServiceName: serviceName,
+      suggestedStaffId: staffId,
+      suggestedStaffName: staffName,
+      cautiousExplanation: explanation,
       responsePrompt: promptText,
     };
   }

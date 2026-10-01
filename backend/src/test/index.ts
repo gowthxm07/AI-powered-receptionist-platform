@@ -33,6 +33,7 @@ import { runVoiceAppointmentPersistenceTests } from './voice-appointment-persist
 import { runDentalDomainTests } from './dental-domain.test';
 import { runClinicFaqTests } from './clinic-faq.test';
 import { runDentalIntelligenceTests } from './dental-intelligence.test';
+import { runConversationalTriageTests } from './conversational-triage.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -73,6 +74,7 @@ async function runAllTestSuites() {
   await runDentalDomainTests();
   await runClinicFaqTests();
   await runDentalIntelligenceTests();
+  await runConversationalTriageTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

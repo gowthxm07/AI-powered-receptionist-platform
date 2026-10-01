@@ -309,12 +309,20 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
       'cracked tooth',
       'chipped tooth',
       'broken tooth',
+      'tooth broke off',
+      'broke off',
+      'piece broke off',
       'lost a piece of tooth',
       'sharp tooth edge',
       'crown fell off',
       'lost my crown',
       'bit down on something hard and tooth broke',
       'fractured molar',
+      'fractured tooth',
+      'broken',
+      'chipped',
+      'cracked',
+      'broke',
     ],
     patientPhrases: [
       'i cracked my tooth while eating',
@@ -346,6 +354,12 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
       'artificial tooth root',
       'permanent tooth replacement',
       'implant bridge',
+      'lost a tooth',
+      'lost tooth',
+      'missing tooth',
+      'replace it',
+      'replace a tooth',
+      'tooth replacement',
     ],
     patientPhrases: [
       'i want a screw tooth',
@@ -354,6 +368,9 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
       'replace my missing front tooth with an implant',
       'how much are dental implants',
       'implant tooth replacement',
+      'lost a tooth a few months ago and want to replace it',
+      'lost a tooth and want to replace it',
+      'i lost a tooth',
     ],
     cautiousExplanation:
       'A dental implant consultation evaluates bone density and space to determine whether a biocompatible implant fixture and custom crown are suitable for replacing a missing tooth.',
@@ -666,7 +683,24 @@ export const CRITICAL_EMERGENCY_TRIGGERS: string[] = [
 export function isLifeThreateningDentalEmergency(input: string): boolean {
   if (!input) return false;
   const clean = input.toLowerCase();
-  return CRITICAL_EMERGENCY_TRIGGERS.some((trig) => clean.includes(trig));
+  return (
+    CRITICAL_EMERGENCY_TRIGGERS.some((trig) => clean.includes(trig)) ||
+    /\b(cannot breathe|can't breathe|trouble breathing|difficulty breathing|throat swelling|throat is swelling|closing my eye|eye is swollen shut)\b/i.test(
+      clean
+    )
+  );
+}
+
+/**
+ * Checks whether an utterance indicates spreading facial or cheek swelling requiring
+ * urgent dental infection evaluation rather than routine or service-unavailable dismissal.
+ */
+export function isSpreadingFacialSwelling(input: string): boolean {
+  if (!input) return false;
+  const clean = input.toLowerCase();
+  return /\b(cheek is starting to swell|cheek is swelling|face is getting swollen|face is swelling|swelling is spreading|swelling in my cheek|cheek is swollen and gum|gum is swollen and my cheek|swollen cheek and gum|gum is swollen and cheek)\b/i.test(
+    clean
+  );
 }
 
 /**
@@ -676,6 +710,7 @@ export function matchGlobalDentalComplaint(input: string): {
   matched: boolean;
   entry?: DentalKnowledgeEntry;
   score: number;
+  matchedCategories?: DentalClinicalCategory[];
 } {
   if (!input) return { matched: false, score: 0 };
   const clean = input.toLowerCase().replace(/[?!,.]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -683,6 +718,7 @@ export function matchGlobalDentalComplaint(input: string): {
 
   let bestEntry: DentalKnowledgeEntry | null = null;
   let bestScore = 0;
+  const scoredEntries: Array<{ entry: DentalKnowledgeEntry; score: number }> = [];
 
   for (const entry of Object.values(GLOBAL_DENTAL_CATALOGUE)) {
     let score = 0;
@@ -704,17 +740,29 @@ export function matchGlobalDentalComplaint(input: string): {
       }
     }
 
+    if (score >= 2) {
+      scoredEntries.push({ entry, score });
+    }
+
     if (score > bestScore && score >= 2) {
       bestScore = score;
       bestEntry = entry;
     }
   }
 
+  scoredEntries.sort((a, b) => b.score - a.score);
+  const matchedCategories = scoredEntries.map((s) => s.entry.category);
+
   if (bestEntry && bestScore >= 2) {
-    return { matched: true, entry: bestEntry, score: bestScore };
+    return {
+      matched: true,
+      entry: bestEntry,
+      score: bestScore,
+      matchedCategories,
+    };
   }
 
-  return { matched: false, score: 0 };
+  return { matched: false, score: 0, matchedCategories: [] };
 }
 
 /**
@@ -724,6 +772,18 @@ export function matchGlobalDentalComplaint(input: string): {
 export function getAmbiguousSymptomFollowUp(input: string): string | null {
   if (!input) return null;
   const clean = input.toLowerCase().trim();
+
+  // Vague oral or mouth sensation ("something feels weird", "something is wrong") without specific symptoms
+  if (
+    /\b(something (feels? (weird|off|strange|wrong|different|uncomfortable)|is wrong)|don't know what's wrong|not feeling right in my mouth|issue in my mouth|trouble in my mouth|problem with my mouth)\b/i.test(
+      clean
+    ) &&
+    !/\b(hurts?|pain|ache|aching|throbbing|sensitive|sensitivity|cold|hot|swollen|swelling|bleeding|broke|broken|chipped)\b/i.test(
+      clean
+    )
+  ) {
+    return 'I can help with that. Are you noticing pain, sensitivity, swelling, bleeding, a broken tooth, or something else?';
+  }
 
   // Generic toothache without specific trigger
   if (

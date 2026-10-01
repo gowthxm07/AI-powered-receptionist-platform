@@ -136,15 +136,47 @@ export class VoiceResponseOptimizer {
       }
     }
 
-    // 4. Single-Question Constraint (Voice conversations must not ask multiple questions simultaneously)
+    // 4. Voice Question Optimization & Clinical Safety Prioritization
     const questionMarks = (clean.match(/\?/g) || []).length;
     if (questionMarks > 1) {
-      // Split into sentences and keep at most the last/primary question
-      const sentences = clean.split(/(?<=[.!?])\s+/);
+      // Split into sentences
+      const sentences = clean.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
       const nonQuestions = sentences.filter((s) => !s.endsWith('?'));
       const questions = sentences.filter((s) => s.endsWith('?'));
-      // Keep introductory statement (if any) + the final actionable question
-      clean = [...nonQuestions.slice(0, 1), questions[questions.length - 1]].join(' ');
+
+      // Identify emergency / safety guidance sentences
+      const safetySentences = nonQuestions.filter((s) =>
+        /\b(emergency|911|hospital|urgent|breathing|swelling|infection|severe)\b/i.test(s)
+      );
+
+      // Identify clinical context sentences (not already in safety)
+      const clinicalSentences = nonQuestions.filter(
+        (s) =>
+          !safetySentences.includes(s) &&
+          /\b(examination|evaluate|dentist|x-rays|tooth|enamel|restorative|nerve|clean|hygiene)\b/i.test(s)
+      );
+
+      // Remaining intro or general sentences
+      const generalSentences = nonQuestions.filter(
+        (s) => !safetySentences.includes(s) && !clinicalSentences.includes(s)
+      );
+
+      // Select top prioritized non-question sentences (up to 2 sentences)
+      const selectedNonQuestions: string[] = [];
+      if (safetySentences.length > 0) {
+        selectedNonQuestions.push(safetySentences[0]);
+      }
+      if (clinicalSentences.length > 0 && selectedNonQuestions.length < 2) {
+        selectedNonQuestions.push(clinicalSentences[0]);
+      }
+      if (selectedNonQuestions.length === 0 && generalSentences.length > 0) {
+        selectedNonQuestions.push(generalSentences[0]);
+      }
+
+      // Actionable question: keep the final question
+      const finalQuestion = questions[questions.length - 1];
+
+      clean = [...selectedNonQuestions, finalQuestion].join(' ');
     }
 
     // 5. Final normalization

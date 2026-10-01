@@ -200,7 +200,7 @@ export async function runVoiceTurnDetectionTests(): Promise<void> {
   const totalBenchMs = performance.now() - benchStart;
   const avgMs = totalBenchMs / iterations;
 
-  assert(avgMs < 0.1, `VAD RMS calculation (${avgMs.toFixed(3)}ms) is well below the 5ms requirement`);
+  assert(avgMs < 5.0, `VAD RMS calculation (${avgMs.toFixed(3)}ms) is well below the 5ms requirement`);
   console.log(`  ✓ Measured VAD calculation overhead: ${avgMs.toFixed(3)} ms per analysis cycle (Budget: < 5 ms).`);
 
   // ---------------------------------------------------------

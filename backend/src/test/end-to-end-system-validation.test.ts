@@ -67,7 +67,7 @@ export async function runEndToEndSystemValidationTests(): Promise<void> {
       transportSessionId = sessionRes.session.transportSessionId;
 
       // The canonical conversational booking turns
-      const testCustomerPhone = `555-234-${Math.floor(1000 + Math.random() * 9000)}`;
+      const testCustomerPhone = '555-234-3131';
       const testCustomerName = 'Jane Watson';
 
       const bookingTurns = [

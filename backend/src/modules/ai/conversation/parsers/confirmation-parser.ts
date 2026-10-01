@@ -27,7 +27,8 @@ export class ConfirmationParser {
 
     // 2. Positive affirmations
     const confirmPatterns = [
-      /\b(yes|yeah|yep|yup|sure|confirm|book it|book|go ahead|proceed|correct|ok|okay|please do|sounds good|that works|do it|that'?s right|that is right|it is|that'?s correct|exactly|perfect|y)\b/,
+      /\b(yes|yeah|yep|yup|sure|confirm|book it|book|go ahead|proceed|correct|ok|okay|please do|sounds good|that works|do it|that'?s right|that is right|that'?s correct|exactly|perfect)\b/,
+      /^(it is|yes it is)$/i,
       /^y$/i,
       /^yes please$/i,
       /^sounds great$/i,
@@ -40,13 +41,23 @@ export class ConfirmationParser {
     }
 
     // 3. Rejections / cancellations / corrections
+    // Strip clinical negative findings and polite phrases before testing for confirmation rejection
+    const sanitizedForReject = clean
+      .replace(
+        /\bno\s+(swelling|bleeding|pain|fever|headache|problem|worries|issue|trouble|holes?|cavities|symptoms?)\b/gi,
+        ''
+      )
+      .trim();
+
     const rejectPatterns = [
-      /\b(no|nope|cancel|never mind|nevermind|stop|don'?t|do not|abort|quit|not now|no thanks|nah|wrong|you got it wrong|got it wrong|misheard|not right|that'?s not right|incorrect|not my number|not my name|let me repeat|repeat it|try again)\b/,
+      /^(no|nope|nah|not really|no thanks|no thank you|definitely not|not now)(\b|[.,!]|$)/i,
+      /\b(cancel|never mind|nevermind|stop|abort|quit|not now|no thanks|nah|wrong|you got it wrong|got it wrong|misheard|not right|that'?s not right|incorrect|not my number|not my name|let me repeat|repeat it|try again)\b/,
+      /\b(don'?t want|do not want|not interested|different service)\b/i,
       /^n$/i,
     ];
 
     for (const pat of rejectPatterns) {
-      if (pat.test(clean)) {
+      if (pat.test(sanitizedForReject)) {
         return 'REJECTED';
       }
     }

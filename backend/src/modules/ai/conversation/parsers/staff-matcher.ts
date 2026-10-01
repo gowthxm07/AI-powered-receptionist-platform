@@ -23,8 +23,7 @@ export class StaffMatcher {
 
     // 1. Check for "Anyone" / "No preference"
     const anyonePatterns = [
-      /\banyone\b/,
-      /\bany\b/,
+      /\b(anyone|anybody|any|anyway|anyways|whichever|whoever|either|neither)\b/,
       /\bno preference\b/,
       /\bno one specific\b/,
       /\beither\b/,
@@ -33,6 +32,8 @@ export class StaffMatcher {
       /\bany doctor\b/,
       /\bwhoever is available\b/,
       /\bfirst available\b/,
+      /\bis fine\b/,
+      /\bfine\b/,
       /\bno\b/,
     ];
 

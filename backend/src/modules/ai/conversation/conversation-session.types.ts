@@ -1,5 +1,6 @@
 export enum BookingConversationStep {
   IDLE = 'IDLE',
+  TRIAGE_CLARIFICATION = 'TRIAGE_CLARIFICATION',
   BOOKING_SYMPTOM_TRIAGE = 'BOOKING_SYMPTOM_TRIAGE',
   BOOKING_COLLECT_SERVICE = 'BOOKING_COLLECT_SERVICE',
   BOOKING_COLLECT_STAFF = 'BOOKING_COLLECT_STAFF',
@@ -15,6 +16,41 @@ export enum BookingConversationStep {
   BOOKING_CANCELLED = 'BOOKING_CANCELLED',
 }
 
+export type AnatomicalScope = 'single tooth' | 'multiple teeth' | 'generalized' | 'jaw' | 'gums' | 'unspecified';
+export type UrgencySeverity = 'mild' | 'moderate' | 'severe';
+export type PainPattern = 'constant' | 'throbbing' | 'sharp' | 'dull' | 'intermittent' | 'on biting' | 'temperature' | 'unspecified';
+
+export interface DentalTriageProfile {
+  originalPatientStatement: string;
+  reportedSymptoms: string[];
+  symptomCategories: string[];
+  anatomicalLocation?: string;
+  anatomicalScope?: AnatomicalScope;
+  onset?: string;
+  duration?: string;
+  severity?: UrgencySeverity;
+  painPattern?: PainPattern;
+  triggers: string[];
+  swellingPresent?: boolean;
+  bleedingPresent?: boolean;
+  traumaPresent?: boolean;
+  feverReported?: boolean;
+  breathingDifficulty?: boolean;
+  swallowingDifficulty?: boolean;
+  eyeInvolvement?: boolean;
+  patientGoal?: string;
+  urgencyLevel: string; // 'ROUTINE' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  activeFollowUpQuestion?: string;
+  followUpHistory: Array<{
+    question: string;
+    answer: string;
+    timestamp: string;
+  }>;
+  confidence?: number;
+  isAmbiguous?: boolean;
+  recommendedNextStep?: string;
+}
+
 export interface AvailableSlot {
   timeLabel: string; // e.g. "10:00 AM", "02:00 PM"
   startTime: string; // ISO 8601 string
@@ -28,6 +64,9 @@ export interface ConversationSessionData {
   businessId: string;
   step: BookingConversationStep;
   
+  // Structured patient triage profile
+  triageProfile?: DentalTriageProfile;
+
   // Selected appointment attributes
   selectedServiceId?: string;
   selectedServiceName?: string;
