@@ -35,6 +35,7 @@ import { runClinicFaqTests } from './clinic-faq.test';
 import { runDentalIntelligenceTests } from './dental-intelligence.test';
 import { runConversationalTriageTests } from './conversational-triage.test';
 import { runMilestone2CompositeTriageTests } from './milestone2-composite-triage.test';
+import { runMilestone3NetworkIntelligenceTests } from './milestone3-network-intelligence.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -77,6 +78,7 @@ async function runAllTestSuites() {
   await runDentalIntelligenceTests();
   await runConversationalTriageTests();
   await runMilestone2CompositeTriageTests();
+  await runMilestone3NetworkIntelligenceTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');
