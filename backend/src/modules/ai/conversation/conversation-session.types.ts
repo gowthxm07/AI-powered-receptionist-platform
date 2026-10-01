@@ -1,6 +1,9 @@
+import { NetworkRecommendationMatch } from '../knowledge/dental-network';
+
 export enum BookingConversationStep {
   IDLE = 'IDLE',
   TRIAGE_CLARIFICATION = 'TRIAGE_CLARIFICATION',
+  NETWORK_RECOMMENDATION_OFFERED = 'NETWORK_RECOMMENDATION_OFFERED',
   BOOKING_SYMPTOM_TRIAGE = 'BOOKING_SYMPTOM_TRIAGE',
   BOOKING_COLLECT_SERVICE = 'BOOKING_COLLECT_SERVICE',
   BOOKING_COLLECT_STAFF = 'BOOKING_COLLECT_STAFF',
@@ -130,6 +133,9 @@ export interface ConversationSessionData {
   customerPhone?: string;
   confirmedAppointmentId?: string;
   
+  // Pending sister clinic network recommendation
+  pendingRecommendation?: NetworkRecommendationMatch;
+
   // Metadata & TTL
   metadata?: Record<string, unknown>;
   createdAt: Date;

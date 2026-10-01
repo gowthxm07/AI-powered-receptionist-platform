@@ -8,6 +8,7 @@ import {
   BookingConversationStep,
   ConversationSessionData,
   DentalTriageProfile,
+  PatientGoalType,
 } from './conversation-session.types';
 import { IConversationSessionStore } from './session-store.interface';
 import { AppointmentSlotFinder } from './appointment-slot-finder';
@@ -27,6 +28,8 @@ import {
   isUnrelatedInquiry,
   isQuestionLike,
   triageDentalInquiry,
+  findNetworkClinicRecommendation,
+  formatNetworkRecommendationPrompt,
 } from '../knowledge';
 import { extractTriageFacts, mergeTriageFacts } from '../knowledge/triage-extractor';
 import { isSpreadingFacialSwelling } from '../knowledge/global-dental-catalogue';
@@ -34,6 +37,21 @@ import { isSpreadingFacialSwelling } from '../knowledge/global-dental-catalogue'
 export interface StateMachineResult {
   response: AIReceptionistResponse;
   updatedSession: ConversationSessionData | null;
+}
+
+function isSisterPracticeQuery(rawInput: string): boolean {
+  const normalized = rawInput.toLowerCase().trim();
+  if (/\b(lumina|this clinic|here|current clinic)\b/i.test(normalized)) {
+    return false;
+  }
+  return (
+    /\b(where\s+(?:are\s+they|is\s+(?:that|it|the\s+clinic)|are\s+they\s+located)|what\s+is\s+their\s+address|location|address)\b/i.test(normalized) ||
+    /\b(who\s+is\s+the\s+(?:doctor|specialist|dentist|surgeon)|tell\s+me\s+about\s+the\s+(?:doctor|specialist|dentist)|doctor\s+name|specialist\s+name)\b/i.test(normalized) ||
+    /\b(what('?s| is) their (?:phone|number)|phone\s*number|how (?:do|can) i call|how (?:do|can) i contact|how (?:do|can) i reach)\b/i.test(normalized) ||
+    /\b(when\s+are\s+they\s+open|their\s+hours|what\s+time\s+do\s+they\s+close|what\s+are\s+their\s+hours|opening\s+hours)\b/i.test(normalized) ||
+    /\b(which\s+clinic|what\s+clinic|what\s+is\s+the\s+name\s+of\s+the\s+clinic|what\s+do\s+they\s+specialize\s+in|specialty)\b/i.test(normalized) ||
+    /\b(tell\s+me\s+about\s+(?:them|it|the\s+other\s+clinic|the\s+sister\s+clinic|apex|zenith|radiance)|tell\s+me\s+more(?:\s+first)?|what\s+do\s+you\s+mean)\b/i.test(normalized)
+  );
 }
 
 export class AppointmentStateMachine {
@@ -414,7 +432,8 @@ export class AppointmentStateMachine {
 
     const isTriageStep =
       session.step === BookingConversationStep.TRIAGE_CLARIFICATION ||
-      session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE;
+      session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE ||
+      session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED;
 
     const isFaqIntent =
       [
@@ -435,13 +454,20 @@ export class AppointmentStateMachine {
       isUnrelated ||
       (midIntentMatch.intent === AIIntent.STAFF_INFORMATION && session.step !== BookingConversationStep.BOOKING_COLLECT_STAFF);
 
-    // Guard: Do not intercept simple YES/NO or explicit data inputs at confirmation steps
+    // Guard: Do not intercept simple YES/NO or explicit data inputs at confirmation steps,
+    // nor queries specifically directed at the sister clinic recommendation
+    const isSisterQuery =
+      session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED &&
+      isSisterPracticeQuery(rawInput);
+
     const isSimpleConfirmTurn =
-      (session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME ||
+      ((session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_NAME ||
         session.step === BookingConversationStep.BOOKING_CONFIRM_CUSTOMER_PHONE ||
         session.step === BookingConversationStep.BOOKING_CONFIRM ||
-        session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) &&
-      (confirmCheck === 'CONFIRMED' || confirmCheck === 'REJECTED');
+        session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE ||
+        session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED) &&
+        (confirmCheck === 'CONFIRMED' || confirmCheck === 'REJECTED')) ||
+      isSisterQuery;
 
     if ((isFaqIntent || isQuestion) && !isSimpleConfirmTurn) {
       const clinicProfile = getClinicKnowledge(businessId);
@@ -569,6 +595,9 @@ export class AppointmentStateMachine {
         resumeQuestion = session.triageProfile?.activeFollowUpQuestion
           ? `Returning to your dental concern, ${session.triageProfile.activeFollowUpQuestion}`
           : 'Returning to your dental concern, could you tell me a little more about what you are experiencing?';
+      } else if (session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED) {
+        const candidateName = session.pendingRecommendation?.candidateClinicName || 'our sister practice';
+        resumeQuestion = `Returning to our sister practice, would you like more information about ${candidateName}?`;
       } else if (session.step === BookingConversationStep.BOOKING_SYMPTOM_TRIAGE) {
         resumeQuestion = `Returning to your dental concern, would you like to schedule an appointment for ${session.suggestedServiceName || 'a comprehensive exam'}?`;
       } else if (session.step === BookingConversationStep.BOOKING_COLLECT_SERVICE) {
@@ -598,6 +627,226 @@ export class AppointmentStateMachine {
           response: `${faqAnswer} ${resumeQuestion}`,
           action: AIAction.NONE,
           intent: matchedIntent,
+          sessionId,
+          source: 'deterministic',
+          latencyMs: performance.now() - startTime,
+        },
+        updatedSession: session,
+      };
+    }
+
+    // ----------------------------------------------------
+    // STEP: NETWORK RECOMMENDATION OFFERED
+    // ----------------------------------------------------
+    if (session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED) {
+      const rec = session.pendingRecommendation;
+      const clinicProfile = getClinicKnowledge(businessId);
+      const currentClinicName = clinicProfile?.businessName || 'our clinic';
+
+      if (!rec) {
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_COLLECT_SERVICE,
+        });
+        return {
+          response: {
+            success: true,
+            response: `How may I assist you with your booking at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 1. Natural Decline / Rejection
+      const isDecline =
+        confirmCheck === 'REJECTED' ||
+        /\b(no\s+thanks|no\s+thank\s+you|nah|nope|not\s+interested|don'?t\s+bother|never\s*mind|nevermind)\b/i.test(rawInput) ||
+        /\b(?:i'?ll\s+stay\s+here|stay\s+here|stay\s+with\s+(?:lumina|this clinic|here)|rather\s+stay|see\s+someone\s+here|continue\s+here|let'?s\s+continue\s+here|stick\s+with\s+lumina|stay\s+at\s+lumina)\b/i.test(rawInput) ||
+        /^(no|nope|nah)$/i.test(rawInput.trim());
+
+      if (isDecline) {
+        const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+        const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+        const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+        const evalStaffName = 'Dr. Marcus Thorne';
+
+        const updated = await this.sessionStore.updateSession(sessionId, {
+          step: BookingConversationStep.BOOKING_SYMPTOM_TRIAGE,
+          pendingRecommendation: undefined,
+          suggestedServiceId: evalServiceId,
+          suggestedServiceName: evalServiceName,
+          selectedServiceId: evalServiceId,
+          selectedServiceName: evalServiceName,
+          selectedStaffId: evalStaffId,
+          selectedStaffName: evalStaffName,
+        });
+
+        return {
+          response: {
+            success: true,
+            response: `Of course. We can continue with ${currentClinicName}. I can help arrange a comprehensive examination so our dentist can evaluate your concerns and discuss available options. Would you like to schedule an appointment for ${evalServiceName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.BOOK_APPOINTMENT,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: updated,
+        };
+      }
+
+      // 2. Specific Sister Clinic Clarification Queries
+      // 2a. Address / Location
+      if (
+        /\b(where\s+(?:are\s+they|is\s+(?:that|it|the\s+clinic)|are\s+they\s+located)|what\s+is\s+their\s+address|location|address)\b/i.test(rawInput)
+      ) {
+        return {
+          response: {
+            success: true,
+            response: `${rec.candidateClinicName} is located at ${rec.address}. Would you like more information about their services, or would you prefer care options here at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 2b. Doctor / Specialist
+      if (
+        /\b(who\s+is\s+the\s+(?:doctor|specialist|dentist|surgeon)|tell\s+me\s+about\s+the\s+(?:doctor|specialist|dentist)|doctor\s+name|specialist\s+name)\b/i.test(rawInput)
+      ) {
+        const specialistPart = rec.recommendedSpecialistName
+          ? `${rec.recommendedSpecialistName} is the specialist for ${rec.recommendedServiceName.toLowerCase()} at ${rec.candidateClinicName}.`
+          : `${rec.candidateClinicName} has specialized practitioners offering ${rec.recommendedServiceName.toLowerCase()}.`;
+        return {
+          response: {
+            success: true,
+            response: `${specialistPart} Would you like more information about this clinic, or would you prefer options here at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 2c. Phone / Contact
+      if (
+        /\b(phone|number|phone\s*number|what('?s| is) their (?:phone|number)|how (?:do|can) i call|how (?:do|can) i contact|how (?:do|can) i reach)\b/i.test(rawInput)
+      ) {
+        return {
+          response: {
+            success: true,
+            response: `You can reach ${rec.candidateClinicName} directly at ${rec.phone}. Would you like any other details, or would you prefer to explore options at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 2d. Opening Hours
+      if (
+        /\b(when\s+are\s+they\s+open|their\s+hours|what\s+time\s+do\s+they\s+close|what\s+are\s+their\s+hours|opening\s+hours)\b/i.test(rawInput)
+      ) {
+        return {
+          response: {
+            success: true,
+            response: `${rec.candidateClinicName} is open ${rec.openingHours}. Would you like more information, or would you prefer care options here at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 2e. Clinic Name / Specialty / What do you mean / Tell me more first
+      if (
+        /\b(which\s+clinic|what\s+clinic|what\s+is\s+the\s+name\s+of\s+the\s+clinic|what\s+do\s+they\s+specialize\s+in|specialty|what\s+do\s+you\s+mean|tell\s+me\s+more\s+first)\b/i.test(rawInput)
+      ) {
+        return {
+          response: {
+            success: true,
+            response: `${rec.candidateClinicName}. They specialize in ${rec.candidateSpecialty.toLowerCase()} and offer ${rec.recommendedServiceName}. Would you like more details about them, or would you prefer options at ${currentClinicName}?`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 3. Natural Acceptance / Patient requests details / Yes
+      const isAcceptance =
+        confirmCheck === 'CONFIRMED' ||
+        /\b(yes|sure|yeah|yep|please|tell\s+me|tell\s+me\s+about\s+(?:them|it|the\s+other\s+clinic|the\s+sister\s+clinic)|tell\s+me\s+more|okay|ok|sounds\s+good|more\s+information|more\s+info|i\s+would\s+like\s+to\s+know\s+more)\b/i.test(rawInput) ||
+        rawInput.toLowerCase().includes(rec.candidateClinicName.toLowerCase()) ||
+        /\b(zenith|apex|radiance)\b/i.test(rawInput);
+
+      if (isAcceptance) {
+        const specialistClause = rec.recommendedSpecialistName
+          ? ` with ${rec.recommendedSpecialistName}`
+          : '';
+        const fullDetails =
+          `${rec.candidateClinicName} specializes in ${rec.candidateSpecialty.toLowerCase()} and offers ${rec.recommendedServiceName}${specialistClause}. ` +
+          `They are located at ${rec.address}, open ${rec.openingHours}, and can be reached directly at ${rec.phone}. ` +
+          `Since each clinic manages its own appointments directly, you can contact them to schedule. ` +
+          `Would you like to explore care options available at ${currentClinicName}?`;
+
+        return {
+          response: {
+            success: true,
+            response: fullDetails,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 4. Hesitant / Thinking
+      if (/\b(maybe|think\s+about\s+it|i'?ll\s+think|not\s+sure)\b/i.test(rawInput)) {
+        return {
+          response: {
+            success: true,
+            response: `Take your time. If you would like more details about ${rec.candidateClinicName} or wish to schedule an evaluation here at ${currentClinicName}, just let me know.`,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          },
+          updatedSession: session,
+        };
+      }
+
+      // 5. Default re-prompt preserving recommendation state
+      return {
+        response: {
+          success: true,
+          response: `Would you like me to share more details about ${rec.candidateClinicName}, or would you prefer to explore care options here at ${currentClinicName}?`,
+          action: AIAction.NONE,
+          intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
           sessionId,
           source: 'deterministic',
           latencyMs: performance.now() - startTime,
@@ -717,6 +966,43 @@ export class AppointmentStateMachine {
       updatedProfile.isAmbiguous = false;
       if (triageRes.category && !updatedProfile.symptomCategories.includes(triageRes.category)) {
         updatedProfile.symptomCategories.push(triageRes.category);
+      }
+
+      // Check if service is NOT supported by clinic, but sister clinic recommendation exists
+      if (!triageRes.isSupportedByClinic && triageRes.category) {
+        const recMatch = findNetworkClinicRecommendation(
+          businessId,
+          triageRes.category,
+          updatedProfile.patientGoal as PatientGoalType,
+          updatedProfile.urgencyLevel
+        );
+
+        if (recMatch) {
+          const clinicProfile = getClinicKnowledge(businessId);
+          const offerPrompt = formatNetworkRecommendationPrompt(
+            recMatch,
+            clinicProfile?.businessName || 'our clinic'
+          );
+
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED,
+            triageProfile: updatedProfile,
+            pendingRecommendation: recMatch,
+          });
+
+          return {
+            response: {
+              success: true,
+              response: offerPrompt,
+              action: AIAction.TRIAGE_SYMPTOM,
+              intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
       }
 
       const targetServiceId = triageRes.suggestedServiceId || 'sv000001-0000-0000-0000-000000000001';
@@ -1114,6 +1400,43 @@ export class AppointmentStateMachine {
           },
           updatedSession: session,
         };
+      }
+
+      // Check if service inquiry matches an unsupported category with a sister clinic recommendation
+      const triageRes = triageDentalInquiry(businessId, rawInput, session.triageProfile);
+      if (!triageRes.isSupportedByClinic && triageRes.category) {
+        const recMatch = findNetworkClinicRecommendation(
+          businessId,
+          triageRes.category,
+          triageRes.patientGoal || (session.triageProfile?.patientGoal as any),
+          triageRes.urgencyLevel || session.triageProfile?.urgencyLevel
+        );
+
+        if (recMatch) {
+          const clinicProfile = getClinicKnowledge(businessId);
+          const offerPrompt = formatNetworkRecommendationPrompt(
+            recMatch,
+            clinicProfile?.businessName || 'our clinic'
+          );
+
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            step: BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED,
+            pendingRecommendation: recMatch,
+          });
+
+          return {
+            response: {
+              success: true,
+              response: offerPrompt,
+              action: AIAction.TRIAGE_SYMPTOM,
+              intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
       }
 
       const availableNames = services.slice(0, 4).map((s) => s.name).join(', ');

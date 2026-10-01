@@ -261,6 +261,10 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
       'periodontal scaling',
       'teeth shifting',
       'bone loss around teeth',
+      'periodontal bone loss',
+      'periodontal flap surgery',
+      'periodontal flap',
+      'periodontal surgery',
       'root planing',
     ],
     patientPhrases: [
@@ -365,6 +369,8 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
     urgency: DentalUrgencyLevel.ROUTINE,
     isEmergency: false,
     keywords: [
+      'implant',
+      'implants',
       'dental implant',
       'dental implants',
       'screw tooth',

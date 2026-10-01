@@ -29,6 +29,8 @@ import {
   buildGroundedClinicPrompt,
   isUnrelatedInquiry,
   LUMINA_DENTAL_BUSINESS_ID,
+  findNetworkClinicRecommendation,
+  formatNetworkRecommendationPrompt,
 } from '../knowledge';
 import { extractTriageFacts } from '../knowledge/triage-extractor';
 
@@ -164,6 +166,7 @@ export class AIReceptionistService {
           customerPhone: smResult.updatedSession.customerPhone,
           appointmentId: smResult.updatedSession.confirmedAppointmentId,
           isCompleted: smResult.updatedSession.step === BookingConversationStep.BOOKING_COMPLETE,
+          pendingRecommendation: smResult.updatedSession.pendingRecommendation,
         };
       }
       return smResult.response;
@@ -321,6 +324,62 @@ export class AIReceptionistService {
 
         // 3. Clinic Capability Check: Service is NOT offered by current clinic
         if (!triageRes.isSupportedByClinic) {
+          if (triageRes.category) {
+            const recMatch = findNetworkClinicRecommendation(
+              businessId,
+              triageRes.category,
+              triageRes.patientGoal,
+              triageRes.urgencyLevel
+            );
+
+            if (recMatch) {
+              const offerPrompt = formatNetworkRecommendationPrompt(
+                recMatch,
+                clinicProfile?.businessName || 'our clinic'
+              );
+
+              const stagedFacts = extractTriageFacts(trimmedMessage);
+              const stagedTriageProfile: DentalTriageProfile = triageRes.triageProfile || {
+                originalPatientStatement: trimmedMessage,
+                reportedSymptoms: stagedFacts.reportedSymptoms || [trimmedMessage],
+                symptomCategories: [triageRes.category],
+                triggers: stagedFacts.triggers || [],
+                patientGoal: stagedFacts.patientGoal,
+                urgencyLevel: triageRes.urgencyLevel || 'ROUTINE',
+                followUpHistory: [],
+                isAmbiguous: false,
+                recommendedNextStep: 'SPECIALIST_CONSULTATION',
+              };
+
+              await this.sessionStore.setSession({
+                sessionId,
+                businessId,
+                step: BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED,
+                customerId: request.context.customerId || undefined,
+                reportedSymptom: trimmedMessage,
+                triageProfile: stagedTriageProfile,
+                pendingRecommendation: recMatch,
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
+              });
+
+              return {
+                success: true,
+                response: offerPrompt,
+                action: AIAction.NONE,
+                intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+                sessionId,
+                source: 'deterministic',
+                latencyMs: performance.now() - startTime,
+                conversationState: {
+                  step: BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED,
+                  pendingRecommendation: recMatch,
+                },
+              };
+            }
+          }
+
           const unavailableMsg =
             triageRes.unavailableExplanation ||
             `This clinic does not currently list that specialized treatment among its available services. Since we don't currently provide that treatment here, you may want to look for a dental clinic in or near your area that offers it, which may be more convenient for you. I can also help you with the dental services available at ${clinicProfile?.businessName || 'this clinic'}.`;
@@ -644,7 +703,9 @@ export class AIReceptionistService {
         let naturalText: string;
         if (toolRes.success && toolRes.data) {
           const b = toolRes.data as any;
-          naturalText = `${b.name} is located at ${b.address || 'our main location'}. You can also reach us at ${b.phone || 'our direct line'}.`;
+          const clinicProfile = getClinicKnowledge(businessId);
+          const hoursText = clinicProfile?.openingHours ? ` Our hours are: ${clinicProfile.openingHours}.` : '';
+          naturalText = `${b.name} is located at ${b.address || 'our main location'}.${hoursText} You can also reach us at ${b.phone || 'our direct line'}.`;
         } else {
           naturalText = 'I can provide business details once you are connected to our staff.';
         }

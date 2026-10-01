@@ -261,9 +261,9 @@ export class FastIntentRouter {
       };
     }
 
-    // 13. Business Information (Location, Phone, Address)
+    // 13. Business Information (Location, Phone, Address, Hours)
     if (
-      (/\b(location|address|where are you|where is|website)\b/i.test(normalized) ||
+      (/\b(location|address|where are you|where is|website|hours|operating hours|opening hours|open hours|when are you open|when do you open|what time do you open|what time does .* open|what time do you close|what time does .* close|what time do you close|when do you close|close time|closing time)\b/i.test(normalized) ||
         /\b(your|clinic|office|reception)\s+(phone|contact|number)\b/i.test(normalized) ||
         /\bwhat is your (phone|number|contact)\b/i.test(normalized)) &&
       !/\bmy\s+(phone|number|name|contact)\b/i.test(normalized) &&

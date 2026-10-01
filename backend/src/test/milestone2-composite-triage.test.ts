@@ -336,7 +336,9 @@ export async function runMilestone2CompositeTriageTests(): Promise<void> {
   assert.strictEqual(resN.success, true);
   assert.ok(
     resN.response.includes('does not currently list dental implant treatment') ||
-      resN.response.includes('look for a dental clinic'),
+      resN.response.includes('look for a dental clinic') ||
+      resN.response.includes('does not currently provide that specialized treatment in-house') ||
+      resN.response.includes('sister practice, Zenith'),
     `Expected boundary response, got: "${resN.response}"`
   );
   console.log('  ✓ Unavailable service boundary enforced honestly.');
