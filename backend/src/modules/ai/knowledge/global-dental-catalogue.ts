@@ -143,7 +143,14 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
     urgency: DentalUrgencyLevel.HIGH,
     isEmergency: false,
     keywords: [
+      'throbbing',
+      'throbs',
+      'thrombs',
+      'thrombing',
+      'thribs',
+      'thribbing',
       'throbbing tooth',
+      'throbbing pain',
       'throbbing at night',
       'root canal',
       'deep toothache',
@@ -158,6 +165,11 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
     ],
     patientPhrases: [
       'my tooth is throbbing at night',
+      'now it throbs',
+      'now it thrombs',
+      'now it thribs',
+      'it thribs',
+      'now it drops',
       'hot coffee makes the pain much worse',
       'lingering pain after hot food',
       'think i need a root canal',
@@ -319,12 +331,20 @@ export const GLOBAL_DENTAL_CATALOGUE: Record<DentalClinicalCategory, DentalKnowl
       'bit down on something hard and tooth broke',
       'fractured molar',
       'fractured tooth',
+      'tooth broke',
+      'tooth is broken',
+      'tooth broken',
       'broken',
       'chipped',
       'cracked',
       'broke',
     ],
     patientPhrases: [
+      'my tooth broke',
+      'my tooth broken',
+      'my tooth broke and now it throbs',
+      'my tooth broken and now it drops',
+      'my tooth broken, now it drops',
       'i cracked my tooth while eating',
       'a piece of my tooth broke off',
       'my crown fell off while chewing',
@@ -701,71 +721,102 @@ export function isLifeThreateningDentalEmergency(input: string): boolean {
 export function isSpreadingFacialSwelling(input: string): boolean {
   if (!input) return false;
   const clean = input.toLowerCase();
-  return /\b(cheek is starting to swell|cheek is swelling|face is getting swollen|face is swelling|swelling is spreading|swelling in my cheek|cheek is swollen and gum|gum is swollen and my cheek|swollen cheek and gum|gum is swollen and cheek)\b/i.test(
+  return /\b(cheek is starting to swell|cheek is swelling|face is getting swollen|face is swelling|swelling is spreading|swelling in my cheek|cheek is swollen and gum|gum is swollen and my cheek|swollen cheek and gum|gum is swollen and cheek|face is swollen|swollen face)\b/i.test(
     clean
   );
 }
 
-/**
- * Matches a patient's natural language complaint to the global dental knowledge catalogue.
- */
-export function matchGlobalDentalComplaint(input: string): {
-  matched: boolean;
-  entry?: DentalKnowledgeEntry;
+export interface RankedCategoryEvidence {
+  category: DentalClinicalCategory;
+  entry: DentalKnowledgeEntry;
   score: number;
-  matchedCategories?: DentalClinicalCategory[];
-} {
-  if (!input) return { matched: false, score: 0 };
+  evidence: string[];
+  matchedPhrases: string[];
+  urgency: DentalUrgencyLevel;
+}
+
+/**
+ * Matches a patient's natural language complaint against all clinical categories,
+ * extracting ranked evidence for each relevant dental care area without forcing a single winner.
+ */
+export function matchGlobalDentalComplaintsWithEvidence(input: string): RankedCategoryEvidence[] {
+  if (!input) return [];
   const clean = input.toLowerCase().replace(/[?!,.]/g, ' ').replace(/\s+/g, ' ').trim();
   const tokens = clean.split(/\s+/);
 
-  let bestEntry: DentalKnowledgeEntry | null = null;
-  let bestScore = 0;
-  const scoredEntries: Array<{ entry: DentalKnowledgeEntry; score: number }> = [];
+  const scoredEntries: RankedCategoryEvidence[] = [];
 
   for (const entry of Object.values(GLOBAL_DENTAL_CATALOGUE)) {
     let score = 0;
+    const evidenceSet = new Set<string>();
+    const matchedPhrases: string[] = [];
 
     // Check high-fidelity exact patient phrase matches
     for (const phrase of entry.patientPhrases) {
       if (clean.includes(phrase)) {
         score += 8;
+        evidenceSet.add(phrase);
+        matchedPhrases.push(phrase);
       }
     }
 
     // Check keyword and synonym matches
     for (const kw of entry.keywords) {
       if (kw.includes(' ')) {
-        if (clean.includes(kw)) score += 4;
+        if (clean.includes(kw)) {
+          score += 4;
+          evidenceSet.add(kw);
+        }
       } else {
-        if (tokens.includes(kw)) score += 2;
-        else if (clean.includes(kw)) score += 1;
+        if (tokens.includes(kw)) {
+          score += 2;
+          evidenceSet.add(kw);
+        } else if (clean.includes(kw)) {
+          score += 1;
+          evidenceSet.add(kw);
+        }
       }
     }
 
     if (score >= 2) {
-      scoredEntries.push({ entry, score });
-    }
-
-    if (score > bestScore && score >= 2) {
-      bestScore = score;
-      bestEntry = entry;
+      scoredEntries.push({
+        category: entry.category,
+        entry,
+        score,
+        evidence: Array.from(evidenceSet),
+        matchedPhrases,
+        urgency: entry.urgency,
+      });
     }
   }
 
   scoredEntries.sort((a, b) => b.score - a.score);
-  const matchedCategories = scoredEntries.map((s) => s.entry.category);
+  return scoredEntries;
+}
 
-  if (bestEntry && bestScore >= 2) {
+/**
+ * Matches a patient's natural language complaint to the global dental knowledge catalogue.
+ * Returns the highest-ranked entry alongside all supporting category evidence.
+ */
+export function matchGlobalDentalComplaint(input: string): {
+  matched: boolean;
+  entry?: DentalKnowledgeEntry;
+  score: number;
+  matchedCategories?: DentalClinicalCategory[];
+  rankedEvidence?: RankedCategoryEvidence[];
+} {
+  const ranked = matchGlobalDentalComplaintsWithEvidence(input);
+  if (ranked.length > 0) {
     return {
       matched: true,
-      entry: bestEntry,
-      score: bestScore,
-      matchedCategories,
+      entry: ranked[0].entry,
+      score: ranked[0].score,
+      matchedCategories: ranked.map((r) => r.category),
+      rankedEvidence: ranked,
     };
   }
 
-  return { matched: false, score: 0, matchedCategories: [] };
+  return { matched: false, score: 0, matchedCategories: [], rankedEvidence: [] };
 }
 
 /**

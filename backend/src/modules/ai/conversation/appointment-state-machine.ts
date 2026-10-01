@@ -808,6 +808,49 @@ export class AppointmentStateMachine {
           };
         }
 
+        // Check if patient goal changed (e.g. replacing a missing tooth)
+        if (facts.patientGoal === 'REPLACE_MISSING_TOOTH' || updatedProfile.patientGoal === 'REPLACE_MISSING_TOOTH') {
+          const triageRes = triageDentalInquiry(businessId, rawInput, updatedProfile);
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            triageProfile: updatedProfile,
+            suggestedServiceName: triageRes.suggestedServiceName || targetServiceName,
+            suggestedServiceId: triageRes.suggestedServiceId,
+          });
+          return {
+            response: {
+              success: true,
+              response:
+                triageRes.responsePrompt ||
+                `Certainly. Replacing a missing tooth can involve options like an implant, bridge, or partial denture depending on your oral health. While Lumina does not perform surgical implant placement in-house, our dentists can perform a comprehensive oral evaluation to assess your options. Would you like to schedule an examination with Dr. Marcus Thorne?`,
+              action: AIAction.NONE,
+              intent: AIIntent.BOOK_APPOINTMENT,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
+        if (facts.patientGoal === 'COST_INFORMATION' || facts.patientGoal === 'INFORMATION_ONLY') {
+          const triageRes = triageDentalInquiry(businessId, rawInput, updatedProfile);
+          const updated = await this.sessionStore.updateSession(sessionId, {
+            triageProfile: updatedProfile,
+          });
+          return {
+            response: {
+              success: true,
+              response: triageRes.responsePrompt || 'I can help provide information about our clinic.',
+              action: AIAction.NONE,
+              intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+              sessionId,
+              source: 'deterministic',
+              latencyMs: performance.now() - startTime,
+            },
+            updatedSession: updated,
+          };
+        }
+
         // Formulate natural acknowledgement
         const acknowledgements: string[] = [];
         if (facts.anatomicalScope === 'single tooth') {
@@ -822,10 +865,12 @@ export class AppointmentStateMachine {
         if (facts.onset && !facts.duration) {
           acknowledgements.push(`started ${facts.onset}`);
         }
-        if (facts.painPattern === 'intermittent') {
-          acknowledgements.push('the pain stops quickly and comes intermittently');
+        if (facts.painPattern === 'constant') {
+          acknowledgements.push('the discomfort is constant');
         } else if (facts.painPattern === 'throbbing') {
           acknowledgements.push('it has a throbbing pattern');
+        } else if (facts.painPattern === 'intermittent') {
+          acknowledgements.push('the pain stops quickly and comes intermittently');
         }
         if (facts.triggers && facts.triggers.includes('cold')) {
           acknowledgements.push('it reacts to cold');

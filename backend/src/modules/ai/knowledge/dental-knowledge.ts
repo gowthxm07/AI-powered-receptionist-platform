@@ -5,12 +5,25 @@ import {
   ClinicFAQItem,
 } from './clinic-knowledge.types';
 import {
+  CategoryEvidence,
+  DentalTriageProfile,
+  PatientGoalType,
+  RecommendedNextStep,
+} from '../conversation/conversation-session.types';
+import {
+  extractTriageFacts,
+  mergeTriageFacts,
+  selectNextFollowUpQuestion,
+} from './triage-extractor';
+import {
   matchGlobalDentalComplaint,
+  matchGlobalDentalComplaintsWithEvidence,
   isLifeThreateningDentalEmergency,
   isSpreadingFacialSwelling,
   getAmbiguousSymptomFollowUp,
   DentalClinicalCategory,
   GLOBAL_DENTAL_CATALOGUE,
+  RankedCategoryEvidence,
 } from './global-dental-catalogue';
 import {
   checkClinicCapability,
@@ -633,6 +646,12 @@ export interface DentalTriageResult {
   suggestedStaffName?: string;
   cautiousExplanation?: string;
   responsePrompt?: string;
+  triageProfile?: DentalTriageProfile;
+  patientGoal?: PatientGoalType;
+  patientGoals?: PatientGoalType[];
+  recommendedNextStep?: RecommendedNextStep;
+  rankedCategories?: CategoryEvidence[];
+  urgencyLevel?: string;
 }
 
 /**
@@ -675,25 +694,95 @@ export function getEmpatheticOpening(category: DentalClinicalCategory, input?: s
  * 5. Tenant clinic capability awareness
  * 6. Appropriate non-diagnostic response generation
  */
-export function triageDentalInquiry(businessId: string, input: string): DentalTriageResult {
-  const profile = getClinicKnowledge(businessId);
-  const clinicName = profile?.businessName || 'our dental clinic';
+export function triageDentalInquiry(
+  businessId: string,
+  input: string,
+  existingProfile?: DentalTriageProfile
+): DentalTriageResult {
+  const clinicProfile = getClinicKnowledge(businessId);
+  const clinicName = clinicProfile?.businessName || 'our dental clinic';
+
+  // Extract facts and construct or merge triage profile
+  const newFacts = extractTriageFacts(input, existingProfile);
+  const activeProfile: DentalTriageProfile = existingProfile
+    ? mergeTriageFacts(existingProfile, newFacts, input)
+    : {
+        originalPatientStatement: input,
+        reportedSymptoms: newFacts.reportedSymptoms || [],
+        symptomCategories: [],
+        triggers: newFacts.triggers || [],
+        urgencyLevel: 'ROUTINE',
+        followUpHistory: [],
+        isAmbiguous: false,
+        ...newFacts,
+      };
+
+  // Rank evidence across categories
+  const ranked = matchGlobalDentalComplaintsWithEvidence(input);
+  // Also check combined statement if this was a follow-up turn
+  if (existingProfile && existingProfile.originalPatientStatement) {
+    const combinedRanked = matchGlobalDentalComplaintsWithEvidence(
+      `${existingProfile.originalPatientStatement}. ${input}`
+    );
+    for (const cr of combinedRanked) {
+      if (!ranked.some((r) => r.category === cr.category)) {
+        ranked.push(cr);
+      }
+    }
+    ranked.sort((a, b) => b.score - a.score);
+  }
+
+  const categoryEvidenceList: CategoryEvidence[] = ranked.map((r) => ({
+    category: r.category,
+    score: r.score,
+    evidence: r.evidence,
+    matchedPhrases: r.matchedPhrases,
+    urgency: r.urgency,
+    explanation: r.entry.cautiousExplanation,
+  }));
+
+  activeProfile.rankedCategories = categoryEvidenceList;
+  activeProfile.symptomCategories = Array.from(
+    new Set([...(activeProfile.symptomCategories || []), ...ranked.map((r) => r.category)])
+  );
 
   // 1. Life-threatening emergency triage
-  if (isLifeThreateningDentalEmergency(input) || isEmergencyDental(input)) {
+  if (
+    isLifeThreateningDentalEmergency(input) ||
+    isEmergencyDental(input) ||
+    activeProfile.breathingDifficulty === true ||
+    activeProfile.swallowingDifficulty === true ||
+    activeProfile.eyeInvolvement === true
+  ) {
+    activeProfile.urgencyLevel = 'CRITICAL';
+    activeProfile.recommendedNextStep = 'EMERGENCY_ESCALATION';
+    const emergencyPrompt =
+      clinicProfile?.emergencyPolicy?.immediateInstruction ||
+      'If you are experiencing difficulty breathing, severe facial swelling, or continuous heavy bleeding, please call 911 or go to the nearest emergency room immediately.';
+
     return {
       matched: true,
       isEmergency: true,
       isAmbiguous: false,
       isSupportedByClinic: true,
-      responsePrompt:
-        profile?.emergencyPolicy?.immediateInstruction ||
-        'If you are experiencing difficulty breathing, severe facial swelling, or continuous heavy bleeding, please call 911 or go to the nearest emergency room immediately.',
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'EMERGENCY_ESCALATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'CRITICAL',
+      responsePrompt: emergencyPrompt,
     };
   }
 
   // 2. Urgent Spreading Facial Swelling Triage
-  if (isSpreadingFacialSwelling(input)) {
+  if (
+    isSpreadingFacialSwelling(input) ||
+    (activeProfile.swellingPresent === true &&
+      activeProfile.reportedSymptoms?.includes('facial cheek swelling'))
+  ) {
+    activeProfile.urgencyLevel = 'URGENT';
+    activeProfile.recommendedNextStep = 'URGENT_EVALUATION';
     const urgentPrompt =
       `Facial or cheek swelling can indicate an active dental infection that requires prompt professional attention. ` +
       `If you develop any difficulty breathing, swallowing, or fever, please seek emergency medical care immediately. ` +
@@ -706,6 +795,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       isAmbiguous: false,
       category: DentalClinicalCategory.ABSCESS_ACUTE_INFECTION,
       isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'URGENT_EVALUATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'URGENT',
       suggestedServiceId: 'sv000001-0000-0000-0000-000000000001',
       suggestedServiceName: 'Comprehensive Oral Exam & Digital X-Rays',
       suggestedStaffId: 's0000001-0000-0000-0000-000000000001',
@@ -716,23 +811,318 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
     };
   }
 
-  // 3. Ambiguous symptom check
+  // 3. Information-Only & Cost Inquiries
+  if (activeProfile.patientGoal === 'COST_INFORMATION') {
+    activeProfile.recommendedNextStep = 'INFORMATIONAL_GUIDANCE';
+    activeProfile.urgencyLevel = 'ROUTINE';
+
+    let costExplanation = '';
+    const cleanLower = input.toLowerCase();
+
+    if (/\b(implant|screw tooth|implants)\b/i.test(cleanLower)) {
+      if (businessId === LUMINA_DENTAL_BUSINESS_ID) {
+        costExplanation =
+          'At Lumina Dental Care, we do not perform surgical dental implant placement in-house, but our comprehensive examinations with digital X-rays ($120) with Dr. Marcus Thorne assess your bone, bite, and replacement options before coordinating with an implant specialist.';
+      } else if (businessId === ZENITH_IMPLANTS_BUSINESS_ID) {
+        costExplanation =
+          'At Zenith Dental Implants, a comprehensive dental implant consultation and 3D imaging assessment is $150.';
+      } else {
+        costExplanation =
+          'A dental implant consultation and radiographic evaluation is typically the starting point to determine bone density and provide an exact cost estimate.';
+      }
+    } else if (/\b(whitening|whiten|bleach)\b/i.test(cleanLower)) {
+      costExplanation =
+        'At Lumina Dental Care, our professional Laser Enamel Whitening & Brightening is $275, which includes enamel sensitivity evaluation and protective barriers.';
+    } else if (/\b(crown|cap)\b/i.test(cleanLower)) {
+      costExplanation =
+        'At Lumina Dental Care, a Ceramic Crown Preparation & Digital 3D Scan is $850, which includes digital intraoral scanning, tooth preparation, and temporary restoration.';
+    } else {
+      costExplanation =
+        'Our Comprehensive Oral Exam & Digital X-Rays is $120, which allows our dentist to evaluate your teeth and provide a detailed treatment plan with transparent pricing.';
+    }
+
+    const costPrompt = `${costExplanation} Would you like more information or to schedule an evaluation?`;
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: 'COST_INFORMATION',
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'INFORMATIONAL_GUIDANCE',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
+      suggestedServiceId: 'sv000001-0000-0000-0000-000000000001',
+      suggestedServiceName: 'Comprehensive Oral Exam & Digital X-Rays',
+      suggestedStaffId: 's0000001-0000-0000-0000-000000000001',
+      suggestedStaffName: 'Dr. Marcus Thorne',
+      cautiousExplanation: costExplanation,
+      responsePrompt: costPrompt,
+    };
+  }
+
+  if (activeProfile.patientGoal === 'INFORMATION_ONLY') {
+    activeProfile.recommendedNextStep = 'INFORMATIONAL_GUIDANCE';
+    activeProfile.urgencyLevel = 'ROUTINE';
+
+    let infoExplanation = '';
+    const cleanLower = input.toLowerCase();
+
+    if (/\b(broken|broke|chipped|fixed|repair)\b/i.test(cleanLower)) {
+      infoExplanation =
+        'A broken tooth can often be restored using composite bonding, a filling, or a protective ceramic crown depending on the amount of healthy tooth structure remaining. A clinical examination is needed to inspect the tooth first.';
+    } else if (/\b(missing|replace|lost a tooth)\b/i.test(cleanLower)) {
+      infoExplanation =
+        'Replacing a missing tooth typically involves options like a dental implant, fixed bridge, or partial denture depending on your oral health. While Lumina does not perform surgical implant placement in-house, our dentists can perform a comprehensive oral evaluation to assess your options.';
+    } else if (/\b(whitening|whiten)\b/i.test(cleanLower)) {
+      infoExplanation =
+        'Yes, we offer professional Laser Enamel Whitening & Brightening under dental supervision to safely brighten your smile following an oral health check.';
+    } else if (/\b(root canal)\b/i.test(cleanLower)) {
+      infoExplanation =
+        'A root canal treatment is recommended when the nerve or inner pulp of a tooth is severely inflamed or infected. An examination with X-rays is required to determine whether endodontic therapy is indicated.';
+    } else {
+      infoExplanation =
+        'We would be glad to help provide information regarding your dental care.';
+    }
+
+    const infoPrompt = `${infoExplanation} We can help you schedule an evaluation. Would you like to schedule an appointment for Comprehensive Oral Exam & Digital X-Rays?`;
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: 'INFORMATION_ONLY',
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'INFORMATIONAL_GUIDANCE',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
+      suggestedServiceId: 'sv000001-0000-0000-0000-000000000001',
+      suggestedServiceName: 'Comprehensive Oral Exam & Digital X-Rays',
+      suggestedStaffId: 's0000001-0000-0000-0000-000000000001',
+      suggestedStaffName: 'Dr. Marcus Thorne',
+      cautiousExplanation: infoExplanation,
+      responsePrompt: infoPrompt,
+    };
+  }
+
+  // 3c. Explicit Patient Goal = EVALUATION (General checkup / evaluation requested without specific symptom category)
+  if (activeProfile.patientGoal === 'EVALUATION' && categoryEvidenceList.length === 0) {
+    activeProfile.recommendedNextStep = 'DENTAL_EXAMINATION';
+    activeProfile.urgencyLevel = 'ROUTINE';
+    const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+    const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+    const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+    const evalStaffName = 'Dr. Marcus Thorne';
+    const evalExplanation =
+      'A comprehensive clinical examination and digital radiographs will allow our dental team to assess your complete oral health and determine what may be going on.';
+    const evalPrompt = `We would be glad to have our dentists examine that for you. A Comprehensive Oral Exam & Digital X-Rays with Dr. Marcus Thorne allows us to inspect your teeth and gums thoroughly. Would you like to schedule an appointment for ${evalServiceName}?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.PREVENTIVE_ROUTINE,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: 'EVALUATION',
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
+      suggestedServiceId: evalServiceId,
+      suggestedServiceName: evalServiceName,
+      suggestedStaffId: evalStaffId,
+      suggestedStaffName: evalStaffName,
+      cautiousExplanation: evalExplanation,
+      responsePrompt: evalPrompt,
+    };
+  }
+
+  // 4. Ambiguous symptom check
   const ambiguousPrompt = getAmbiguousSymptomFollowUp(input);
-  if (ambiguousPrompt) {
+  if (ambiguousPrompt && categoryEvidenceList.length === 0) {
+    activeProfile.isAmbiguous = true;
+    activeProfile.activeFollowUpQuestion = ambiguousPrompt;
+    activeProfile.recommendedNextStep = 'CLARIFICATION_NEEDED';
+
     return {
       matched: true,
       isEmergency: false,
       isAmbiguous: true,
       ambiguousQuestion: ambiguousPrompt,
       isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'CLARIFICATION_NEEDED',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
       responsePrompt: ambiguousPrompt,
     };
   }
 
-  // 4. Match against Global Dental Knowledge Catalogue
-  const globalMatch = matchGlobalDentalComplaint(input);
+  // 5. Multi-Symptom Evidence Synthesis
+  const hasFracture =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.FRACTURED_TOOTH_RESTORATION) ||
+    activeProfile.reportedSymptoms?.includes('broken tooth');
+  const hasPulpitis =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.PULPITIS_ENDODONTICS) ||
+    activeProfile.reportedSymptoms?.includes('throbbing tooth pain');
+  const hasGingivitis =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.GINGIVITIS) ||
+    activeProfile.reportedSymptoms?.includes('bleeding gums');
+  const hasSensitivity =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.DENTAL_SENSITIVITY) ||
+    activeProfile.reportedSymptoms?.includes('cold sensitivity');
+  const hasAbscess =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.ABSCESS_ACUTE_INFECTION) ||
+    activeProfile.reportedSymptoms?.includes('facial cheek swelling') ||
+    activeProfile.reportedSymptoms?.includes('swollen gum');
+  const hasImplantGoal =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.IMPLANT_PROSTHODONTICS) ||
+    activeProfile.reportedSymptoms?.includes('missing tooth') ||
+    activeProfile.patientGoal === 'REPLACE_MISSING_TOOTH';
+  const hasWhiteningGoal =
+    categoryEvidenceList.some((c) => c.category === DentalClinicalCategory.AESTHETIC_WHITENING) ||
+    activeProfile.reportedSymptoms?.includes('tooth discoloration') ||
+    activeProfile.patientGoal === 'WHITEN_TEETH';
 
-  // 5. Also check tenant's local custom triage rules
+  // Combination A: Broken tooth + Throbbing pain
+  if (hasFracture && hasPulpitis) {
+    activeProfile.urgencyLevel = 'HIGH';
+    activeProfile.recommendedNextStep = 'DENTAL_EXAMINATION';
+    const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+    const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+    const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+    const evalStaffName = 'Dr. Marcus Thorne';
+    const cautiousText =
+      'A broken tooth that is throbbing can involve both structural damage and irritation or inflammation in the inner tooth pulp. A dentist would need to examine the tooth to determine the cause.';
+    const promptText = `That sounds uncomfortable. ${cautiousText} A dental examination and digital X-rays will allow Dr. Marcus Thorne to inspect the fracture, help relieve your discomfort, and discuss treatment options. Would you like to schedule an appointment for ${evalServiceName}?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.FRACTURED_TOOTH_RESTORATION,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'HIGH',
+      suggestedServiceId: evalServiceId,
+      suggestedServiceName: evalServiceName,
+      suggestedStaffId: evalStaffId,
+      suggestedStaffName: evalStaffName,
+      cautiousExplanation: cautiousText,
+      responsePrompt: promptText,
+    };
+  }
+
+  // Combination B: Bleeding gums + Cold sensitivity
+  if (hasGingivitis && hasSensitivity) {
+    activeProfile.urgencyLevel = 'ROUTINE';
+    activeProfile.recommendedNextStep = 'DENTAL_EXAMINATION';
+    const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+    const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+    const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+    const evalStaffName = 'Dr. Marcus Thorne';
+    const cautiousText =
+      'Bleeding gums when brushing can be associated with early gum inflammation (gingivitis), while sensitivity to cold can suggest exposed root surfaces or enamel wear.';
+    const promptText = `I'm sorry you're dealing with that discomfort. ${cautiousText} A comprehensive dental checkup and digital imaging will allow our clinical team to evaluate both your gum health and enamel margins. Would you like to schedule an appointment for ${evalServiceName}?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.GINGIVITIS,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
+      suggestedServiceId: evalServiceId,
+      suggestedServiceName: evalServiceName,
+      suggestedStaffId: evalStaffId,
+      suggestedStaffName: evalStaffName,
+      cautiousExplanation: cautiousText,
+      responsePrompt: promptText,
+    };
+  }
+
+  // Combination C: Swelling + Severe tooth pain
+  if (hasAbscess && (hasPulpitis || activeProfile.reportedSymptoms?.includes('toothache'))) {
+    activeProfile.urgencyLevel = 'URGENT';
+    activeProfile.recommendedNextStep = 'URGENT_EVALUATION';
+    const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+    const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+    const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+    const evalStaffName = 'Dr. Marcus Thorne';
+    const cautiousText =
+      'Facial or gum swelling combined with severe tooth pain can indicate an active dental infection requiring prompt professional attention.';
+    const promptText = `Facial swelling combined with severe tooth pain can indicate an active dental infection that requires prompt professional attention. If you develop any difficulty breathing, swallowing, or fever, please seek emergency medical care immediately. For your dental care, we strongly recommend an urgent examination today. Would you like to schedule an appointment for ${evalServiceName}?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.ABSCESS_ACUTE_INFECTION,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'URGENT_EVALUATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'URGENT',
+      suggestedServiceId: evalServiceId,
+      suggestedServiceName: evalServiceName,
+      suggestedStaffId: evalStaffId,
+      suggestedStaffName: evalStaffName,
+      cautiousExplanation: cautiousText,
+      responsePrompt: promptText,
+    };
+  }
+
+  // Combination D: Missing tooth + Yellow teeth
+  if (hasImplantGoal && hasWhiteningGoal) {
+    activeProfile.urgencyLevel = 'ROUTINE';
+    activeProfile.recommendedNextStep = 'DENTAL_EXAMINATION';
+    const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+    const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+    const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+    const evalStaffName = 'Dr. Marcus Thorne';
+    const cautiousText =
+      'Replacing a missing tooth can involve options like an implant, bridge, or partial denture depending on your oral health, and professional enamel whitening can safely brighten remaining teeth under dental supervision.';
+    const promptText = `We can certainly help you address both concerns. ${cautiousText} A comprehensive oral evaluation will allow Dr. Marcus Thorne to assess your bone, bite, and replacement options, as well as discuss aesthetic whitening. Would you like to schedule an appointment for ${evalServiceName}?`;
+
+    return {
+      matched: true,
+      isEmergency: false,
+      isAmbiguous: false,
+      category: DentalClinicalCategory.IMPLANT_PROSTHODONTICS,
+      isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
+      suggestedServiceId: evalServiceId,
+      suggestedServiceName: evalServiceName,
+      suggestedStaffId: evalStaffId,
+      suggestedStaffName: evalStaffName,
+      cautiousExplanation: cautiousText,
+      responsePrompt: promptText,
+    };
+  }
+
+  // 6. Match against Global Dental Knowledge Catalogue (Single Top Match)
+  const globalMatch = matchGlobalDentalComplaint(input);
   const localRule = triageDentalSymptom(businessId, input);
 
   if (globalMatch.matched && globalMatch.entry) {
@@ -749,7 +1139,6 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
           input
         );
       if (!explicitImplantProcedureDemand) {
-        // General tooth replacement inquiry -> Evaluation first consultation at Lumina!
         const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
         const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
         const evalStaffId = 's0000001-0000-0000-0000-000000000001';
@@ -763,6 +1152,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
           isAmbiguous: false,
           category: entry.category,
           isSupportedByClinic: true,
+          triageProfile: activeProfile,
+          patientGoal: activeProfile.patientGoal as PatientGoalType,
+          patientGoals: activeProfile.patientGoals,
+          recommendedNextStep: 'DENTAL_EXAMINATION',
+          rankedCategories: categoryEvidenceList,
+          urgencyLevel: 'ROUTINE',
           suggestedServiceId: evalServiceId,
           suggestedServiceName: evalServiceName,
           suggestedStaffId: evalStaffId,
@@ -773,7 +1168,7 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       }
     }
 
-    // Evaluation-first mapping for toothache / pulpal symptoms at Lumina (where root canals are not done in-house)
+    // Evaluation-first mapping for toothache / pulpal symptoms at Lumina
     if (
       entry.category === DentalClinicalCategory.PULPITIS_ENDODONTICS &&
       businessId === LUMINA_DENTAL_BUSINESS_ID
@@ -796,6 +1191,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
           isAmbiguous: false,
           category: entry.category,
           isSupportedByClinic: true,
+          triageProfile: activeProfile,
+          patientGoal: activeProfile.patientGoal as PatientGoalType,
+          patientGoals: activeProfile.patientGoals,
+          recommendedNextStep: 'DENTAL_EXAMINATION',
+          rankedCategories: categoryEvidenceList,
+          urgencyLevel: 'HIGH',
           suggestedServiceId: evalServiceId,
           suggestedServiceName: evalServiceName,
           suggestedStaffId: evalStaffId,
@@ -816,6 +1217,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
         isSupportedByClinic: false,
         unavailableExplanation: explanation,
         responsePrompt: explanation,
+        triageProfile: activeProfile,
+        patientGoal: activeProfile.patientGoal as PatientGoalType,
+        patientGoals: activeProfile.patientGoals,
+        recommendedNextStep: 'SPECIALIST_CONSULTATION',
+        rankedCategories: categoryEvidenceList,
+        urgencyLevel: 'ROUTINE',
       };
     }
 
@@ -872,6 +1279,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       isAmbiguous: false,
       category: entry.category,
       isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
       triageRule: dynamicRule,
       suggestedServiceId: serviceId,
       suggestedServiceName: serviceName,
@@ -882,7 +1295,7 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
     };
   }
 
-  // 5. Fallback to local rule if global catalogue didn't hit
+  // 7. Fallback to local rule if global catalogue didn't hit
   if (localRule) {
     let serviceId = localRule.suggestedServiceId;
     let serviceName = localRule.suggestedServiceName;
@@ -913,6 +1326,12 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       isEmergency: false,
       isAmbiguous: false,
       isSupportedByClinic: true,
+      triageProfile: activeProfile,
+      patientGoal: activeProfile.patientGoal as PatientGoalType,
+      patientGoals: activeProfile.patientGoals,
+      recommendedNextStep: 'DENTAL_EXAMINATION',
+      rankedCategories: categoryEvidenceList,
+      urgencyLevel: 'ROUTINE',
       triageRule: localRule,
       suggestedServiceId: serviceId,
       suggestedServiceName: serviceName,
@@ -928,7 +1347,25 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
     isEmergency: false,
     isAmbiguous: false,
     isSupportedByClinic: true,
+    triageProfile: activeProfile,
+    patientGoal: activeProfile.patientGoal as PatientGoalType,
+    patientGoals: activeProfile.patientGoals,
+    recommendedNextStep: 'DENTAL_EXAMINATION',
+    rankedCategories: categoryEvidenceList,
+    urgencyLevel: 'ROUTINE',
   };
+}
+
+/**
+ * Composite multi-symptom dental triage evaluator.
+ * Exposes composite clinical reasoning layer for patient symptoms, goals, and urgency.
+ */
+export function compositeDentalTriage(
+  businessId: string,
+  input: string,
+  existingProfile?: DentalTriageProfile
+): DentalTriageResult {
+  return triageDentalInquiry(businessId, input, existingProfile);
 }
 
 /**
@@ -1001,7 +1438,6 @@ export function isEmergencyDental(input: string): boolean {
     'bleeding won\'t stop',
     'bleeding will not stop',
     'severe swelling',
-    'face is swollen',
     'eye is swollen',
     'cannot breathe',
     'can\'t breathe',

@@ -20,10 +20,45 @@ export type AnatomicalScope = 'single tooth' | 'multiple teeth' | 'generalized' 
 export type UrgencySeverity = 'mild' | 'moderate' | 'severe';
 export type PainPattern = 'constant' | 'throbbing' | 'sharp' | 'dull' | 'intermittent' | 'on biting' | 'temperature' | 'unspecified';
 
+export type PatientGoalType =
+  | 'EVALUATION'
+  | 'PAIN_RELIEF'
+  | 'REPAIR_BROKEN_TOOTH'
+  | 'REPLACE_MISSING_TOOTH'
+  | 'WHITEN_TEETH'
+  | 'ROUTINE_CLEANING'
+  | 'ORTHODONTIC_ALIGNMENT'
+  | 'WISDOM_TOOTH_EVALUATION'
+  | 'REPLACE_OR_REPAIR_APPLIANCE'
+  | 'INFORMATION_ONLY'
+  | 'COST_INFORMATION'
+  | 'APPOINTMENT_BOOKING'
+  | 'UNSPECIFIED';
+
+export type RecommendedNextStep =
+  | 'DENTAL_EXAMINATION'
+  | 'URGENT_EVALUATION'
+  | 'EMERGENCY_ESCALATION'
+  | 'SPECIALIST_CONSULTATION'
+  | 'AESTHETIC_CONSULTATION'
+  | 'PREVENTIVE_APPOINTMENT'
+  | 'INFORMATIONAL_GUIDANCE'
+  | 'CLARIFICATION_NEEDED';
+
+export interface CategoryEvidence {
+  category: string; // DentalClinicalCategory
+  score: number;
+  evidence: string[]; // e.g. ["tooth broke", "throbs"]
+  matchedPhrases: string[];
+  urgency: string; // 'ROUTINE' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  explanation?: string;
+}
+
 export interface DentalTriageProfile {
   originalPatientStatement: string;
   reportedSymptoms: string[];
   symptomCategories: string[];
+  rankedCategories?: CategoryEvidence[];
   anatomicalLocation?: string;
   anatomicalScope?: AnatomicalScope;
   onset?: string;
@@ -38,7 +73,8 @@ export interface DentalTriageProfile {
   breathingDifficulty?: boolean;
   swallowingDifficulty?: boolean;
   eyeInvolvement?: boolean;
-  patientGoal?: string;
+  patientGoal?: PatientGoalType | string;
+  patientGoals?: PatientGoalType[];
   urgencyLevel: string; // 'ROUTINE' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   activeFollowUpQuestion?: string;
   followUpHistory: Array<{
@@ -48,7 +84,7 @@ export interface DentalTriageProfile {
   }>;
   confidence?: number;
   isAmbiguous?: boolean;
-  recommendedNextStep?: string;
+  recommendedNextStep?: RecommendedNextStep | string;
 }
 
 export interface AvailableSlot {

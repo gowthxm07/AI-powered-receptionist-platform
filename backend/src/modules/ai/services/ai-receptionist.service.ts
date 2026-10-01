@@ -351,8 +351,21 @@ export class AIReceptionistService {
           }
         }
 
+        // Handle informational guidance without forcing an auto-booking session
+        if (triageRes.recommendedNextStep === 'INFORMATIONAL_GUIDANCE') {
+          return {
+            success: true,
+            response: triageRes.responsePrompt || responseText,
+            action: AIAction.NONE,
+            intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
+            sessionId,
+            source: 'deterministic',
+            latencyMs: performance.now() - startTime,
+          };
+        }
+
         const stagedFacts = extractTriageFacts(trimmedMessage);
-        const stagedTriageProfile: DentalTriageProfile = {
+        const stagedTriageProfile: DentalTriageProfile = triageRes.triageProfile || {
           originalPatientStatement: trimmedMessage,
           reportedSymptoms: stagedFacts.reportedSymptoms || [trimmedMessage],
           symptomCategories: triageRes.category ? [triageRes.category] : [],
@@ -366,10 +379,10 @@ export class AIReceptionistService {
           bleedingPresent: stagedFacts.bleedingPresent,
           traumaPresent: stagedFacts.traumaPresent,
           patientGoal: stagedFacts.patientGoal,
-          urgencyLevel: triageRes.category === 'ABSCESS_ACUTE_INFECTION' ? 'HIGH' : 'MEDIUM',
+          urgencyLevel: triageRes.urgencyLevel || (triageRes.category === 'ABSCESS_ACUTE_INFECTION' ? 'HIGH' : 'MEDIUM'),
           followUpHistory: [],
           isAmbiguous: false,
-          recommendedNextStep: targetServiceName,
+          recommendedNextStep: triageRes.recommendedNextStep || 'DENTAL_EXAMINATION',
         };
 
         // Pre-stage the suggested service into the session at BOOKING_SYMPTOM_TRIAGE step

@@ -34,6 +34,7 @@ import { runDentalDomainTests } from './dental-domain.test';
 import { runClinicFaqTests } from './clinic-faq.test';
 import { runDentalIntelligenceTests } from './dental-intelligence.test';
 import { runConversationalTriageTests } from './conversational-triage.test';
+import { runMilestone2CompositeTriageTests } from './milestone2-composite-triage.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -75,6 +76,7 @@ async function runAllTestSuites() {
   await runClinicFaqTests();
   await runDentalIntelligenceTests();
   await runConversationalTriageTests();
+  await runMilestone2CompositeTriageTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

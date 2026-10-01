@@ -1,9 +1,110 @@
 import {
   AnatomicalScope,
+  CategoryEvidence,
   DentalTriageProfile,
   PainPattern,
+  PatientGoalType,
+  RecommendedNextStep,
   UrgencySeverity,
 } from '../conversation/conversation-session.types';
+
+/**
+ * Extracts typed patient goals from natural language statements.
+ * Distinguishes what the patient is experiencing from what the patient wants.
+ */
+export function extractPatientGoal(clean: string): {
+  primaryGoal: PatientGoalType;
+  goals: PatientGoalType[];
+} {
+  const goals: PatientGoalType[] = [];
+
+  if (
+    /\b(how much (does|is|are|would)|cost of|price of|how expensive|what is the cost|what are the rates|pricing|rates? for)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('COST_INFORMATION');
+  }
+
+  if (
+    /\b(can a broken tooth be fixed|can you tell me|do you offer|tell me about|information on|wondering if|curious about|don't know if i need|can you help explain)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('INFORMATION_ONLY');
+  }
+
+  if (
+    /\b((replace|replacing) (my |the )?(missing )?tooth|(replace|replacing) it|want to replace|tooth replacement|lost a tooth|missing tooth|missing teeth|false teeth|denture|dentures|dental implant|implants)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('REPLACE_MISSING_TOOTH');
+  }
+
+  if (
+    /\b(whiten(ing)? (my |our )?teeth|teeth (are |look )?yellow|brighten my smile|smile makeover|cosmetic whitening|whiter|whiten)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('WHITEN_TEETH');
+  }
+
+  if (
+    /\b(clean(ing)? (my |our )?teeth|routine cleaning|prophylaxis|hygiene cleaning|tartar removal|plaque removal)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('ROUTINE_CLEANING');
+  }
+
+  if (
+    /\b(fix (my |the )?(broken|chipped|cracked) tooth|repair (my |the )?tooth|restore (my |the )?tooth|broken tooth|tooth broke|chipped tooth|cracked tooth|piece of my tooth broke)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('REPAIR_BROKEN_TOOTH');
+  }
+
+  if (/\b(braces|aligners|invisalign|straighten my teeth|orthodontic)\b/i.test(clean)) {
+    goals.push('ORTHODONTIC_ALIGNMENT');
+  }
+
+  if (/\b(wisdom tooth|wisdom teeth|back tooth trouble opening mouth)\b/i.test(clean)) {
+    goals.push('WISDOM_TOOTH_EVALUATION');
+  }
+
+  if (/\b(bracket came off|loose bracket|poking wire|broken wire|appliance)\b/i.test(clean)) {
+    goals.push('REPLACE_OR_REPAIR_APPLIANCE');
+  }
+
+  if (
+    /\b(pain relief|stop the pain|severe toothache|throbbing|killing me|hurts badly|unbearable pain)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('PAIN_RELIEF');
+  }
+
+  if (
+    /\b(checkup|evaluation|exam|have it looked at|examination|look at my tooth|check it|someone to check|don't know what('s| is) wrong|not sure what i need|just want someone to check it)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('EVALUATION');
+  }
+
+  if (
+    /\b(book an appointment|schedule an appointment|make an appointment|see a dentist|want to schedule|want to book)\b/i.test(
+      clean
+    )
+  ) {
+    goals.push('APPOINTMENT_BOOKING');
+  }
+
+  const primaryGoal = goals.length > 0 ? goals[0] : 'EVALUATION';
+  return { primaryGoal, goals };
+}
 
 /**
  * Extracts structured, non-diagnostic clinical facts from patient utterances.
@@ -24,36 +125,10 @@ export function extractTriageFacts(
   // ---------------------------------------------------------
   // 1. Patient Goal Extraction
   // ---------------------------------------------------------
-  if (
-    /\b(replace (my |the )?(missing )?tooth|replace it|want to replace|tooth replacement|lost a tooth and want to replace)\b/i.test(
-      clean
-    )
-  ) {
-    facts.patientGoal = 'tooth replacement';
-  } else if (
-    /\b(whiten(ing)? (my |our )?teeth|teeth (are |look )?yellow|brighten my smile|smile makeover|cosmetic whitening)\b/i.test(
-      clean
-    )
-  ) {
-    facts.patientGoal = 'teeth whitening';
-  } else if (
-    /\b(clean(ing)? (my |our )?teeth|routine cleaning|prophylaxis|hygiene cleaning|tartar removal)\b/i.test(
-      clean
-    )
-  ) {
-    facts.patientGoal = 'preventive cleaning';
-  } else if (
-    /\b(fix (my |the )?(broken|chipped) tooth|repair (my |the )?tooth|restore (my |the )?tooth)\b/i.test(
-      clean
-    )
-  ) {
-    facts.patientGoal = 'tooth restoration';
-  } else if (
-    /\b(checkup|evaluation|exam|have it looked at|examination|look at my tooth)\b/i.test(
-      clean
-    )
-  ) {
-    facts.patientGoal = 'dental examination';
+  const goalResult = extractPatientGoal(clean);
+  if (goalResult.goals.length > 0) {
+    facts.patientGoal = goalResult.primaryGoal;
+    facts.patientGoals = goalResult.goals;
   }
 
   // ---------------------------------------------------------
@@ -153,16 +228,31 @@ export function extractTriageFacts(
   }
 
   // ---------------------------------------------------------
-  // 5. Pain Pattern Extraction
+  // 5. Pain Pattern Extraction (With Patient Corrections & Cleared Pain)
   // ---------------------------------------------------------
-  if (/\b(throbbing|throbs|pulsing|pounding)\b/i.test(clean)) {
+  const isPainCleared =
+    /\b(actually,?\s*)?(it\s+)?(does\s*not|doesn'?t|no|not)\s*(hurt|hurting|pain|ache)\b/i.test(
+      clean
+    ) ||
+    /\bno pain (now|anymore|at all)\b/i.test(clean) ||
+    /\bpain (has )?stopped\b/i.test(clean) ||
+    /\bdoesn't hurt now\b/i.test(clean);
+
+  if (isPainCleared) {
+    facts.painPattern = undefined;
+    facts.severity = undefined;
+  } else if (/\bactually,?\s*(it\s+)?hurts?\s*constantly\b/i.test(clean) || /\bhurts?\s*constantly now\b/i.test(clean)) {
+    facts.painPattern = 'constant';
+  } else if (/\bactually,?\s*(it\s+)?(throbs|is throbbing)\b/i.test(clean) || /\bthrobs constantly\b/i.test(clean)) {
+    facts.painPattern = 'throbbing';
+  } else if (/\b(throbbing|throbs|thrombs|thrombing|thribs|thribbing|pulsing|pounding|now it (throbs|thrombs|thribs|drops)|it (throbs|thrombs|thribs|drops))\b/i.test(clean)) {
     facts.painPattern = 'throbbing';
   } else if (/\b(sharp|zinger|stabbing|piercing)\b/i.test(clean)) {
     facts.painPattern = 'sharp';
   } else if (/\b(dull|aching|constant ache)\b/i.test(clean)) {
     facts.painPattern = 'dull';
   } else if (
-    /\b(comes and goes|stops quickly|goes away quickly|intermittent|brief|lasts a few seconds|stops right away)\b/i.test(
+    /\b(comes and goes|stops quickly|goes away quickly|intermittent|brief|lasts a few seconds|stops right away|sometimes|occasionally|on and off)\b/i.test(
       clean
     )
   ) {
@@ -299,13 +389,17 @@ export function extractTriageFacts(
 
   checkAndAdd(
     'broken tooth',
-    /\b(broken tooth|chipped tooth|piece broke off|cracked tooth|tooth broke|tooth is broken|tooth chipped|piece of my tooth broke)\b/i
+    /\b(broken tooth|chipped tooth|piece broke off|cracked tooth|tooth broke|tooth is broken|tooth broken|tooth chipped|piece of my tooth broke)\b/i
   );
-  checkAndAdd(
-    'throbbing tooth pain',
-    /\b(throbbing (tooth )?(pain|ache)|tooth throbs|throbbing toothache|now it throbs|it throbs|throbs|throbbing)\b/i
-  );
-  checkAndAdd('toothache', /\b(toothache|tooth ache|tooth hurts|tooth is hurting|pain in my tooth)\b/i);
+
+  if (!isPainCleared) {
+    checkAndAdd(
+      'throbbing tooth pain',
+      /\b(throbbing (tooth )?(pain|ache)|tooth throbs|throbbing toothache|now it (throbs|thrombs|thribs|drops)|it (throbs|thrombs|thribs|drops)|throbs|throbbing|thrombs|thrombing|thribs|thribbing)\b/i
+    );
+    checkAndAdd('toothache', /\b(toothache|tooth ache|tooth hurts|tooth is hurting|pain in my tooth|killing me)\b/i);
+  }
+
   checkAndAdd('cold sensitivity', /\b(sensitive to cold|hurts with cold|pain with cold|cold water hurts)\b/i);
   checkAndAdd('heat sensitivity', /\b(sensitive to hot|hurts with hot|hot coffee hurts)\b/i);
   checkAndAdd('swollen gum', /\b(swollen gum|gum is swollen|gums are swollen)\b/i);
@@ -324,27 +418,54 @@ export function extractTriageFacts(
 
 /**
  * Merges newly extracted clinical facts into an existing triage profile,
- * honoring latest patient updates and patient corrections.
+ * honoring latest patient updates, corrections, and resolved complaints.
  */
 export function mergeTriageFacts(
   existing: DentalTriageProfile,
   newFacts: Partial<DentalTriageProfile>,
   userStatement: string
 ): DentalTriageProfile {
+  const clean = userStatement.toLowerCase().trim();
+  const isPainCleared =
+    /\b(actually,?\s*)?(it\s+)?(does\s*not|doesn'?t|no|not)\s*(hurt|hurting|pain|ache)\b/i.test(clean) ||
+    /\bno pain (now|anymore|at all)\b/i.test(clean) ||
+    /\bpain (has )?stopped\b/i.test(clean) ||
+    /\bdoesn't hurt now\b/i.test(clean);
+
+  // If pain was explicitly cleared, filter out pain-related symptoms from existing
+  let mergedSymptoms = Array.from(
+    new Set([...(existing.reportedSymptoms || []), ...(newFacts.reportedSymptoms || [])])
+  );
+  if (isPainCleared) {
+    mergedSymptoms = mergedSymptoms.filter(
+      (s) => !s.includes('pain') && !s.includes('toothache') && !s.includes('throbbing')
+    );
+  }
+
+  // Accumulate patient goals, with latest primary goal taking precedence
+  const mergedGoals = Array.from(
+    new Set([...(existing.patientGoals || []), ...(newFacts.patientGoals || [])])
+  );
+
   const updated: DentalTriageProfile = {
     ...existing,
     ...newFacts,
-    // Accumulate reported symptoms without duplicates
-    reportedSymptoms: Array.from(
-      new Set([...(existing.reportedSymptoms || []), ...(newFacts.reportedSymptoms || [])])
-    ),
-    // Accumulate triggers without duplicates
+    reportedSymptoms: mergedSymptoms,
+    patientGoal: newFacts.patientGoal || existing.patientGoal,
+    patientGoals: mergedGoals,
     triggers: Array.from(
       new Set([...(existing.triggers || []), ...(newFacts.triggers || [])])
     ),
-    // Preserve follow-up history
+    symptomCategories: Array.from(
+      new Set([...(existing.symptomCategories || []), ...(newFacts.symptomCategories || [])])
+    ),
     followUpHistory: existing.followUpHistory ? [...existing.followUpHistory] : [],
   };
+
+  if (isPainCleared) {
+    updated.painPattern = undefined;
+    updated.severity = undefined;
+  }
 
   // If there was an active follow-up question, record the answer in history
   if (existing.activeFollowUpQuestion) {
@@ -357,4 +478,76 @@ export function mergeTriageFacts(
   }
 
   return updated;
+}
+
+/**
+ * Selects the next clinical follow-up question using the triage profile.
+ * Strictly avoids asking questions whose answers are already known (e.g. if cold trigger
+ * is known, avoids asking about triggers and instead asks about lingering duration).
+ */
+export function selectNextFollowUpQuestion(profile: DentalTriageProfile): string | null {
+  // If complaint is completely ambiguous without specific symptoms
+  if (profile.isAmbiguous && (!profile.reportedSymptoms || profile.reportedSymptoms.length === 0)) {
+    return 'I can help with that. Are you noticing pain, sensitivity, swelling, bleeding, a broken tooth, or something else?';
+  }
+
+  // 1. Swelling follow-up
+  if (profile.swellingPresent === true) {
+    if (profile.breathingDifficulty === undefined && profile.swallowingDifficulty === undefined) {
+      return 'Is the swelling spreading, and are you having any difficulty swallowing or breathing?';
+    }
+  }
+
+  // 2. Sensitivity follow-up (avoid asking triggers if trigger already known!)
+  const hasSensitivity =
+    profile.reportedSymptoms?.includes('cold sensitivity') ||
+    profile.reportedSymptoms?.includes('heat sensitivity') ||
+    profile.triggers?.includes('cold') ||
+    profile.triggers?.includes('hot');
+
+  if (hasSensitivity) {
+    // If we don't know the pain pattern (lingering vs quick)
+    if (!profile.painPattern) {
+      return 'Does the sensitivity stop quickly after the cold liquid is gone, or does it continue for a while?';
+    }
+    // If anatomical scope is unknown
+    if (!profile.anatomicalScope || profile.anatomicalScope === 'unspecified') {
+      return 'Is the sensitivity affecting one specific tooth, or several teeth across your mouth?';
+    }
+  }
+
+  // 3. Toothache / Pain follow-up
+  const hasToothache =
+    profile.reportedSymptoms?.includes('toothache') ||
+    profile.reportedSymptoms?.includes('throbbing tooth pain');
+
+  if (hasToothache) {
+    // If duration/onset is unknown
+    if (!profile.duration && !profile.onset) {
+      return 'How long have you had this toothache, and is the discomfort constant or does it come and go?';
+    }
+    // If swelling is unknown
+    if (profile.swellingPresent === undefined) {
+      return 'Have you noticed any swelling in your gums or around your cheek?';
+    }
+  }
+
+  // 4. Broken tooth follow-up
+  const hasBrokenTooth =
+    profile.traumaPresent === true || profile.reportedSymptoms?.includes('broken tooth');
+
+  if (hasBrokenTooth) {
+    if (!profile.painPattern && !hasToothache) {
+      return 'Are you feeling any sharp pain or throbbing from the broken tooth, or is it mostly rough to the tongue?';
+    }
+  }
+
+  // 5. Bleeding gums follow-up
+  if (profile.reportedSymptoms?.includes('bleeding gums')) {
+    if (!profile.painPattern) {
+      return 'Has the bleeding been happening mainly during brushing, and have you noticed any teeth feeling slightly loose?';
+    }
+  }
+
+  return null;
 }
