@@ -202,9 +202,10 @@ export function extractTriageFacts(
   // 7. Swelling Extraction (Positive & Negative)
   // ---------------------------------------------------------
   if (
-    /\b(no swelling|not swollen|don't have swelling|do not have swelling|no puffiness|without swelling|not puffed up|no swell)\b/i.test(
+    /\b(no|not|don'?t|do not|doesn'?t|without|zero|never|haven'?t)\s+(?:have\s+|had\s+|noticed?\s+|seen?\s+)?(?:any\s+)?(?:signs?\s+of\s+)?(?:puffiness|swelling|swell|swollen)\b/i.test(
       clean
-    )
+    ) ||
+    /\b(not swollen|not puffed up|no swell)\b/i.test(clean)
   ) {
     facts.swellingPresent = false;
   } else if (
@@ -218,7 +219,7 @@ export function extractTriageFacts(
   // Check explicit correction: "Actually, there is swelling" vs "Actually no swelling"
   if (/\bactually,?\s*(there is|have)\s*swelling\b/i.test(clean)) {
     facts.swellingPresent = true;
-  } else if (/\bactually,?\s*(there is )?no swelling\b/i.test(clean)) {
+  } else if (/\bactually,?\s*(there is )?(no|not)\s*(any\s+)?swelling\b/i.test(clean)) {
     facts.swellingPresent = false;
   }
 
@@ -226,9 +227,10 @@ export function extractTriageFacts(
   // 8. Bleeding Extraction (Positive & Negative)
   // ---------------------------------------------------------
   if (
-    /\b(no bleeding|not bleeding|doesn't bleed|does not bleed|without bleeding|no blood)\b/i.test(
+    /\b(no|not|don'?t|do not|doesn'?t|without|zero|never)\s+(?:have\s+|had\s+|noticed?\s+|seen?\s+)?(?:any\s+)?(?:signs?\s+of\s+)?(?:bleeding|blood|bleed)\b/i.test(
       clean
-    )
+    ) ||
+    /\b(not bleeding|doesn't bleed|does not bleed)\b/i.test(clean)
   ) {
     facts.bleedingPresent = false;
   } else if (
@@ -273,7 +275,12 @@ export function extractTriageFacts(
   }
 
   // Fever
-  if (/\b(no fever|haven't had a fever|no temp|temperature is normal)\b/i.test(clean)) {
+  if (
+    /\b(no|not|don'?t|haven'?t|without)\s+(?:have\s+|had\s+)?(?:any\s+)?(?:fever|temp|temperature)\b/i.test(
+      clean
+    ) ||
+    /\b(no fever|haven't had a fever|no temp|temperature is normal)\b/i.test(clean)
+  ) {
     facts.feverReported = false;
   } else if (/\b(fever|running a temp|chills and fever|high temperature)\b/i.test(clean)) {
     facts.feverReported = true;

@@ -773,6 +773,39 @@ export function triageDentalInquiry(businessId: string, input: string): DentalTr
       }
     }
 
+    // Evaluation-first mapping for toothache / pulpal symptoms at Lumina (where root canals are not done in-house)
+    if (
+      entry.category === DentalClinicalCategory.PULPITIS_ENDODONTICS &&
+      businessId === LUMINA_DENTAL_BUSINESS_ID
+    ) {
+      const explicitRootCanalDemand =
+        /\b(root canal|endodontic therapy|endodontist|endodontics|root canal treatment|need a root canal|do you do root canals)\b/i.test(
+          input
+        );
+      if (!explicitRootCanalDemand) {
+        const evalServiceId = 'sv000001-0000-0000-0000-000000000001';
+        const evalServiceName = 'Comprehensive Oral Exam & Digital X-Rays';
+        const evalStaffId = 's0000001-0000-0000-0000-000000000001';
+        const evalStaffName = 'Dr. Marcus Thorne';
+        const cautiousText =
+          'Persistent throbbing or tooth pain can be associated with irritation of the inner tooth pulp or deep decay. A dentist would need to examine the tooth to determine the cause.';
+        const promptText = `I'm sorry you're dealing with that discomfort. ${cautiousText} A dental examination and digital X-rays would be the appropriate starting point so Dr. Marcus Thorne can evaluate the tooth. Would you like to schedule an appointment for ${evalServiceName}?`;
+        return {
+          matched: true,
+          isEmergency: false,
+          isAmbiguous: false,
+          category: entry.category,
+          isSupportedByClinic: true,
+          suggestedServiceId: evalServiceId,
+          suggestedServiceName: evalServiceName,
+          suggestedStaffId: evalStaffId,
+          suggestedStaffName: evalStaffName,
+          cautiousExplanation: cautiousText,
+          responsePrompt: promptText,
+        };
+      }
+    }
+
     if (!capability.isSupported) {
       const explanation = generateUnavailableCapabilityResponse(clinicName, entry.category, input);
       return {

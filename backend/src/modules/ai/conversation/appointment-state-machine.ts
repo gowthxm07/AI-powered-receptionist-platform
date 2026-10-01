@@ -427,7 +427,9 @@ export class AppointmentStateMachine {
         AIIntent.BUSINESS_INFORMATION,
         AIIntent.CLINIC_FAQ,
       ].includes(midIntentMatch.intent) ||
-      (midIntentMatch.intent === AIIntent.DENTAL_SYMPTOM_INQUIRY && !isTriageStep) ||
+      (midIntentMatch.intent === AIIntent.DENTAL_SYMPTOM_INQUIRY &&
+        !isTriageStep &&
+        session.step !== BookingConversationStep.BOOKING_COLLECT_SERVICE) ||
       faqLookup.matched ||
       faqLookup.isClinicQuestion ||
       isUnrelated ||
