@@ -37,6 +37,7 @@ import { runConversationalTriageTests } from './conversational-triage.test';
 import { runMilestone2CompositeTriageTests } from './milestone2-composite-triage.test';
 import { runMilestone3NetworkIntelligenceTests } from './milestone3-network-intelligence.test';
 import { runMilestone3BNetworkConversationTests } from './milestone3b-network-conversation.test';
+import { runMilestone3EConversationalPolishTests } from './milestone3e-conversational-polish.test';
 
 async function runAllTestSuites() {
   console.log('\n==========================================================');
@@ -81,6 +82,7 @@ async function runAllTestSuites() {
   await runMilestone2CompositeTriageTests();
   await runMilestone3NetworkIntelligenceTests();
   await runMilestone3BNetworkConversationTests();
+  await runMilestone3EConversationalPolishTests();
 
   console.log('\n==========================================================');
   console.log('🎉 ALL MASTER TEST SUITES PASSED CLEANLY! 🎉');

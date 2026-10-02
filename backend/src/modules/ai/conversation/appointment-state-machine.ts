@@ -32,24 +32,49 @@ import {
   formatNetworkRecommendationPrompt,
 } from '../knowledge';
 import { extractTriageFacts, mergeTriageFacts } from '../knowledge/triage-extractor';
-import { isSpreadingFacialSwelling } from '../knowledge/global-dental-catalogue';
+import { isSpreadingFacialSwelling, isLifeThreateningDentalEmergency } from '../knowledge/global-dental-catalogue';
 
 export interface StateMachineResult {
   response: AIReceptionistResponse;
   updatedSession: ConversationSessionData | null;
 }
 
-function isSisterPracticeQuery(rawInput: string): boolean {
-  const normalized = rawInput.toLowerCase().trim();
+export function isSisterClinicNameQuery(normalized: string): boolean {
+  return (
+    /\bwhat('?s|\s+is)\s+(?:the\s+(?:other|sister)|that|their)\s+(?:clinic|practice)\s+called\b/i.test(normalized) ||
+    /\bwhat('?s|\s+is)\s+the\s+name\s+of\s+(?:the\s+(?:other|sister)|that|their)\s+(?:clinic|practice)\b/i.test(normalized) ||
+    /\bwhat('?s|\s+is)\s+(?:the\s+(?:other|sister)|that|their)\s+(?:clinic|practice)(?:'s)?\s+name\b/i.test(normalized) ||
+    /\bwhat\s+(?:was\s+that\s+clinic|is\s+that\s+clinic\s+called|'s\s+that\s+clinic\s+called)\b/i.test(normalized) ||
+    /\b(?:which\s+clinic|what\s+clinic|what\s+is\s+the\s+name\s+of\s+the\s+clinic|what\s+do\s+they\s+specialize\s+in|specialty)\b/i.test(normalized)
+  );
+}
+
+export function isSisterSpecialistQuery(normalized: string): boolean {
+  return (
+    /\bwho\s+(?:is\s+the\s+(?:doctor|specialist|dentist|surgeon)|handles?\s+(?:the\s+)?(?:implant|root\s+canal|aligner|wisdom\s+tooth|consultation|treatment|this|surgery)|does\s+(?:implants?|root\s+canals?|aligners?|wisdom\s+teeth|this|surgery)(?:\s+there)?|would\s+(?:i\s+see|perform\s+(?:the\s+)?consultation)|specializes\s+in\s+this|should\s+i\s+ask\s+for)\b/i.test(normalized) ||
+    /\b(?:which|what)\s+(?:doctor|dentist|specialist|surgeon)\s+(?:handles?|does|would\s+i\s+see)\b/i.test(normalized) ||
+    /\bwho\s+would\s+i\s+see(?:\s+there)?\b/i.test(normalized) ||
+    /\bwho\s+is\s+the\s+(?:doctor|specialist|dentist|surgeon)(?:\s+there)?\b/i.test(normalized) ||
+    /\bwho\s+handles\s+this(?:\s+at\s+that\s+clinic)?\b/i.test(normalized) ||
+    /\b(?:doctor|specialist|dentist|surgeon)\s+name\b/i.test(normalized) ||
+    /\btell\s+me\s+about\s+the\s+(?:doctor|specialist|dentist|surgeon)\b/i.test(normalized)
+  );
+}
+
+export function isSisterPracticeQuery(rawInput: string): boolean {
+  if (isLifeThreateningDentalEmergency(rawInput)) {
+    return false;
+  }
+  const normalized = rawInput.toLowerCase().replace(/[?!,.]/g, ' ').replace(/\s+/g, ' ').trim();
   if (/\b(lumina|this clinic|here|current clinic)\b/i.test(normalized)) {
     return false;
   }
   return (
     /\b(where\s+(?:are\s+they|is\s+(?:that|it|the\s+clinic)|are\s+they\s+located)|what\s+is\s+their\s+address|location|address)\b/i.test(normalized) ||
-    /\b(who\s+is\s+the\s+(?:doctor|specialist|dentist|surgeon)|tell\s+me\s+about\s+the\s+(?:doctor|specialist|dentist)|doctor\s+name|specialist\s+name)\b/i.test(normalized) ||
+    isSisterSpecialistQuery(normalized) ||
     /\b(what('?s| is) their (?:phone|number)|phone\s*number|how (?:do|can) i call|how (?:do|can) i contact|how (?:do|can) i reach)\b/i.test(normalized) ||
     /\b(when\s+are\s+they\s+open|their\s+hours|what\s+time\s+do\s+they\s+close|what\s+are\s+their\s+hours|opening\s+hours)\b/i.test(normalized) ||
-    /\b(which\s+clinic|what\s+clinic|what\s+is\s+the\s+name\s+of\s+the\s+clinic|what\s+do\s+they\s+specialize\s+in|specialty)\b/i.test(normalized) ||
+    isSisterClinicNameQuery(normalized) ||
     /\b(tell\s+me\s+about\s+(?:them|it|the\s+other\s+clinic|the\s+sister\s+clinic|apex|zenith|radiance)|tell\s+me\s+more(?:\s+first)?|what\s+do\s+you\s+mean)\b/i.test(normalized)
   );
 }
@@ -458,6 +483,8 @@ export class AppointmentStateMachine {
     // nor queries specifically directed at the sister clinic recommendation
     const isSisterQuery =
       session.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED &&
+      Boolean(session.pendingRecommendation) &&
+      !isLifeThreateningDentalEmergency(rawInput) &&
       isSisterPracticeQuery(rawInput);
 
     const isSimpleConfirmTurn =
@@ -642,6 +669,7 @@ export class AppointmentStateMachine {
       const rec = session.pendingRecommendation;
       const clinicProfile = getClinicKnowledge(businessId);
       const currentClinicName = clinicProfile?.businessName || 'our clinic';
+      const normalizedInput = rawInput.toLowerCase().replace(/[?!,.]/g, ' ').replace(/\s+/g, ' ').trim();
 
       if (!rec) {
         const updated = await this.sessionStore.updateSession(sessionId, {
@@ -719,16 +747,25 @@ export class AppointmentStateMachine {
       }
 
       // 2b. Doctor / Specialist
-      if (
-        /\b(who\s+is\s+the\s+(?:doctor|specialist|dentist|surgeon)|tell\s+me\s+about\s+the\s+(?:doctor|specialist|dentist)|doctor\s+name|specialist\s+name)\b/i.test(rawInput)
-      ) {
+      if (isSisterSpecialistQuery(normalizedInput)) {
+        const candidateKnowledge = getClinicKnowledge(rec.candidateBusinessId);
+        const doctor = candidateKnowledge?.doctors?.find(
+          (d) =>
+            (rec.recommendedSpecialistId && d.staffId === rec.recommendedSpecialistId) ||
+            d.name === rec.recommendedSpecialistName
+        );
+        const roleTitle = doctor?.title;
+        const specialistDisplay = roleTitle
+          ? `${rec.recommendedSpecialistName}, ${roleTitle}`
+          : rec.recommendedSpecialistName || 'their specialist';
+
         const specialistPart = rec.recommendedSpecialistName
-          ? `${rec.recommendedSpecialistName} is the specialist for ${rec.recommendedServiceName.toLowerCase()} at ${rec.candidateClinicName}.`
-          : `${rec.candidateClinicName} has specialized practitioners offering ${rec.recommendedServiceName.toLowerCase()}.`;
+          ? `At ${rec.candidateClinicName}, ${rec.recommendedServiceName} is handled by ${specialistDisplay}.`
+          : `${rec.candidateClinicName} has specialized practitioners offering ${rec.recommendedServiceName}.`;
         return {
           response: {
             success: true,
-            response: `${specialistPart} Would you like more information about this clinic, or would you prefer options here at ${currentClinicName}?`,
+            response: `${specialistPart} Would you like more information about this clinic, or would you prefer options at ${currentClinicName}?`,
             action: AIAction.NONE,
             intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
             sessionId,
@@ -777,12 +814,13 @@ export class AppointmentStateMachine {
 
       // 2e. Clinic Name / Specialty / What do you mean / Tell me more first
       if (
-        /\b(which\s+clinic|what\s+clinic|what\s+is\s+the\s+name\s+of\s+the\s+clinic|what\s+do\s+they\s+specialize\s+in|specialty|what\s+do\s+you\s+mean|tell\s+me\s+more\s+first)\b/i.test(rawInput)
+        isSisterClinicNameQuery(normalizedInput) ||
+        /\b(what\s+do\s+you\s+mean|tell\s+me\s+more\s+first)\b/i.test(rawInput)
       ) {
         return {
           response: {
             success: true,
-            response: `${rec.candidateClinicName}. They specialize in ${rec.candidateSpecialty.toLowerCase()} and offer ${rec.recommendedServiceName}. Would you like more details about them, or would you prefer options at ${currentClinicName}?`,
+            response: `The recommended clinic is ${rec.candidateClinicName}. They specialize in ${rec.candidateSpecialty.toLowerCase()} and offer ${rec.recommendedServiceName}. Would you like more details about them, or would you prefer options at ${currentClinicName}?`,
             action: AIAction.NONE,
             intent: AIIntent.DENTAL_SYMPTOM_INQUIRY,
             sessionId,

@@ -19,6 +19,7 @@ import {
   sessionStore,
   appointmentStateMachine,
   AppointmentStateMachine,
+  isSisterPracticeQuery,
 } from '../conversation';
 import {
   getClinicKnowledge,
@@ -112,10 +113,16 @@ export class AIReceptionistService {
       activeSession.step !== BookingConversationStep.BOOKING_CANCELLED
     ) {
       // Check for mid-flow informational interruptions (e.g. "What services do you offer?")
+      const isSisterQuery =
+        activeSession.step === BookingConversationStep.NETWORK_RECOMMENDATION_OFFERED &&
+        Boolean(activeSession.pendingRecommendation) &&
+        isSisterPracticeQuery(trimmedMessage);
+
       const sideMatch = FastIntentRouter.routeIntent(trimmedMessage, businessId);
       if (
         sideMatch.intent === AIIntent.SERVICE_INFORMATION &&
-        activeSession.step !== BookingConversationStep.BOOKING_COLLECT_SERVICE
+        activeSession.step !== BookingConversationStep.BOOKING_COLLECT_SERVICE &&
+        !isSisterQuery
       ) {
         const toolRes = await this.toolRouter.executeTool({
           tool: 'get_services',
